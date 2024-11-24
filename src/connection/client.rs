@@ -2,6 +2,14 @@ use super::{response, Connection};
 use crate::node_service::NodeService;
 
 pub struct Client;
+
+impl Client {
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
 impl Connection for Client {
     fn handle_ping(&self) -> response::Ping {
         response::Ping::Pong
@@ -18,7 +26,7 @@ impl Connection for Client {
         todo!()
     }
 
-    fn handle_set<N>(&self, node: N)
+    fn handle_set<N>(&self, key: String, value: String, node: N) -> response::Set
     where
         N: NodeService,
     {

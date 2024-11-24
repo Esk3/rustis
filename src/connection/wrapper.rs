@@ -26,7 +26,7 @@ impl Connection for ConnectionKind {
         todo!()
     }
 
-    fn handle_set<N>(&self, node: N)
+    fn handle_set<N>(&self, key: String, value: String, node: N) -> response::Set
     where
         N: NodeService,
     {
