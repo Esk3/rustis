@@ -4,5 +4,6 @@ pub struct Response {
 }
 
 pub enum Kind {
-    Get { value: String },
+    Get { value: Option<String> },
+    Set,
 }

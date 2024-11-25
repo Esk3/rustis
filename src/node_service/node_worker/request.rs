@@ -4,5 +4,12 @@ pub struct Request {
 }
 
 pub enum Kind {
-    Get { key: String },
+    Get {
+        key: String,
+    },
+    Set {
+        key: String,
+        value: String,
+        expiry: Option<std::time::Duration>,
+    },
 }

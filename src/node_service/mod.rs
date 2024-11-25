@@ -1,15 +1,30 @@
 pub mod node_worker;
 
 pub trait NodeService {
-    fn get(&self, key: String) -> Result<String, ()>;
+    fn get(&self, key: String) -> Result<Option<String>, ()>;
+    fn set(&self, key: String, value: String) -> Result<(), ()>;
+    fn wait(&self, count: usize) -> Result<(), ()>;
 }
 
 #[cfg(test)]
-pub struct DummyService;
+pub mod tests {
+    pub mod dymmy_service {
+        use crate::node_service::NodeService;
 
-#[cfg(test)]
-impl NodeService for DummyService {
-    fn get(&self, key: String) -> Result<String, ()> {
-        Ok(format!("dummy response for key {key}"))
+        pub struct AlwaysOk;
+
+        impl NodeService for AlwaysOk {
+            fn get(&self, key: String) -> Result<Option<String>, ()> {
+                Ok(format!("dummy response for key {key}").into())
+            }
+
+            fn set(&self, _key: String, _value: String) -> Result<(), ()> {
+                Ok(())
+            }
+
+            fn wait(&self, _count: usize) -> Result<(), ()> {
+                Ok(())
+            }
+        }
     }
 }

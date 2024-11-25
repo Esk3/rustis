@@ -24,62 +24,93 @@ pub trait Connection {
 mod tests {
     use super::*;
 
-    macro_rules! test_connection_method {
+    macro_rules! helper {
         ($conn:ty, $method:ident,  $expected:expr, $($y:expr),*) => {
             let conn = <$conn>::new();
             let result = conn.$method($($y),*);
             assert_eq!(result, $expected);
         };
+    }
 
-        (echo: $conn:ty, $arg:expr, $expected:expr) => {
-            test_connection_method!(
+    mod ping {
+        use crate::connection::client;
+
+        macro_rules! ping_helper {
+            (ping: $conn:ty, $expected:expr) => {
+                helper!($conn, handle_ping, $expected,);
+            };
+            (ok: $conn:ty) => {
+                ping_helper!(ping: $conn, Ping::Pong);
+            };
+            (null: $conn:ty) => {
+                ping_helper!(ping: $conn, Ping::Null);
+            };
+        }
+        #[test]
+        fn client() {
+            use crate::connection::response::Ping;
+            use crate::connection::Connection;
+            ping_helper!(ok: client::Client);
+        }
+        #[test]
+        fn follower() {}
+        #[test]
+        fn leader() {}
+    }
+
+    mod echo {
+        use crate::connection::{follower, leader, response::Echo};
+
+        use super::{client, Connection};
+
+        macro_rules! echo_helper {
+            (echo: $conn:ty, $arg:expr, $expected:expr) => {
+                helper!(
                     $conn,
                     handle_echo,
                     $expected,
                     $arg.to_string()
                 );
-        };
-        (echo ok: $conn:ty, $arg:expr) => { test_connection_method!(echo: $conn, $arg, Echo::Echo($arg.to_string()))};
-        (echo null: $conn:ty, $arg:expr) => { test_connection_method!(echo: $conn, $arg, Echo::Null($arg.to_string()))};
+            };
+            (ok: $conn:ty, $arg:expr) => { echo_helper!(echo: $conn, $arg, Echo::Echo($arg.to_string()))};
+            (null: $conn:ty, $arg:expr) => { echo_helper!(echo: $conn, $arg, Echo::Null($arg.to_string()))};
+        }
 
+        #[test]
+        fn client() {
+            echo_helper!(ok: client::Client, "hello world");
+            echo_helper!(ok: client::Client, "abc");
+        }
+
+        #[test]
+        fn follower() {
+            echo_helper!(null: follower::Follower, "hello world");
+            echo_helper!(null: follower::Follower, "abc");
+        }
+
+        #[test]
+        fn leader() {
+            echo_helper!(null: leader::Leader, "hello world");
+            echo_helper!(null: follower::Follower, "abc");
+        }
     }
 
-    mod echo {
+    mod set {
         use crate::{
-            connection::{
-                follower, leader,
-                response::{self, Echo},
-            },
-            node_service::DummyService,
+            connection::{client, response, Connection},
+            node_service::tests::dymmy_service,
         };
-
-        use super::{client, Connection};
 
         #[test]
         fn test_macro() {
-            test_connection_method!(
+            helper!(
                 client::Client,
                 handle_set,
                 response::Set::Ok,
                 "something".to_string(),
                 "other".to_string(),
-                DummyService
+                dymmy_service::AlwaysOk
             );
-        }
-
-        #[test]
-        fn client() {
-            test_connection_method!(echo ok: client::Client, "hello world");
-        }
-
-        #[test]
-        fn follower() {
-            test_connection_method!(echo null: follower::Follower, "hello world");
-        }
-
-        #[test]
-        fn leader() {
-            test_connection_method!(echo null: leader::Leader, "hello world");
         }
     }
 }

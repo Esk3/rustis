@@ -30,7 +30,10 @@ impl Connection for Client {
     where
         N: NodeService,
     {
-        todo!()
+        match node.set(key, value) {
+            Ok(()) => response::Set::Ok,
+            Err(()) => todo!(),
+        }
     }
 
     fn handle_wait<N>(&self, node: N)

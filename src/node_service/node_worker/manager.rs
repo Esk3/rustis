@@ -5,7 +5,7 @@ pub struct NodeManager {
 }
 
 impl crate::node_service::NodeService for NodeManager {
-    fn get(&self, key: String) -> Result<String, ()> {
+    fn get(&self, key: String) -> Result<Option<String>, ()> {
         self.tx
             .send(super::Request {
                 id: self.id,
@@ -16,5 +16,13 @@ impl crate::node_service::NodeService for NodeManager {
         match value.kind {
             super::response::Kind::Get { value } => Ok(value),
         }
+    }
+
+    fn set(&self, key: String, value: String) -> Result<(), ()> {
+        todo!()
+    }
+
+    fn wait(&self, count: usize) -> Result<(), ()> {
+        todo!()
     }
 }
