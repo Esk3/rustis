@@ -5,6 +5,11 @@ pub struct Repository<K = String, V = String> {
 }
 
 impl Repository {
+    pub fn new() -> Self {
+        Self {
+            kv_store: KvStore::new(),
+        }
+    }
     pub fn get(&mut self, key: String, timestamp: &std::time::SystemTime) -> Option<&String> {
         self.kv_store.get(key, timestamp)
     }
@@ -28,9 +33,16 @@ impl<K, V> KvStore<K, V>
 where
     K: Hash + PartialEq + Eq,
 {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            store: HashMap::new(),
+            expiries: HashMap::new(),
+        }
+    }
     pub fn get(&mut self, key: K, timestamp: &std::time::SystemTime) -> Option<&V> {
         match self.expiries.entry(key) {
-            std::collections::hash_map::Entry::Occupied(timeout) if timeout.get() < timestamp => {
+            std::collections::hash_map::Entry::Occupied(timeout) if timeout.get() > timestamp => {
                 let key = timeout.key();
                 self.store.get(key)
             }

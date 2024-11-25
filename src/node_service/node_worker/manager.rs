@@ -15,6 +15,7 @@ impl crate::node_service::NodeService for NodeManager {
         let value = self.rx.recv().unwrap();
         match value.kind {
             super::response::Kind::Get { value } => Ok(value),
+            super::response::Kind::Set => todo!(),
         }
     }
 
