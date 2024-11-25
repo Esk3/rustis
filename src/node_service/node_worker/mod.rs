@@ -1,15 +1,14 @@
 pub mod manager;
-pub mod request;
-pub mod response;
+pub mod message;
 pub mod worker;
 
-pub use request::Request;
-pub use response::Response;
+pub use message::Kind;
+pub use message::Message;
 
 #[must_use]
-pub fn run(node: crate::node::Node, repo: crate::repository::Repository) -> manager::NodeManager {
+pub fn run(node: crate::node::Node, repo: crate::repository::Repository) -> manager::ClientManager {
     let (tx, rx) = std::sync::mpsc::channel();
     let worker = worker::NodeWorker::new(node, repo, rx);
     std::thread::spawn(|| worker.run());
-    manager::NodeManager::join(tx)
+    manager::ClientManager::join(tx)
 }

@@ -1,21 +1,23 @@
-pub struct NodeManager {
+use super::{Kind, Message};
+
+pub struct ClientManager {
     id: usize,
-    tx: std::sync::mpsc::Sender<super::Request>,
-    rx: std::sync::mpsc::Receiver<super::Response>,
+    tx: std::sync::mpsc::Sender<Message>,
+    rx: std::sync::mpsc::Receiver<Message>,
 }
 
-impl NodeManager {
+impl ClientManager {
     #[must_use]
-    pub fn join(worker_tx: std::sync::mpsc::Sender<super::Request>) -> Self {
+    pub fn join(worker_tx: std::sync::mpsc::Sender<Message>) -> Self {
         let (manager_tx, manager_rx) = std::sync::mpsc::channel();
-        let request = super::Request {
+        let request = Message {
             id: 0,
-            kind: super::request::Kind::NewConnection { tx: manager_tx },
+            kind: Kind::NewConnection { tx: manager_tx },
         };
         worker_tx.send(request).unwrap();
         let res = manager_rx.recv().unwrap();
         match res.kind {
-            crate::node_service::node_worker::response::Kind::NewConnection { id } => Self {
+            Kind::NewConnectionResponse { id } => Self {
                 id,
                 tx: worker_tx,
                 rx: manager_rx,
@@ -24,42 +26,43 @@ impl NodeManager {
         }
     }
 
-    fn send(
-        &self,
-        kind: super::request::Kind,
-    ) -> Result<(), std::sync::mpsc::SendError<super::Request>> {
-        self.tx.send(super::Request { id: self.id, kind })
+    fn send(&self, kind: Kind) -> Result<(), std::sync::mpsc::SendError<Message>> {
+        self.tx.send(Message { id: self.id, kind })
     }
 
-    fn recive(&self) -> Result<super::response::Kind, std::sync::mpsc::RecvError> {
+    fn recive(&self) -> Result<Kind, std::sync::mpsc::RecvError> {
         self.rx.recv().map(|res| res.kind)
     }
 }
 
-impl crate::node_service::NodeService for NodeManager {
+impl crate::node_service::NodeService for ClientManager {
     fn get(&self, key: String) -> Result<Option<String>, ()> {
         self.tx
-            .send(super::Request {
+            .send(Message {
                 id: self.id,
-                kind: super::request::Kind::Get { key },
+                kind: Kind::Get { key },
             })
             .unwrap();
         let value = self.rx.recv().unwrap();
         match value.kind {
-            super::response::Kind::Get { value } => Ok(value),
-            super::response::Kind::Set => todo!(),
-            super::response::Kind::NewConnection { id } => todo!(),
+            Kind::GetResponse { value } => Ok(value),
+            Kind::SetResponse => todo!(),
+            Kind::NewConnectionResponse { id } => todo!(),
+            Kind::Get { key } => todo!(),
+            Kind::Set { key, value, expiry } => todo!(),
+            Kind::ReplicateSet { key, value, expiry } => todo!(),
+            Kind::NewConnection { tx } => todo!(),
         }
     }
 
     fn set(&self, key: String, value: String) -> Result<(), ()> {
-        self.send(super::request::Kind::Set {
+        self.send(Kind::Set {
             key,
             value,
             expiry: None,
         })
         .unwrap();
-        let Ok(super::response::Kind::Set) = self.recive() else {
+        let Ok(Kind::SetResponse) = self.recive() else {
             panic!();
         };
         Ok(())
@@ -70,10 +73,16 @@ impl crate::node_service::NodeService for NodeManager {
     }
 }
 
-impl Clone for NodeManager {
+impl Clone for ClientManager {
     fn clone(&self) -> Self {
         Self::join(self.tx.clone())
     }
+}
+
+pub struct FollowerManager {
+    id: usize,
+    tx: std::sync::mpsc::Sender<Message>,
+    rx: std::sync::mpsc::Receiver<Message>,
 }
 
 #[cfg(test)]
@@ -85,7 +94,7 @@ mod tests {
 
     use super::*;
 
-    fn init() -> NodeManager {
+    fn init() -> ClientManager {
         node_worker::run(crate::node::Node, Repository::new())
     }
 

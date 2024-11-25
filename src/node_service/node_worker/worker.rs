@@ -1,15 +1,15 @@
-use std::{collections::HashMap, sync};
+use std::collections::HashMap;
 
 use crate::{node::Node, repository::Repository};
 
-use super::{request, response};
+use super::{Kind, Message};
 
 pub struct NodeWorker {
     node: Node,
     repo: Repository,
-    rx: std::sync::mpsc::Receiver<super::Request>,
-    clients: HashMap<usize, std::sync::mpsc::Sender<super::Response>>,
-    followers: HashMap<usize, std::sync::mpsc::Sender<super::Response>>,
+    rx: std::sync::mpsc::Receiver<Message>,
+    clients: HashMap<usize, std::sync::mpsc::Sender<Message>>,
+    followers: HashMap<usize, std::sync::mpsc::Sender<Message>>,
     next_id: usize,
 }
 
@@ -18,7 +18,7 @@ impl NodeWorker {
     pub(super) fn new(
         node: Node,
         repo: Repository,
-        rx: std::sync::mpsc::Receiver<super::Request>,
+        rx: std::sync::mpsc::Receiver<Message>,
     ) -> Self {
         Self {
             node,
@@ -30,14 +30,14 @@ impl NodeWorker {
         }
     }
     pub fn run(mut self) {
-        for super::Request { id, kind } in self.rx {
+        for Message { id, kind } in self.rx {
             let kind = match kind {
-                request::Kind::Get { key } => {
+                Kind::Get { key } => {
                     let value =
                         Node::get(key, &mut self.repo, &std::time::SystemTime::now()).cloned();
-                    response::Kind::Get { value }
+                    Kind::GetResponse { value }
                 }
-                request::Kind::Set { key, value, expiry } => {
+                Kind::Set { key, value, expiry } => {
                     Node::set(
                         key,
                         value,
@@ -45,13 +45,13 @@ impl NodeWorker {
                         expiry,
                         &std::time::SystemTime::now(),
                     );
-                    response::Kind::Set
+                    Kind::SetResponse
                 }
-                request::Kind::NewConnection { tx } => {
+                Kind::NewConnection { tx } => {
                     if tx
-                        .send(super::Response {
+                        .send(Message {
                             id: self.next_id,
-                            kind: response::Kind::NewConnection { id: self.next_id },
+                            kind: Kind::NewConnectionResponse { id: self.next_id },
                         })
                         .is_err()
                     {
@@ -61,20 +61,24 @@ impl NodeWorker {
                     self.next_id += 1;
                     continue;
                 }
+                Kind::GetResponse { value } => todo!(),
+                Kind::ReplicateSet { key, value, expiry } => todo!(),
+                Kind::SetResponse => todo!(),
+                Kind::NewConnectionResponse { id } => todo!(),
             };
 
-            let response = super::Response { id, kind };
+            let response = Message { id, kind };
             Self::send_or_remove_response(id, response, &mut self.clients);
         }
     }
 
     fn send_or_remove_response(
         id: usize,
-        response: super::Response,
-        clients: &mut HashMap<usize, std::sync::mpsc::Sender<super::response::Response>>,
+        message: Message,
+        clients: &mut HashMap<usize, std::sync::mpsc::Sender<Message>>,
     ) {
         if let std::collections::hash_map::Entry::Occupied(entry) = clients.entry(id) {
-            if let Err(_) = entry.get().send(response) {
+            if let Err(_) = entry.get().send(message) {
                 entry.remove();
             }
         }
