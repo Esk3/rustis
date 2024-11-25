@@ -1,49 +1,75 @@
-use super::{response, Connection};
-use crate::node_service::NodeService;
+use crate::node_service::ClientService;
 
-pub struct Client;
+pub struct Client<S> {
+    service: S,
+}
 
-impl Client {
+impl<S> Client<S>
+where
+    S: ClientService,
+{
     #[must_use]
-    pub fn new() -> Self {
-        Self
+    pub fn new(service: S) -> Self {
+        Self { service }
+    }
+
+    pub fn handle_echo(&self, echo: String) -> String {
+        echo
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn handle_get(&self, key: impl ToString) -> Result<Option<String>, ()> {
+        match self.service.get(key.to_string()) {
+            Ok(Some(value)) => Ok(Some(value)),
+            Ok(None) => Ok(None),
+            Err(()) => Err(()),
+        }
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn handle_set(&self, key: impl ToString, value: impl ToString) -> Result<(), ()> {
+        match self.service.set(key.to_string(), value.to_string()) {
+            Ok(()) => Ok(()),
+            Err(()) => Err(()),
+        }
+    }
+
+    pub fn handle_wait(&self) {
+        todo!()
     }
 }
 
-impl Connection for Client {
-    fn handle_ping(&self) -> response::Ping {
-        response::Ping::Pong
+#[cfg(test)]
+mod tests {
+    use crate::{
+        node_service::{node_worker, tests::dymmy_service::AlwaysOk},
+        repository::Repository,
+    };
+
+    use super::*;
+    #[test]
+    fn get_always_ok() {
+        let c = Client::new(AlwaysOk);
+        c.handle_get("abc").unwrap().unwrap();
     }
 
-    fn handle_echo(&self, echo: String) -> response::Echo {
-        response::Echo::Echo(echo)
+    #[test]
+    fn empty_get_is_none() {
+        let manager = node_worker::run(crate::node::Node, Repository::new());
+        let c = Client::new(manager);
+        assert!(c.handle_get("abc").unwrap().is_none());
     }
 
-    fn handle_get<N>(&self, key: String, node: N) -> response::Get<String>
-    where
-        N: NodeService,
-    {
-        match node.get(key) {
-            Ok(Some(value)) => response::Get::Value(value),
-            Ok(None) => response::Get::NotFound,
-            Err(()) => todo!(),
-        }
-    }
-
-    fn handle_set<N>(&self, key: String, value: String, node: N) -> response::Set
-    where
-        N: NodeService,
-    {
-        match node.set(key, value) {
-            Ok(()) => response::Set::Ok,
-            Err(()) => todo!(),
-        }
-    }
-
-    fn handle_wait<N>(&self, node: N)
-    where
-        N: NodeService,
-    {
-        todo!()
+    #[test]
+    fn get_some() {
+        let manager = node_worker::run(crate::node::Node, Repository::new());
+        let c = Client::new(manager);
+        let key = "abc";
+        let value = "xyz";
+        c.handle_set(key.to_string(), value.to_string());
+        assert_eq!(
+            c.handle_get(key.to_string()).unwrap().unwrap(),
+            value.to_string()
+        );
     }
 }

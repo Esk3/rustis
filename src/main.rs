@@ -1,6 +1,6 @@
 use std::net::{TcpListener, TcpStream};
 
-use rustis::connection::{client::Client, Connection};
+use rustis::connection::client::Client;
 
 fn main() {
     let addr = "127.0.0.1:6379";

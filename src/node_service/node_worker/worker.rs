@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{clone, collections::HashMap};
 
 use crate::{node::Node, repository::Repository};
 
@@ -39,12 +39,22 @@ impl NodeWorker {
                 }
                 Kind::Set { key, value, expiry } => {
                     Node::set(
-                        key,
-                        value,
+                        key.clone(),
+                        value.clone(),
                         &mut self.repo,
                         expiry,
                         &std::time::SystemTime::now(),
                     );
+                    for follower in self.followers.values() {
+                        follower.send(Message {
+                            id: 0,
+                            kind: Kind::Set {
+                                key: key.clone(),
+                                value: value.clone(),
+                                expiry,
+                            },
+                        });
+                    }
                     Kind::SetResponse
                 }
                 Kind::NewConnection { tx } => {

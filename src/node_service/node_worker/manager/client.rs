@@ -1,4 +1,6 @@
-use super::{Kind, Message};
+use crate::node_service::ClientService;
+
+use super::super::{Kind, Message};
 
 pub struct ClientManager {
     id: usize,
@@ -35,7 +37,7 @@ impl ClientManager {
     }
 }
 
-impl crate::node_service::NodeService for ClientManager {
+impl ClientService for ClientManager {
     fn get(&self, key: String) -> Result<Option<String>, ()> {
         self.tx
             .send(Message {
@@ -79,18 +81,9 @@ impl Clone for ClientManager {
     }
 }
 
-pub struct FollowerManager {
-    id: usize,
-    tx: std::sync::mpsc::Sender<Message>,
-    rx: std::sync::mpsc::Receiver<Message>,
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{
-        node_service::{node_worker, NodeService},
-        repository::Repository,
-    };
+    use crate::{node_service::node_worker, repository::Repository};
 
     use super::*;
 
