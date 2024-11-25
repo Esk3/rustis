@@ -23,7 +23,11 @@ impl Connection for Client {
     where
         N: NodeService,
     {
-        todo!()
+        match node.get(key) {
+            Ok(Some(value)) => response::Get::Value(value),
+            Ok(None) => response::Get::NotFound,
+            Err(()) => todo!(),
+        }
     }
 
     fn handle_set<N>(&self, key: String, value: String, node: N) -> response::Set

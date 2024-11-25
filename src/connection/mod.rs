@@ -95,6 +95,31 @@ mod tests {
         }
     }
 
+    mod get {
+        use crate::{connection::response, node_service};
+
+        use super::{client, Connection};
+
+        #[test]
+        fn ok_when_value_found() {
+            let client = client::Client::new();
+            let node = node_service::tests::dymmy_service::AlwaysOk;
+            let response = client.handle_get("hello world".to_string(), node);
+            assert_eq!(
+                response,
+                response::Get::Value("dummy response for key hello world".to_string())
+            );
+        }
+
+        #[test]
+        fn not_found_when_missing() {
+            let client = client::Client::new();
+            let node = node_service::tests::dymmy_service::NotFound;
+            let response = client.handle_get("hello world".to_string(), node);
+            assert_eq!(response, response::Get::NotFound);
+        }
+    }
+
     mod set {
         use crate::{
             connection::{client, response, Connection},

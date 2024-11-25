@@ -26,5 +26,20 @@ pub mod tests {
                 Ok(())
             }
         }
+
+        pub struct NotFound;
+        impl NodeService for NotFound {
+            fn get(&self, _key: String) -> Result<Option<String>, ()> {
+                Ok(None)
+            }
+
+            fn set(&self, _key: String, _value: String) -> Result<(), ()> {
+                Ok(())
+            }
+
+            fn wait(&self, _count: usize) -> Result<(), ()> {
+                Ok(())
+            }
+        }
     }
 }
