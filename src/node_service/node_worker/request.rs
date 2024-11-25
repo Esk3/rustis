@@ -12,4 +12,7 @@ pub enum Kind {
         value: String,
         expiry: Option<std::time::Duration>,
     },
+    NewConnection {
+        tx: std::sync::mpsc::Sender<super::Response>,
+    },
 }

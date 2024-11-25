@@ -6,4 +6,5 @@ pub struct Response {
 pub enum Kind {
     Get { value: Option<String> },
     Set,
+    NewConnection { id: usize },
 }

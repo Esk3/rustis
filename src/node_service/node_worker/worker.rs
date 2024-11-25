@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync};
 
 use crate::{node::Node, repository::Repository};
 
@@ -8,10 +8,27 @@ pub struct NodeWorker {
     node: Node,
     repo: Repository,
     rx: std::sync::mpsc::Receiver<super::Request>,
-    clients: HashMap<usize, std::sync::mpsc::Sender<super::response::Response>>,
+    clients: HashMap<usize, std::sync::mpsc::Sender<super::Response>>,
+    followers: HashMap<usize, std::sync::mpsc::Sender<super::Response>>,
+    next_id: usize,
 }
 
 impl NodeWorker {
+    #[must_use]
+    pub(super) fn new(
+        node: Node,
+        repo: Repository,
+        rx: std::sync::mpsc::Receiver<super::Request>,
+    ) -> Self {
+        Self {
+            node,
+            repo,
+            rx,
+            clients: HashMap::new(),
+            followers: HashMap::new(),
+            next_id: 0,
+        }
+    }
     pub fn run(mut self) {
         for super::Request { id, kind } in self.rx {
             let kind = match kind {
@@ -29,6 +46,20 @@ impl NodeWorker {
                         &std::time::SystemTime::now(),
                     );
                     response::Kind::Set
+                }
+                request::Kind::NewConnection { tx } => {
+                    if tx
+                        .send(super::Response {
+                            id: self.next_id,
+                            kind: response::Kind::NewConnection { id: self.next_id },
+                        })
+                        .is_err()
+                    {
+                        continue;
+                    }
+                    self.clients.insert(self.next_id, tx);
+                    self.next_id += 1;
+                    continue;
                 }
             };
 
