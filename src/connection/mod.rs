@@ -20,8 +20,8 @@ where
     C: ClientService,
 {
     #[must_use]
-    pub fn new() -> Self {
-        todo!()
+    pub fn new(kind: ConnectionKind<C>, io: IO) -> Self {
+        Self { io, kind }
     }
     pub fn run(mut self) {
         match self.kind {
@@ -29,9 +29,9 @@ where
                 let request = self.io.get_request().unwrap();
                 let response = match request {
                     request::Request::Ping => response::Response::Pong,
-                    request::Request::Echo => todo!(),
-                    request::Request::Get => todo!(),
-                    request::Request::Set => todo!(),
+                    request::Request::Echo(_) => todo!(),
+                    request::Request::Get(_) => todo!(),
+                    request::Request::Set { .. } => todo!(),
                 };
                 self.io.send_response(response).unwrap();
             }

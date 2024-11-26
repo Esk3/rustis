@@ -48,7 +48,7 @@ impl NodeWorker {
                     for follower in self.followers.values() {
                         follower.send(Message {
                             id: 0,
-                            kind: Kind::Set {
+                            kind: Kind::ReplicateSet {
                                 key: key.clone(),
                                 value: value.clone(),
                                 expiry,
@@ -75,6 +75,18 @@ impl NodeWorker {
                 Kind::ReplicateSet { key, value, expiry } => todo!(),
                 Kind::SetResponse => todo!(),
                 Kind::NewConnectionResponse { id } => todo!(),
+                Kind::ToFollower => {
+                    let follower = self.clients.remove(&id).unwrap();
+                    follower
+                        .send(Message {
+                            id,
+                            kind: Kind::ToFollowerOk,
+                        })
+                        .unwrap();
+                    self.followers.insert(id, follower);
+                    continue;
+                }
+                Kind::ToFollowerOk => todo!(),
             };
 
             let response = Message { id, kind };

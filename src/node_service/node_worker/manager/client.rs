@@ -28,6 +28,14 @@ impl ClientManager {
         }
     }
 
+    #[must_use]
+    pub fn into_follower(self) -> super::FollowerManager {
+        self.send(Kind::ToFollower).unwrap();
+        let response = self.recive().unwrap();
+        assert_eq!(response, Kind::ToFollowerOk);
+        super::FollowerManager::new(self.id, self.tx, self.rx)
+    }
+
     fn send(&self, kind: Kind) -> Result<(), std::sync::mpsc::SendError<Message>> {
         self.tx.send(Message { id: self.id, kind })
     }
@@ -54,6 +62,8 @@ impl ClientService for ClientManager {
             Kind::Set { key, value, expiry } => todo!(),
             Kind::ReplicateSet { key, value, expiry } => todo!(),
             Kind::NewConnection { tx } => todo!(),
+            Kind::ToFollower => todo!(),
+            Kind::ToFollowerOk => todo!(),
         }
     }
 

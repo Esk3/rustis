@@ -1,0 +1,32 @@
+---
+source: src/resp/decoder/mod.rs
+expression: x
+---
+Array(
+    [
+        String(
+            "TheSimple start",
+        ),
+        Array(
+            [
+                String(
+                    "Abc",
+                ),
+                Buf(
+                    [
+                        104,
+                        105,
+                    ],
+                ),
+            ],
+        ),
+        Buf(
+            [
+                108,
+                97,
+                115,
+                116,
+            ],
+        ),
+    ],
+)

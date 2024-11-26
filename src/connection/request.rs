@@ -1,6 +1,10 @@
 pub enum Request {
     Ping,
-    Echo,
-    Get,
-    Set,
+    Echo(String),
+    Get(String),
+    Set {
+        key: String,
+        value: String,
+        exp: Option<std::time::Duration>,
+    },
 }
