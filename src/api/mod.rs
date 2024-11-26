@@ -31,14 +31,14 @@ impl<R, W> Api<R, W> {
         let Value::Array(mut array) = token else {
             panic!()
         };
-        if array[0] == "ping" {
+        if array[0].eq_ignore_ascii_case("ping") {
             Ok(request::Request::Ping)
-        } else if array[0] == "echo" {
+        } else if array[0].eq_ignore_ascii_case("echo") {
             let echo = array.swap_remove(1).into_string().unwrap();
             Ok(request::Request::Echo(echo))
-        } else if array[0] == "get" {
+        } else if array[0].eq_ignore_ascii_case("get") {
             todo!()
-        } else if array[0] == "set" {
+        } else if array[0].eq_ignore_ascii_case("set") {
             todo!()
         } else {
             Err(())
@@ -52,12 +52,19 @@ where
     W: std::io::Write,
 {
     fn get_request(&mut self) -> Result<crate::connection::request::Request, ()> {
-        let token = decoder::decode_value(&mut self.r).unwrap();
+        let (token, bytes_read) = decoder::decode_value(&mut self.r).unwrap();
         Self::parse_token(token)
     }
 
     fn send_response(&mut self, response: crate::connection::response::Response) -> Result<(), ()> {
-        todo!()
+        match response {
+            crate::connection::response::Response::Ok => self.w.write_all(b"+Ok\r\n").unwrap(),
+            crate::connection::response::Response::Something(()) => todo!(),
+            crate::connection::response::Response::Null => self.w.write_all(b"*-1\r\n").unwrap(),
+            crate::connection::response::Response::None => (),
+            crate::connection::response::Response::Pong => self.w.write_all(b"+PONG\r\n").unwrap(),
+        };
+        Ok(())
     }
 }
 
@@ -68,12 +75,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
+    fn ping() {
         let mut r = std::io::Cursor::new(Vec::new());
-        r.write_all(b"*1\r\n+Hello world\r\n").unwrap();
+        r.write_all(b"*1\r\n$4\r\nPING\r\n").unwrap();
         r.set_position(0);
         let mut w = std::io::Cursor::new(Vec::new());
         let mut api = Api::new(&mut r, &mut w);
-        let request = api.get_request();
+        let request = api.get_request().unwrap();
+        assert_eq!(request, request::Request::Ping);
     }
 }

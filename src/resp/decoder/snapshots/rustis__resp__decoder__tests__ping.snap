@@ -1,0 +1,5 @@
+---
+source: src/resp/decoder/mod.rs
+expression: x.into_array().unwrap().swap_remove(0).into_string().unwrap()
+---
+PING

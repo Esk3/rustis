@@ -1,20 +1,27 @@
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpListener;
 
-use rustis::connection::client::Client;
+use rustis::{
+    api::Api,
+    connection::{client::Client, Connection},
+    node::Node,
+    node_service::node_worker,
+    repository::Repository,
+};
 
 fn main() {
     let addr = "127.0.0.1:6379";
     let listner = TcpListener::bind(addr).unwrap();
     println!("server listning on: {addr}");
-    //for stream in listner.incoming() {
-    //    let (tx, rx) = std::sync::mpsc::channel();
-    //    let (tx2, rx2) = std::sync::mpsc::channel();
-    //    let conn = Connection::new(
-    //        rx,
-    //        tx2,
-    //        rustis::connection::ConnectionType::Client(Client::new()),
-    //        stream.unwrap(),
-    //    );
-    //    conn.run();
-    //}
+
+    let service = node_worker::run(Node, Repository::new());
+
+    for stream in listner.incoming() {
+        let stream = stream.unwrap();
+        let api = Api::from_tcp_stream(&stream);
+        let conn = Connection::new(
+            rustis::connection::wrapper::ConnectionKind::Client(Client::new(service.clone())),
+            api,
+        );
+        conn.run();
+    }
 }
