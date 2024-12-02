@@ -1,6 +1,6 @@
 use wrapper::ConnectionKind;
 
-use crate::node_service::ClientService;
+use crate::node_service::{ClientService, FollowerService, LeaderService};
 
 pub mod client;
 pub mod follower;
@@ -9,34 +9,44 @@ pub mod request;
 pub mod response;
 pub mod wrapper;
 
-pub struct Connection<IO, C> {
+pub struct Connection<IO, C, F, L> {
     io: IO,
-    kind: ConnectionKind<C>,
+    kind: ConnectionKind<C, F, L>,
 }
 
-impl<IO, C> Connection<IO, C>
+impl<IO, C, F, L> Connection<IO, C, F, L>
 where
     IO: ConnectionInputOutput,
     C: ClientService,
+    F: FollowerService,
+    L: LeaderService,
 {
     #[must_use]
-    pub fn new(kind: ConnectionKind<C>, io: IO) -> Self {
+    pub fn new(kind: ConnectionKind<C, F, L>, io: IO) -> Self {
         Self { io, kind }
     }
+
     pub fn run(mut self) {
-        match self.kind {
-            ConnectionKind::Client(client) => {
-                let request = self.io.get_request().unwrap();
-                let response = match request {
-                    request::Request::Ping => response::Response::Pong,
-                    request::Request::Echo(_) => todo!(),
-                    request::Request::Get(_) => todo!(),
-                    request::Request::Set { .. } => todo!(),
-                };
-                self.io.send_response(response).unwrap();
+        loop {
+            match self.kind {
+                ConnectionKind::Client(ref mut client) => {
+                    let Ok(request) = self.io.get_request() else {
+                        dbg!("err");
+                        break;
+                    };
+                    let response = client.handle_request(request);
+                    self.io.send_response(response).unwrap();
+                }
+                ConnectionKind::Follower(ref follower) => {
+                    let response = follower.get_event();
+                    self.io.send_response(response).unwrap();
+                }
+                ConnectionKind::Leader(mut leader) => {
+                    let request = self.io.get_request().unwrap();
+                    let response = leader.handle_request();
+                    todo!();
+                }
             }
-            ConnectionKind::Follower(_) => todo!(),
-            ConnectionKind::Leader(_) => todo!(),
         }
     }
 }
@@ -48,6 +58,94 @@ pub trait ConnectionInputOutput {
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        node_service::{
+            node_worker::{
+                manager::{ClientManager, FollowerManager, LeaderManager},
+                run,
+            },
+            ClientService,
+        },
+        repository::Repository,
+    };
+
+    use super::{
+        client::Client, request::Request, response::Response, Connection, ConnectionInputOutput,
+    };
+
+    struct MockIo {
+        requests: Vec<Request>,
+        responses: Option<Vec<Response>>,
+    }
+    impl MockIo {
+        fn test_1() -> Self {
+            Self::new_with_res(
+                [
+                    Request::Ping,
+                    Request::Get("some key".to_string()),
+                    Request::Set {
+                        key: "some key".to_string(),
+                        value: "some value".to_string(),
+                        exp: None,
+                    },
+                    Request::Get("some key".to_string()),
+                ],
+                [
+                    Response::SendPong,
+                    Response::SendNull,
+                    Response::SendOk,
+                    Response::SendBulkString("some value".to_string()),
+                ],
+            )
+        }
+        fn new(requests: impl Into<Vec<Request>>) -> Self {
+            Self {
+                requests: requests.into().into_iter().rev().collect(),
+                responses: None,
+            }
+        }
+        fn new_with_res(
+            requests: impl Into<Vec<Request>>,
+            responses: impl Into<Vec<Response>>,
+        ) -> Self {
+            Self {
+                requests: requests.into().into_iter().rev().collect(),
+                responses: Some(responses.into().into_iter().rev().collect()),
+            }
+        }
+    }
+    impl ConnectionInputOutput for MockIo {
+        fn get_request(&mut self) -> Result<super::request::Request, ()> {
+            self.requests.pop().ok_or(()).inspect_err(|()| {
+                self.responses.as_ref().inspect(|res| {
+                    assert!(
+                        res.is_empty(),
+                        "expected more messages but input requests is empty {res:?}",
+                    );
+                });
+            })
+        }
+
+        fn send_response(&mut self, response: super::response::Response) -> Result<(), ()> {
+            if let Some(responses) = &mut self.responses {
+                let expected = responses.pop().unwrap();
+                assert_eq!(response, expected);
+            } else {
+                dbg!(response);
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test() {
+        let manager = run(crate::node::Node, Repository::new());
+        let conn = Connection::<_, ClientManager, FollowerManager, LeaderManager>::new(
+            super::wrapper::ConnectionKind::Client(Client::new(manager.clone())),
+            MockIo::test_1(),
+        );
+        conn.run();
+    }
     //use super::*;
     //
     //macro_rules! helper {

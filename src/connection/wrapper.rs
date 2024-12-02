@@ -1,9 +1,9 @@
 use super::{client::Client, follower::Follower, leader::Leader, response};
 
-pub enum ConnectionKind<C> {
+pub enum ConnectionKind<C, F, L> {
     Client(Client<C>),
-    Follower(Follower),
-    Leader(Leader),
+    Follower(Follower<F>),
+    Leader(Leader<L>),
 }
 
 //impl Connection for ConnectionKind {

@@ -1,6 +1,7 @@
-use crate::node_service::node_worker::{Kind, Message};
-
-use super::ClientManager;
+use crate::node_service::{
+    node_worker::{Kind, Message},
+    FollowerService,
+};
 
 pub struct FollowerManager {
     id: usize,
@@ -19,6 +20,16 @@ impl FollowerManager {
     #[must_use]
     pub fn get_event(&self) -> Kind {
         self.rx.recv().unwrap().kind
+    }
+}
+
+impl FollowerService for FollowerManager {
+    fn get_event_from_node(&self) -> Kind {
+        todo!()
+    }
+
+    fn get_follower_byte_offset(&self) -> Kind {
+        todo!()
     }
 }
 

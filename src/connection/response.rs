@@ -1,8 +1,10 @@
+// TODO: either ResponseWraper struct or have response IntoFollower type variant
 #[derive(Debug, PartialEq, Eq)]
 pub enum Response {
-    Ok,
-    Something(()),
-    Null,
+    SendOk,
+    SendBulkString(String),
+    SendBytes(Vec<u8>),
+    SendNull,
     None,
-    Pong,
+    SendPong,
 }

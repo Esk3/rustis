@@ -36,6 +36,12 @@ impl ClientManager {
         super::FollowerManager::new(self.id, self.tx, self.rx)
     }
 
+    #[must_use]
+    pub fn into_leader(self) -> super::LeaderManager {
+        // maybe send `IntoLeader` message
+        super::LeaderManager::new(self.id, self.tx, self.rx)
+    }
+
     fn send(&self, kind: Kind) -> Result<(), std::sync::mpsc::SendError<Message>> {
         self.tx.send(Message { id: self.id, kind })
     }

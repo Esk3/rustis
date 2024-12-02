@@ -29,6 +29,7 @@ impl NodeWorker {
             next_id: 0,
         }
     }
+
     pub fn run(mut self) {
         for Message { id, kind } in self.rx {
             let kind = match kind {
@@ -100,7 +101,7 @@ impl NodeWorker {
         clients: &mut HashMap<usize, std::sync::mpsc::Sender<Message>>,
     ) {
         if let std::collections::hash_map::Entry::Occupied(entry) = clients.entry(id) {
-            if let Err(_) = entry.get().send(message) {
+            if entry.get().send(message).is_err() {
                 entry.remove();
             }
         }

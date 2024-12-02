@@ -5,6 +5,7 @@ pub struct Repository<K = String, V = String> {
 }
 
 impl Repository {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             kv_store: KvStore::new(),

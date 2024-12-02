@@ -26,6 +26,7 @@ where
         Self { r, w }
     }
 }
+
 impl<R, W> Api<R, W> {
     fn parse_token(token: Value) -> Result<request::Request, ()> {
         let Value::Array(mut array) = token else {
@@ -58,11 +59,16 @@ where
 
     fn send_response(&mut self, response: crate::connection::response::Response) -> Result<(), ()> {
         match response {
-            crate::connection::response::Response::Ok => self.w.write_all(b"+Ok\r\n").unwrap(),
-            crate::connection::response::Response::Something(()) => todo!(),
-            crate::connection::response::Response::Null => self.w.write_all(b"*-1\r\n").unwrap(),
+            crate::connection::response::Response::SendOk => self.w.write_all(b"+Ok\r\n").unwrap(),
+            crate::connection::response::Response::SendBytes(_) => todo!(),
+            crate::connection::response::Response::SendNull => {
+                self.w.write_all(b"*-1\r\n").unwrap();
+            }
             crate::connection::response::Response::None => (),
-            crate::connection::response::Response::Pong => self.w.write_all(b"+PONG\r\n").unwrap(),
+            crate::connection::response::Response::SendPong => {
+                self.w.write_all(b"+PONG\r\n").unwrap();
+            }
+            crate::connection::response::Response::SendBulkString(_) => todo!(),
         };
         Ok(())
     }

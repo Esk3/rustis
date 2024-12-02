@@ -4,7 +4,10 @@ use rustis::{
     api::Api,
     connection::{client::Client, Connection},
     node::Node,
-    node_service::node_worker,
+    node_service::node_worker::{
+        self,
+        manager::{ClientManager, FollowerManager, LeaderManager},
+    },
     repository::Repository,
 };
 
@@ -18,7 +21,7 @@ fn main() {
     for stream in listner.incoming() {
         let stream = stream.unwrap();
         let api = Api::from_tcp_stream(&stream);
-        let conn = Connection::new(
+        let conn = Connection::<_, ClientManager, FollowerManager, LeaderManager>::new(
             rustis::connection::wrapper::ConnectionKind::Client(Client::new(service.clone())),
             api,
         );
