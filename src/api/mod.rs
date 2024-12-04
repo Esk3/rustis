@@ -69,6 +69,7 @@ where
                 self.w.write_all(b"+PONG\r\n").unwrap();
             }
             crate::connection::response::Response::SendBulkString(_) => todo!(),
+            crate::connection::response::Response::SendVec(_) => todo!(),
         };
         Ok(())
     }

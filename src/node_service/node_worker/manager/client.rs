@@ -1,6 +1,9 @@
 use crate::node_service::ClientService;
 
-use super::super::{Kind, Message};
+use super::{
+    super::{Kind, Message},
+    FollowerManager,
+};
 
 pub struct ClientManager {
     id: usize,
@@ -52,6 +55,7 @@ impl ClientManager {
 }
 
 impl ClientService for ClientManager {
+    type F = FollowerManager;
     fn get(&self, key: String) -> Result<Option<String>, ()> {
         self.tx
             .send(Message {
@@ -88,6 +92,13 @@ impl ClientService for ClientManager {
 
     fn wait(&self, count: usize) -> Result<(), ()> {
         todo!()
+    }
+
+    fn into_follower(self) -> Self::F
+    where
+        Self: Sized,
+    {
+        self.into_follower()
     }
 }
 

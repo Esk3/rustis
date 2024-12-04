@@ -1,4 +1,6 @@
-use super::{client::Client, follower::Follower, leader::Leader, response};
+use crate::node_service::{ClientService, FollowerService, LeaderService};
+
+use super::{client::Client, follower::Follower, leader::Leader};
 
 pub enum ConnectionKind<C, F, L> {
     Client(Client<C>),
@@ -6,36 +8,18 @@ pub enum ConnectionKind<C, F, L> {
     Leader(Leader<L>),
 }
 
-//impl Connection for ConnectionKind {
-//    fn handle_ping(&self) -> response::Ping {
-//        match self {
-//            ConnectionKind::Client(c) => c.handle_ping(),
-//            ConnectionKind::Follower(f) => f.handle_ping(),
-//            ConnectionKind::Leader(l) => l.handle_ping(),
-//        }
-//    }
-//    fn handle_echo(&self, echo: String) -> response::Echo {
-//        todo!()
-//    }
-//
-//    fn handle_get<N>(&self, key: String, node: N) -> response::Get<String>
-//    where
-//        N: NodeService,
-//    {
-//        todo!()
-//    }
-//
-//    fn handle_set<N>(&self, key: String, value: String, node: N) -> response::Set
-//    where
-//        N: NodeService,
-//    {
-//        todo!()
-//    }
-//
-//    fn handle_wait<N>(&self, node: N)
-//    where
-//        N: NodeService,
-//    {
-//        todo!()
-//    }
-//}
+impl<C, F, L> ConnectionKind<C, F, L>
+where
+    C: ClientService<F = F>,
+    F: FollowerService,
+    L: LeaderService,
+{
+    #[must_use]
+    pub fn into_follower(self) -> Self {
+        match self {
+            ConnectionKind::Client(client) => Self::Follower(client.into_follower()),
+            ConnectionKind::Follower(_) => self,
+            ConnectionKind::Leader(_) => todo!(),
+        }
+    }
+}

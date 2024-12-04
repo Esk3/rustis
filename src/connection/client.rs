@@ -1,4 +1,4 @@
-use crate::{node_service::ClientService, resp::decoder::Value};
+use crate::node_service::ClientService;
 
 use super::{
     request,
@@ -7,6 +7,7 @@ use super::{
 
 pub struct Client<S> {
     service: S,
+    queue: Option<Vec<request::Request>>,
 }
 
 impl<S> Client<S>
@@ -15,15 +16,44 @@ where
 {
     #[must_use]
     pub fn new(service: S) -> Self {
-        Self { service }
+        Self {
+            service,
+            queue: None,
+        }
     }
 
     pub fn handle_request(&mut self, request: request::Request) -> response::Response {
+        if let Some(ref mut queue) = self.queue {
+            if let request::Request::ExecuteQueue = request {
+                let queue = self.queue.take().unwrap();
+                let responses = queue
+                    .into_iter()
+                    .map(|req| self.handle_request(req))
+                    .collect();
+                return Response::SendVec(responses);
+            } else {
+                queue.push(request);
+                return Response::SendBulkString("Queued".into());
+            }
+        }
         match request {
             request::Request::Ping => response::Response::SendPong,
             request::Request::Echo(echo) => self.handle_echo(echo),
             request::Request::Get(key) => self.handle_get(key),
             request::Request::Set { key, value, exp } => self.handle_set(key, value),
+            request::Request::Info => todo!(),
+            request::Request::Sync => todo!(),
+            request::Request::IntoFollower => todo!(),
+            request::Request::Wait => todo!(),
+            request::Request::Multi => {
+                self.queue = Some(Vec::new());
+                Response::SendOk
+            }
+            request::Request::AbortQueue => todo!(),
+            request::Request::ExecuteQueue => todo!(),
+            request::Request::StreamAdd => todo!(),
+            request::Request::StreamGet => todo!(),
+            request::Request::StreamQuery => todo!(),
         }
     }
 
@@ -50,6 +80,9 @@ where
 
     pub fn handle_wait(&self) {
         todo!()
+    }
+    pub fn into_follower(self) -> super::Follower<S::F> {
+        super::Follower::new(self.service.into_follower())
     }
 }
 

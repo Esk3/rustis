@@ -3,6 +3,8 @@ use crate::node_service::{
     FollowerService,
 };
 
+use super::ClientManager;
+
 pub struct FollowerManager {
     id: usize,
     tx: std::sync::mpsc::Sender<Message>,
@@ -25,11 +27,18 @@ impl FollowerManager {
 
 impl FollowerService for FollowerManager {
     fn get_event_from_node(&self) -> Kind {
-        todo!()
+        let message = self.rx.recv().unwrap();
+        message.kind
     }
 
     fn get_follower_byte_offset(&self) -> Kind {
         todo!()
+    }
+}
+
+impl From<ClientManager> for FollowerManager {
+    fn from(value: ClientManager) -> Self {
+        value.into_follower()
     }
 }
 

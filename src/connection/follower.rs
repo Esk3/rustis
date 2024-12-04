@@ -17,7 +17,19 @@ where
 
     pub fn get_event(&self) -> Response {
         let event = self.service.get_event_from_node();
-        todo!();
+        match event {
+            crate::node_service::node_worker::Kind::Get { key } => todo!(),
+            crate::node_service::node_worker::Kind::GetResponse { value } => todo!(),
+            crate::node_service::node_worker::Kind::Set { key, value, expiry } => todo!(),
+            crate::node_service::node_worker::Kind::ReplicateSet { key, value, expiry } => {
+                Response::SendBulkString("TODO: resp encoded set".to_string())
+            }
+            crate::node_service::node_worker::Kind::SetResponse => todo!(),
+            crate::node_service::node_worker::Kind::NewConnection { tx } => todo!(),
+            crate::node_service::node_worker::Kind::NewConnectionResponse { id } => todo!(),
+            crate::node_service::node_worker::Kind::ToFollower => todo!(),
+            crate::node_service::node_worker::Kind::ToFollowerOk => todo!(),
+        }
     }
 
     fn handle_set<N>(&self, key: String, value: String, node: N) -> Result<(), ()> {

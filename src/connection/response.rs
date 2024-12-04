@@ -7,4 +7,5 @@ pub enum Response {
     SendNull,
     None,
     SendPong,
+    SendVec(Vec<Self>),
 }
