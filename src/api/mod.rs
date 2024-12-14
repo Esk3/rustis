@@ -70,8 +70,13 @@ where
             }
             crate::connection::response::Response::SendBulkString(_) => todo!(),
             crate::connection::response::Response::SendVec(_) => todo!(),
+            crate::connection::response::Response::SyncBytesSent { .. } => todo!(),
         };
         Ok(())
+    }
+
+    fn get_bytes_sent(&mut self) -> usize {
+        todo!()
     }
 }
 

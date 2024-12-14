@@ -47,14 +47,16 @@ impl NodeWorker {
                         &std::time::SystemTime::now(),
                     );
                     for follower in self.followers.values() {
-                        follower.send(Message {
-                            id: 0,
-                            kind: Kind::ReplicateSet {
-                                key: key.clone(),
-                                value: value.clone(),
-                                expiry,
-                            },
-                        });
+                        follower
+                            .send(Message {
+                                id: 0,
+                                kind: Kind::ReplicateSet {
+                                    key: key.clone(),
+                                    value: value.clone(),
+                                    expiry,
+                                },
+                            })
+                            .unwrap();
                     }
                     Kind::SetResponse
                 }
@@ -88,6 +90,41 @@ impl NodeWorker {
                     continue;
                 }
                 Kind::ToFollowerOk => todo!(),
+                Kind::Wait { count } => {
+                    // save wait response
+                    // on wait acks update wait response
+                    // on wait >= count or timeout send wait response
+                    // spawn thread for sending timeout command
+                    if self.followers.is_empty() {
+                        let response = Message {
+                            id,
+                            kind: Kind::WaitResponse { count: 0 },
+                        };
+                        Self::send_or_remove_response(id, response, &mut self.clients);
+                    }
+                    for (id, follower) in &self.followers {
+                        follower
+                            .send(Message {
+                                id: *id,
+                                kind: Kind::SyncBytesSent,
+                            })
+                            .unwrap();
+                    }
+                    Kind::ToFollower
+                }
+                Kind::WaitResponse { count } => {
+                    // send response
+                    todo!()
+                }
+                Kind::SyncBytesSent => todo!(),
+                Kind::SyncBytesSentAck => {
+                    // check if requered acks and send response
+                    todo!()
+                }
+                Kind::WaitTimeout => {
+                    // send response
+                    todo!()
+                }
             };
 
             let response = Message { id, kind };

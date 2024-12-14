@@ -31,6 +31,15 @@ pub enum Kind {
     },
     ToFollower,
     ToFollowerOk,
+    Wait {
+        count: usize,
+    },
+    WaitResponse {
+        count: usize,
+    },
+    SyncBytesSent,
+    SyncBytesSentAck,
+    WaitTimeout,
 }
 
 impl PartialEq for Kind {

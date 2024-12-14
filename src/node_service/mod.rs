@@ -16,7 +16,8 @@ pub trait ClientService {
 
 pub trait FollowerService {
     fn get_event_from_node(&self) -> Kind;
-    fn get_follower_byte_offset(&self) -> Kind;
+    fn get_follower_byte_offset(&self) -> usize;
+    fn wait_ack(&self);
 }
 
 pub trait LeaderService {
@@ -64,8 +65,12 @@ pub mod tests {
                 }
             }
 
-            fn get_follower_byte_offset(&self) -> Kind {
+            fn get_follower_byte_offset(&self) -> usize {
                 std::todo!()
+            }
+
+            fn wait_ack(&self) {
+                todo!()
             }
         }
         impl LeaderService for AlwaysOk {
@@ -110,7 +115,11 @@ pub mod tests {
                 todo!()
             }
 
-            fn get_follower_byte_offset(&self) -> Kind {
+            fn get_follower_byte_offset(&self) -> usize {
+                todo!()
+            }
+
+            fn wait_ack(&self) {
                 todo!()
             }
         }

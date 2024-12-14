@@ -64,17 +64,10 @@ impl ClientService for ClientManager {
             })
             .unwrap();
         let value = self.rx.recv().unwrap();
-        match value.kind {
-            Kind::GetResponse { value } => Ok(value),
-            Kind::SetResponse => todo!(),
-            Kind::NewConnectionResponse { id } => todo!(),
-            Kind::Get { key } => todo!(),
-            Kind::Set { key, value, expiry } => todo!(),
-            Kind::ReplicateSet { key, value, expiry } => todo!(),
-            Kind::NewConnection { tx } => todo!(),
-            Kind::ToFollower => todo!(),
-            Kind::ToFollowerOk => todo!(),
-        }
+        let Kind::GetResponse { value } = value.kind else {
+            panic!()
+        };
+        Ok(value)
     }
 
     fn set(&self, key: String, value: String) -> Result<(), ()> {
@@ -91,7 +84,12 @@ impl ClientService for ClientManager {
     }
 
     fn wait(&self, count: usize) -> Result<(), ()> {
-        todo!()
+        self.send(Kind::Wait { count }).unwrap();
+        let response = self.recive().unwrap();
+        let Kind::WaitResponse { count } = response else {
+            panic!("{response:?}");
+        };
+        Ok(())
     }
 
     fn into_follower(self) -> Self::F
@@ -134,5 +132,11 @@ mod tests {
 
         let result = manager.get(key.to_string()).unwrap();
         assert_eq!(result.unwrap(), value.to_string());
+    }
+
+    #[test]
+    fn wait() {
+        let manager = init();
+        manager.wait(0).unwrap();
     }
 }

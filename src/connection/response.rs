@@ -8,4 +8,5 @@ pub enum Response {
     None,
     SendPong,
     SendVec(Vec<Self>),
+    SyncBytesSent { bytes_confirmed: usize },
 }

@@ -44,7 +44,10 @@ where
             request::Request::Info => todo!(),
             request::Request::Sync => todo!(),
             request::Request::IntoFollower => todo!(),
-            request::Request::Wait => todo!(),
+            request::Request::Wait => {
+                self.service.wait(1).unwrap();
+                todo!("get count");
+            }
             request::Request::Multi => {
                 self.queue = Some(Vec::new());
                 Response::SendOk

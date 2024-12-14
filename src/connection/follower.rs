@@ -4,6 +4,7 @@ use super::response::Response;
 
 pub struct Follower<S> {
     service: S,
+    bytes_confirmed: usize,
 }
 
 impl<S> Follower<S>
@@ -12,7 +13,10 @@ where
 {
     #[must_use]
     pub fn new(service: S) -> Self {
-        Self { service }
+        Self {
+            service,
+            bytes_confirmed: 0,
+        }
     }
 
     pub fn get_event(&self) -> Response {
@@ -29,6 +33,13 @@ where
             crate::node_service::node_worker::Kind::NewConnectionResponse { id } => todo!(),
             crate::node_service::node_worker::Kind::ToFollower => todo!(),
             crate::node_service::node_worker::Kind::ToFollowerOk => todo!(),
+            crate::node_service::node_worker::Kind::Wait { count } => todo!(),
+            crate::node_service::node_worker::Kind::WaitResponse { count } => todo!(),
+            crate::node_service::node_worker::Kind::SyncBytesSent => Response::SyncBytesSent {
+                bytes_confirmed: self.bytes_confirmed,
+            },
+            crate::node_service::node_worker::Kind::SyncBytesSentAck => todo!(),
+            crate::node_service::node_worker::Kind::WaitTimeout => todo!(),
         }
     }
 
@@ -37,7 +48,19 @@ where
     }
 
     fn handle_wait<N>(&self, node: N) {
+        if self.bytes_confirmed == self.service.get_follower_byte_offset() {
+            todo!("connection should send ack to node");
+        } else {
+            assert!(
+                self.bytes_confirmed < self.service.get_follower_byte_offset(),
+                "the amount of bytes confirmed should always be less or equal to bytes sent"
+            );
+            todo!("connection should send network message to query bytes confirmed");
+        }
         todo!()
+    }
+    pub fn send_wait_ack(&self) {
+        self.service.wait_ack();
     }
 }
 

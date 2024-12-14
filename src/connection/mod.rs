@@ -75,8 +75,17 @@ where
                 }
             }
             ConnectionKind::Follower(ref follower) => {
-                let response = follower.get_event();
-                self.io.send_response(response).unwrap();
+                let event = follower.get_event();
+                match event {
+                    response::Response::SyncBytesSent { bytes_confirmed } => {
+                        let sent = self.io.get_bytes_sent();
+                        if sent == bytes_confirmed {
+                            follower.send_wait_ack();
+                        }
+                        todo!();
+                    }
+                    event => self.io.send_response(event).unwrap(),
+                }
             }
             ConnectionKind::Leader(ref mut leader) => {
                 let request = match self.io.get_request() {
@@ -96,6 +105,7 @@ where
 pub trait ConnectionInputOutput {
     fn get_request(&mut self) -> Result<request::Request, ()>;
     fn send_response(&mut self, response: response::Response) -> Result<(), ()>;
+    fn get_bytes_sent(&mut self) -> usize;
 }
 
 #[cfg(test)]
@@ -190,6 +200,10 @@ mod tests {
             }
             Ok(())
         }
+
+        fn get_bytes_sent(&mut self) -> usize {
+            0
+        }
     }
 
     type MyConnection = Connection<MockIo, ClientManager, FollowerManager, LeaderManager>;
@@ -263,8 +277,78 @@ where {
     }
 
     #[test]
-    fn test_wait() {
+    fn multi_with_multiple_clients() {
+        let manager = run(crate::node::Node, Repository::new());
+        let key = "abc";
+        let value = "xyz";
+        let mut conn1 = MyConnection::new_client(
+            manager.clone(),
+            MockIo::new_with_res(
+                [
+                    Request::Multi,
+                    Request::Set {
+                        key: key.into(),
+                        value: value.into(),
+                        exp: None,
+                    },
+                    Request::ExecuteQueue,
+                ],
+                [
+                    Response::SendOk,
+                    Response::SendBulkString("Queued".into()),
+                    Response::SendVec(vec![Response::SendOk]),
+                ],
+            ),
+        );
+        let mut conn2 = MyConnection::new_client(
+            manager,
+            MockIo::new_with_res(
+                [
+                    Request::Get(key.into()),
+                    Request::Get(key.into()),
+                    Request::Get(key.into()),
+                ],
+                [
+                    Response::SendNull,
+                    Response::SendNull,
+                    Response::SendBulkString(value.into()),
+                ],
+            ),
+        );
+
+        conn1 = conn1.step().unwrap();
+        conn2 = conn2.step().unwrap();
+
+        conn1 = conn1.step().unwrap();
+        conn2 = conn2.step().unwrap();
+
+        conn1.run();
+        conn2.run();
+    }
+
+    #[test]
+    fn wait_with_no_followers() {
         helper(MockIo::new_with_res([Request::Wait], [Response::None]));
+    }
+
+    #[test]
+    fn wait_with_one_follower() {
+        let m = run(crate::node::Node, Repository::new());
+        let conn1 = MyConnection::new_client(
+            m.clone(),
+            MockIo::new_with_res(
+                [Request::IntoFollower],
+                [Response::SyncBytesSent { bytes_confirmed: 1 }],
+            ),
+        );
+
+        let h = std::thread::spawn(|| {
+            let conn2 = MyConnection::new_client(m, MockIo::new_with_res([Request::Wait], []));
+            conn2.run();
+        });
+
+        conn1.run();
+        h.join().unwrap();
     }
 
     #[test]

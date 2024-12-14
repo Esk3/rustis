@@ -31,8 +31,17 @@ impl FollowerService for FollowerManager {
         message.kind
     }
 
-    fn get_follower_byte_offset(&self) -> Kind {
+    fn get_follower_byte_offset(&self) -> usize {
         todo!()
+    }
+
+    fn wait_ack(&self) {
+        self.tx
+            .send(Message {
+                id: self.id,
+                kind: Kind::SyncBytesSentAck,
+            })
+            .unwrap();
     }
 }
 
