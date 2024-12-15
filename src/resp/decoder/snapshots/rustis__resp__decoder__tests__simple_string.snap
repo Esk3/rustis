@@ -1,7 +1,0 @@
----
-source: src/resp/decoder/mod.rs
-expression: x
----
-String(
-    "hello world",
-)

@@ -1,5 +1,0 @@
----
-source: src/resp/decoder/mod.rs
-expression: x.into_string().unwrap()
----
-"hello"

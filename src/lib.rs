@@ -1,6 +1,8 @@
-pub mod api;
+//#![warn(clippy::pedantic)]
+
 pub mod connection;
-pub mod node;
-pub mod node_service;
+pub mod io;
+pub mod message_broker;
 pub mod repository;
 pub mod resp;
+pub mod service;
