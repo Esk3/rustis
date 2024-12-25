@@ -1,7 +1,5 @@
-use crate::io::{Encoder, Io, Parser};
-
-pub trait Service<Req, R, W, E, P> {
+pub trait Service<Req> {
     type Response;
 
-    fn call(&mut self, request: Req, io: &mut Io<R, W, E, P>) -> anyhow::Result<Self::Response>;
+    fn call(&mut self, request: Req) -> anyhow::Result<Self::Response>;
 }

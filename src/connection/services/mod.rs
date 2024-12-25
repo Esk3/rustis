@@ -1,50 +1,42 @@
-use super::CallResult;
 use crate::{
-    io::{Encoder, Input, Io, Output, Parser},
+    io::{Input, Io, Output},
+    resp::Value,
     service::Service,
 };
+
+use super::client::Kind;
 
 #[derive(Debug)]
 pub struct ReadInputService<S> {
     pub inner: S,
 }
 
-impl<S, R, W, E, P> Service<(), R, W, E, P> for ReadInputService<S>
+impl<S, IO> Service<&mut IO> for ReadInputService<S>
 where
-    S: Service<Input, R, W, E, P>,
-    R: std::io::Read,
-    E: Encoder,
-    P: Parser,
+    S: Service<Value>,
+    IO: Io,
 {
     type Response = S::Response;
 
-    fn call(&mut self, _request: (), io: &mut Io<R, W, E, P>) -> anyhow::Result<Self::Response> {
-        let input = io.read_input()?;
-        self.inner.call(input, io)
+    fn call(&mut self, io: &mut IO) -> anyhow::Result<Self::Response> {
+        let input = io.read_value()?;
+        self.inner.call(input)
     }
 }
 
 #[derive(Debug)]
-pub struct ResponseService<S> {
+pub struct ParseService<S> {
     pub inner: S,
 }
 
-impl<Req, S, R, W, E, P> Service<Req, R, W, E, P> for ResponseService<S>
+impl<S> Service<Value> for ParseService<S>
 where
-    W: std::io::Write,
-    E: Encoder,
-    P: Parser,
-    S: Service<Req, R, W, E, P, Response = Option<Output>>,
+    S: Service<Input, Response = Kind<Option<Output>>>,
 {
-    type Response = usize;
+    type Response = Kind<Value>;
 
-    fn call(&mut self, request: Req, io: &mut Io<R, W, E, P>) -> anyhow::Result<Self::Response> {
-        let output = self.inner.call(request, io)?;
-        let bytes_written = if let Some(output) = output {
-            io.write_output(output)?
-        } else {
-            0
-        };
-        Ok(bytes_written)
+    fn call(&mut self, value: Value) -> anyhow::Result<Self::Response> {
+        let output = self.inner.call(Input::Ping).unwrap();
+        Ok(Kind::Response(Value::BulkString("abc".into())))
     }
 }

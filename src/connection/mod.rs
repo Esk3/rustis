@@ -1,8 +1,9 @@
-use client::ConnectionToClient;
-use follower::ConnectionToFollower;
+use client::{ConnectionToClientService, Kind};
+use follower::{ConnectionToFollower, FollowerService};
 
 use crate::{
-    io::{Encoder, Io, Parser},
+    io::{Io, Output},
+    message_broker::manager::WorkerManager,
     service::Service,
 };
 
@@ -12,69 +13,75 @@ pub mod leader;
 pub mod services;
 
 #[derive(Debug)]
-pub struct Connection<R, W, E, P, S> {
-    service: S,
-    io: Io<R, W, E, P>,
+pub struct Connection<Io, C, F, L> {
+    service: ConnectionService<C, F, L>,
+    io: Io,
 }
 
-impl<R, W, E, P, S> Connection<R, W, E, P, S>
+impl<IO, C, F, L> Connection<IO, C, F, L>
 where
-    R: std::io::Read,
-    W: std::io::Write,
-    E: Encoder,
-    P: Parser,
-    S: Service<(), R, W, E, P, Response = CallResult>,
+    IO: Io,
+    C: for<'a> Service<&'a mut IO, Response = Kind<Option<Output>>>,
 {
-    pub fn new(service: S, io: Io<R, W, E, P>) -> Self {
-        Self { service, io }
+    pub fn new_client(manager: WorkerManager, io: IO) -> Self {
+        Self {
+            service: ConnectionService::Client(ConnectionToClientService::new(manager)),
+            io,
+        }
+    }
+
+    pub fn init_new_leader(manager: WorkerManager, io: IO) -> Self {
+        todo!()
+    }
+
+    pub fn next(mut self) -> anyhow::Result<()> {
+        match self.service {
+            ConnectionService::Client(mut client) => {
+                let kind = client.call(&mut self.io)?;
+                match kind {
+                    client::Kind::Response(res) => {
+                        //if let Some(res) = res {
+                        //    self.io.write_value(res)?;
+                        //}
+                        Ok(())
+                    }
+                    client::Kind::IntoFollower => {
+                        let manager = client.into_manager();
+                        ConnectionService::Follower::<(), ConnectionToFollower, ()>(
+                            ConnectionToFollower::new(manager),
+                        );
+                        todo!()
+                    }
+                }
+            }
+            ConnectionService::Follower(mut follower) => {
+                let res = follower.call(()).unwrap();
+                match res {
+                    follower::Response::Ok => todo!(),
+                    follower::Response::GetAck => {
+                        //self.io.write_output(output);
+                        //self.io.read_input();
+                    }
+                }
+                todo!()
+            }
+            ConnectionService::Leader(_) => todo!(),
+        }
     }
 }
 
 #[derive(Debug)]
-pub enum ConnectionWrapper<R, W, E, P> {
-    Client(ConnectionToClient<R, W, E, P>),
-    Follower(ConnectionToFollower<R, W, E, P>),
+enum ConnectionService<C = ConnectionToClientService, F = ConnectionToFollower, L = ()> {
+    Client(C),
+    Follower(F),
+    Leader(L),
 }
 
-impl<R, W, E, P> ConnectionWrapper<R, W, E, P>
-where
-    R: std::io::Read,
-    W: std::io::Write,
-    E: Encoder,
-    P: Parser,
-{
-    pub fn call(self) -> anyhow::Result<Self> {
-        match self {
-            ConnectionWrapper::Client(client) => {
-                let res = client.handle_client_request()?;
-                match res {
-                    client::ClientOption::Client(client) => Ok(Self::Client(client)),
-                    client::ClientOption::Manager((io, manager)) => Ok(Self::Follower(
-                        ConnectionToFollower::new_connection_to_follower(manager, io),
-                    )),
-                }
-            }
-            ConnectionWrapper::Follower(follower) => {
-                Ok(Self::Follower(follower.handle_follower_event()))
-            }
-        }
-    }
-
-    pub fn run(mut self) -> anyhow::Result<()> {
-        loop {
-            self = self.call()?;
-        }
-    }
-
-    pub fn steps(mut self, steps: usize) -> anyhow::Result<Self> {
-        for _ in 0..steps {
-            self = self.call()?;
-        }
-        Ok(self)
-    }
-}
-
-pub enum CallResult {
-    Ok,
-    IntoConnectionToFollower,
-}
+// conn
+//      io  value->Input Input      input->Response input->Response manager
+// client -> req -> into follower -> queue -> handler
+//                                  resposne
+//   io           subscriber              manager
+// follower -> get event from manager -> handler
+// leader -> req -> handler
+//                  response

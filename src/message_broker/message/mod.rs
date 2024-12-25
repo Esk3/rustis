@@ -36,4 +36,5 @@ pub enum Event {
         value: String,
         expiry: Option<std::time::Duration>,
     },
+    GetAck,
 }
