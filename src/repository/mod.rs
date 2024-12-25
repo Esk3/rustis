@@ -1,38 +1,43 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-pub trait Repository {
-    fn get(&mut self, key: &str) -> anyhow::Result<Option<&String>>;
+pub trait Repository: Clone {
+    fn get(&self, key: &str) -> anyhow::Result<Option<String>>;
     fn set(
-        &mut self,
+        &self,
         key: String,
         value: String,
         expiry: Option<std::time::Duration>,
     ) -> anyhow::Result<Option<String>>;
 }
 
+#[derive(Debug, Clone)]
 pub struct MemoryRepository {
-    kv_store: HashMap<String, String>,
+    kv_store: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl MemoryRepository {
+    #[must_use]
     pub fn new() -> Self {
         Self {
-            kv_store: HashMap::new(),
+            kv_store: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
 
 impl Repository for MemoryRepository {
-    fn get(&mut self, key: &str) -> anyhow::Result<Option<&String>> {
-        Ok(self.kv_store.get(key))
+    fn get(&self, key: &str) -> anyhow::Result<Option<String>> {
+        Ok(self.kv_store.lock().unwrap().get(key).cloned())
     }
 
     fn set(
-        &mut self,
+        &self,
         key: String,
         value: String,
         expiry: Option<std::time::Duration>,
     ) -> anyhow::Result<Option<String>> {
-        Ok(self.kv_store.insert(key, value))
+        Ok(self.kv_store.lock().unwrap().insert(key, value))
     }
 }
