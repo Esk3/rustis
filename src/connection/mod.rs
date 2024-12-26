@@ -1,198 +1,111 @@
 use std::fmt::Debug;
 
+use hanlder::{
+    client::{handle_client_request, ClientResult, ClientState},
+    follower::{handle_follower_event, FollowerState},
+};
+use thiserror::Error;
 use tracing::instrument;
 
 use crate::{
-    event::{EventProducer, EventSubscriber, Kind},
-    io::{Input, Output},
+    event::{EventProducer, EventSubscriber},
+    io::{Io, IoError, NetworkMessage},
     repository::Repository,
+    resp::parser::{Encode, Parse},
 };
 
-#[derive(Debug)]
-pub struct ClientState<R, E> {
-    repo: R,
+pub mod hanlder;
+
+#[instrument(skip(repo))]
+pub fn connection_handler<P, En, I, E, R>(
+    mut io: I,
     event: E,
-}
-
-impl<R, E> ClientState<R, E>
+    repo: R,
+) -> Result<(), ConnectionError>
 where
-    R: Repository,
-    E: EventProducer,
-{
-    pub fn new(event: E, repo: R) -> Self {
-        Self { repo, event }
-    }
-}
-
-#[instrument]
-pub fn handle_client_request<R, E>(
-    request: Input,
-    state: &mut ClientState<R, E>,
-) -> anyhow::Result<ClientResult>
-where
-    R: Repository + Debug,
+    P: Parse,
+    En: Encode,
+    I: Io + Debug,
     E: EventProducer + Debug,
+    R: Repository + Debug,
+    <E as EventProducer>::Subscriber: std::fmt::Debug,
 {
-    tracing::trace!("handling request: {request:?}");
-    let response = match request {
-        Input::Ping => ClientResult::SendOutput(Output::Pong),
-        Input::Get(key) => {
-            let value = state.repo.get(&key)?;
-            ClientResult::SendOutput(Output::Get(value))
+    let mut state = ClientState::new(event, repo);
+
+    loop {
+        let value = io.read_value()?;
+        tracing::debug!("got value {value:?}");
+        let message = P::parse(value).unwrap();
+        let NetworkMessage::Input(input) = message else {
+            todo!()
+        };
+        let response = handle_client_request(input, &mut state).unwrap();
+        match response {
+            ClientResult::None => (),
+            ClientResult::SendOutput(output) => {
+                let value = En::encode(NetworkMessage::Output(output)).unwrap();
+                io.write_value(value).unwrap();
+            }
+            ClientResult::BecomeFollower => break,
         }
-        Input::Set {
-            key,
-            value,
-            expiry,
-            get,
-        } => {
-            state.repo.set(key.clone(), value.clone(), expiry)?;
-            state.event.emmit(crate::event::Kind::Set {
-                key,
-                value,
-                expiry: (),
-            });
-            assert!(!get, "todo return old value");
-            ClientResult::SendOutput(Output::Set)
+    }
+
+    let mut state = FollowerState::new(state.event.subscribe());
+    loop {
+        let event = state.subscriber.recive();
+        let result = handle_follower_event(event, &mut state).unwrap();
+        match result {
+            hanlder::follower::FollowerResult::None => (),
+            hanlder::follower::FollowerResult::SendOutput(output) => {
+                let value = En::encode(NetworkMessage::Output(output)).unwrap();
+                io.write_value(value).unwrap();
+            }
         }
-        Input::ReplConf | Input::Psync => ClientResult::BecomeFollower,
-    };
-    tracing::trace!("response: {response:?}");
-    Ok(response)
-}
-
-#[derive(Debug)]
-pub enum ClientResult {
-    None,
-    SendOutput(Output),
-    BecomeFollower,
-}
-
-pub struct Leader {}
-
-pub struct Follower<E> {
-    event_reciver: E,
-}
-
-impl<E> Follower<E>
-where
-    E: EventSubscriber,
-{
-    pub fn new(event_reciver: E) -> Self {
-        todo!()
     }
 }
 
-#[instrument]
-pub fn handle_follower_event(event: Kind) {
-    tracing::trace!("handling event {event:?}");
-    todo!()
+#[derive(Error, Debug)]
+pub enum ConnectionError {
+    #[error("io error {0}")]
+    IoError(#[from] IoError),
 }
+
+#[instrument]
+pub fn leader_connection_handler() {}
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        event::{
-            tests::{MockEventProducer, MockEventProducerSink},
-            Kind,
+        connection::ConnectionError,
+        event::tests::MockEventProducerSink,
+        io::tests::MockIo,
+        repository::LockingMemoryRepository,
+        resp::{
+            parser::{RespEncoder, RespParser},
+            Value,
         },
-        io::{Input, Output},
-        repository::MemoryRepository,
     };
 
-    use super::{handle_client_request, ClientResult, ClientState};
+    use super::connection_handler;
 
-    #[test]
-    fn ping() {
-        let event = MockEventProducerSink;
-        let repo = MemoryRepository::new();
-        let mut client = ClientState::new(event, repo);
-        let input = Input::Ping;
-        let res = handle_client_request(input, &mut client).unwrap();
-        let ClientResult::SendOutput(res) = res else {
-            panic!();
-        };
-        assert_eq!(res, Output::Pong);
-    }
-
-    #[test]
-    fn get_unset() {
-        let event = MockEventProducerSink;
-        let repo = MemoryRepository::new();
-        let mut client = ClientState::new(event, repo);
-        let res = handle_client_request(Input::Get("abc".into()), &mut client).unwrap();
-        let ClientResult::SendOutput(res) = res else {
-            panic!();
-        };
-        assert_eq!(res, Output::Get(None));
-    }
-
-    #[test]
-    fn set_and_get_value() {
-        let event = MockEventProducerSink;
-        let repo = MemoryRepository::new();
-        let mut client = ClientState::new(event, repo);
-        let (key, value) = ("abc", "xyz");
-        let res = handle_client_request(
-            Input::Set {
-                key: key.into(),
-                value: value.into(),
-                expiry: None,
-                get: false,
-            },
-            &mut client,
-        )
-        .unwrap();
-        let ClientResult::SendOutput(res) = res else {
-            panic!();
-        };
-        assert_eq!(res, Output::Set);
-        let res = handle_client_request(Input::Get(key.into()), &mut client).unwrap();
-        let ClientResult::SendOutput(res) = res else {
+    #[test_log::test]
+    fn ping_client() {
+        let io = MockIo::new(
+            [
+                Value::Array(vec![Value::BulkString("PING".into())]),
+                Value::SimpleString("end".into()),
+            ],
+            [Value::SimpleString("PONG".into())],
+        );
+        let ConnectionError::IoError(crate::io::IoError::EndOfInput) =
+            connection_handler::<RespParser, RespEncoder, _, _, _>(
+                io,
+                MockEventProducerSink,
+                LockingMemoryRepository::new(),
+            )
+            .unwrap_err()
+        else {
             panic!()
-        };
-        assert_eq!(res, Output::Get(Some(value.into())));
-    }
-
-    #[test]
-    fn repl_conf_returns_into_follower() {
-        let event = MockEventProducerSink;
-        let repo = MemoryRepository::new();
-        let mut client = ClientState::new(event, repo);
-        let ClientResult::BecomeFollower =
-            handle_client_request(Input::ReplConf, &mut client).unwrap()
-        else {
-            panic!();
-        };
-        let ClientResult::BecomeFollower =
-            handle_client_request(Input::Psync, &mut client).unwrap()
-        else {
-            panic!();
-        };
-    }
-
-    #[test]
-    fn handler_send_event_on_set() {
-        let repo = MemoryRepository::new();
-        let (key, value) = ("abc", "xyz");
-        let event = MockEventProducer::new(vec![Kind::Set {
-            key: key.into(),
-            value: value.into(),
-            expiry: (),
-        }]);
-
-        let mut state = ClientState::new(event, repo);
-        let ClientResult::SendOutput(_output) = handle_client_request(
-            Input::Set {
-                key: key.into(),
-                value: value.into(),
-                expiry: None,
-                get: false,
-            },
-            &mut state,
-        )
-        .unwrap() else {
-            panic!();
         };
     }
 }

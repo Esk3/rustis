@@ -23,7 +23,7 @@ pub enum Kind {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LockEventProducer {
     subscribers: Arc<Mutex<Vec<Sender<Kind>>>>,
 }
@@ -54,6 +54,7 @@ impl EventProducer for LockEventProducer {
     }
 }
 
+#[derive(Debug)]
 pub struct ChannelEventSubscriber {
     rx: Receiver<Kind>,
 }
@@ -76,8 +77,9 @@ pub mod tests {
 
     use super::{EventProducer, EventSubscriber, Kind};
 
-    pub struct MockPanicSubscriber;
-    impl EventSubscriber for MockPanicSubscriber {
+    #[derive(Debug)]
+    pub struct DummyPanicSubscriber;
+    impl EventSubscriber for DummyPanicSubscriber {
         fn recive(&self) -> Kind {
             todo!()
         }
@@ -144,7 +146,7 @@ pub mod tests {
     #[derive(Debug)]
     pub struct MockEventProducerSink;
     impl EventProducer for MockEventProducerSink {
-        type Subscriber = MockPanicSubscriber;
+        type Subscriber = DummyPanicSubscriber;
 
         fn emmit(&self, _kind: crate::event::Kind) {}
 
@@ -168,7 +170,7 @@ pub mod tests {
     }
 
     impl EventProducer for MockEventProducer {
-        type Subscriber = MockPanicSubscriber;
+        type Subscriber = DummyPanicSubscriber;
 
         fn emmit(&self, kind: Kind) {
             let expected = self

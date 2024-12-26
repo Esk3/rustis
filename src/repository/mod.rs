@@ -14,11 +14,11 @@ pub trait Repository: Clone {
 }
 
 #[derive(Debug, Clone)]
-pub struct MemoryRepository {
+pub struct LockingMemoryRepository {
     kv_store: Arc<Mutex<HashMap<String, String>>>,
 }
 
-impl MemoryRepository {
+impl LockingMemoryRepository {
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -27,7 +27,7 @@ impl MemoryRepository {
     }
 }
 
-impl Repository for MemoryRepository {
+impl Repository for LockingMemoryRepository {
     fn get(&self, key: &str) -> anyhow::Result<Option<String>> {
         Ok(self.kv_store.lock().unwrap().get(key).cloned())
     }
