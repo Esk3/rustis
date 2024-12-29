@@ -81,7 +81,7 @@ pub mod tests {
     pub struct DummyPanicSubscriber;
     impl EventSubscriber for DummyPanicSubscriber {
         fn recive(&self) -> Kind {
-            todo!()
+            unimplemented!()
         }
     }
 
@@ -151,7 +151,7 @@ pub mod tests {
         fn emmit(&self, _kind: crate::event::Kind) {}
 
         fn subscribe(&self) -> Self::Subscriber {
-            todo!()
+            DummyPanicSubscriber
         }
     }
 
@@ -192,7 +192,11 @@ pub mod tests {
             if std::thread::panicking() {
                 return;
             }
-            assert!(self.0.lock().unwrap().is_empty(), "expected more events");
+            assert!(
+                self.0.lock().unwrap().is_empty(),
+                "expected more events: {:?}",
+                self.0.lock().unwrap()
+            );
         }
     }
 

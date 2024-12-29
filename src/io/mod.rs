@@ -9,6 +9,9 @@ pub trait Io {
     fn write_value(&mut self, value: Value) -> IoResult<usize>;
 }
 
+pub trait ValueIo {}
+pub trait MessageIo {}
+
 #[derive(Error, Debug)]
 pub enum IoError {
     #[error("end of input")]
@@ -62,7 +65,10 @@ pub enum Input {
         get: bool,
     },
 
-    ReplConf,
+    Multi,
+    CommitMulti,
+
+    ReplConf(ReplConf),
     Psync,
 }
 
@@ -72,11 +78,22 @@ pub enum Output {
     Get(Option<String>),
     Set,
 
-    ReplConf,
+    Multi,
+    Queued,
+
+    ReplConf(ReplConf),
     Psync,
     Null,
     Ok,
     Array(Vec<Self>),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReplConf {
+    ListingPort(u16),
+    Capa(String),
+    GetAck(i32),
+    Ack(i32),
 }
 
 #[cfg(test)]

@@ -10,8 +10,9 @@ use crate::{
 
 #[derive(Debug)]
 pub struct ClientState<R, E> {
-    pub repo: R,
-    pub event: E,
+    repo: R,
+    event: E,
+    queue: Option<Vec<Input>>,
 }
 
 impl<R, E> ClientState<R, E>
@@ -20,7 +21,15 @@ where
     E: EventProducer,
 {
     pub fn new(event: E, repo: R) -> Self {
-        Self { repo, event }
+        Self {
+            repo,
+            event,
+            queue: None,
+        }
+    }
+
+    pub fn event(&self) -> &E {
+        &self.event
     }
 }
 
@@ -34,11 +43,66 @@ where
     E: EventProducer + Debug,
 {
     tracing::debug!("handling request: {request:?}");
+    match replication_layer(&request) {
+        ReplicationResult::Replicate => return Ok(ClientResult::BecomeFollower),
+        ReplicationResult::Continue => (),
+    }
+    let response = transaction_layer(request, state)?;
+    Ok(ClientResult::SendOutput(response))
+}
+
+fn replication_layer(request: &Input) -> ReplicationResult {
+    match request {
+        Input::ReplConf(_) | Input::Psync => ReplicationResult::Replicate,
+        _ => ReplicationResult::Continue,
+        Input::Ping => todo!(),
+        Input::Get(_) => todo!(),
+        Input::Set {
+            key,
+            value,
+            expiry,
+            get,
+        } => todo!(),
+        Input::Multi => todo!(),
+        Input::CommitMulti => todo!(),
+    }
+}
+
+fn transaction_layer<R, E>(request: Input, state: &mut ClientState<R, E>) -> anyhow::Result<Output>
+where
+    R: Repository,
+    E: EventProducer,
+{
+    if let Some(ref mut queue) = state.queue {
+        if let Input::CommitMulti = request {
+            let queue = state.queue.take().unwrap();
+            let responses = queue
+                .into_iter()
+                .map(|req| handler(req, state).unwrap())
+                .collect();
+            Ok(Output::Array(responses))
+        } else {
+            queue.push(request);
+            Ok(Output::Queued)
+        }
+    } else if let Input::Multi = request {
+        state.queue = Some(Vec::new());
+        Ok(Output::Multi)
+    } else {
+        handler(request, state)
+    }
+}
+
+fn handler<R, E>(request: Input, state: &mut ClientState<R, E>) -> anyhow::Result<Output>
+where
+    R: Repository,
+    E: EventProducer,
+{
     let response = match request {
-        Input::Ping => ClientResult::SendOutput(Output::Pong),
+        Input::Ping => Output::Pong,
         Input::Get(key) => {
             let value = state.repo.get(&key)?;
-            ClientResult::SendOutput(Output::Get(value))
+            Output::Get(value)
         }
         Input::Set {
             key,
@@ -53,12 +117,18 @@ where
                 expiry: (),
             });
             assert!(!get, "todo return old value");
-            ClientResult::SendOutput(Output::Set)
+            Output::Set
         }
-        Input::ReplConf | Input::Psync => ClientResult::BecomeFollower,
+        Input::CommitMulti | Input::Multi | Input::ReplConf(_) | Input::Psync => unreachable!(),
     };
     tracing::debug!("response: {response:?}");
     Ok(response)
+}
+
+#[derive(Debug)]
+pub enum ReplicationResult {
+    Replicate,
+    Continue,
 }
 
 #[derive(Debug)]
@@ -76,7 +146,7 @@ mod tests {
             Kind,
         },
         io::{Input, Output},
-        repository::LockingMemoryRepository,
+        repository::{LockingMemoryRepository, Repository},
     };
 
     use super::{handle_client_request, ClientResult, ClientState};
@@ -138,9 +208,11 @@ mod tests {
         let event = MockEventProducerSink;
         let repo = LockingMemoryRepository::new();
         let mut client = ClientState::new(event, repo);
-        let ClientResult::BecomeFollower =
-            handle_client_request(Input::ReplConf, &mut client).unwrap()
-        else {
+        let ClientResult::BecomeFollower = handle_client_request(
+            Input::ReplConf(crate::io::ReplConf::ListingPort(1)),
+            &mut client,
+        )
+        .unwrap() else {
             panic!();
         };
         let ClientResult::BecomeFollower =
@@ -174,4 +246,127 @@ mod tests {
             panic!();
         };
     }
+
+    #[test]
+    fn start_multi() {
+        let mut state = ClientState::new(MockEventProducerSink, LockingMemoryRepository::new());
+        let ClientResult::SendOutput(Output::Multi) =
+            handle_client_request(Input::Multi, &mut state).unwrap()
+        else {
+            panic!();
+        };
+    }
+
+    #[test]
+    fn queue_multi() {
+        let mut state = ClientState::new(MockEventProducerSink, LockingMemoryRepository::new());
+        let ClientResult::SendOutput(Output::Multi) =
+            handle_client_request(Input::Multi, &mut state).unwrap()
+        else {
+            panic!();
+        };
+        let (key, value) = ("abc", "xyz");
+        let ClientResult::SendOutput(Output::Queued) = handle_client_request(
+            Input::Set {
+                key: key.into(),
+                value: value.into(),
+                expiry: None,
+                get: false,
+            },
+            &mut state,
+        )
+        .unwrap() else {
+            panic!();
+        };
+    }
+
+    #[test]
+    fn commit_empty_multi() {
+        let mut state = ClientState::new(MockEventProducerSink, LockingMemoryRepository::new());
+        let ClientResult::SendOutput(Output::Multi) =
+            handle_client_request(Input::Multi, &mut state).unwrap()
+        else {
+            panic!();
+        };
+        let ClientResult::SendOutput(Output::Array(arr)) =
+            handle_client_request(Input::CommitMulti, &mut state).unwrap()
+        else {
+            panic!();
+        };
+        assert!(arr.is_empty());
+    }
+
+    #[test]
+    #[ignore = "reason"]
+    fn commit_whilte_not_in_multi_errors() {
+        todo!()
+    }
+
+    #[test]
+    fn commit_multi() {
+        let repo = LockingMemoryRepository::new();
+        let mut state = ClientState::new(MockEventProducerSink, repo.clone());
+        let ClientResult::SendOutput(Output::Multi) =
+            handle_client_request(Input::Multi, &mut state).unwrap()
+        else {
+            panic!();
+        };
+        let (key, value) = ("abc", "xyz");
+        let ClientResult::SendOutput(Output::Queued) = handle_client_request(
+            Input::Set {
+                key: key.into(),
+                value: value.into(),
+                expiry: None,
+                get: false,
+            },
+            &mut state,
+        )
+        .unwrap() else {
+            panic!();
+        };
+        let ClientResult::SendOutput(Output::Array(arr)) =
+            handle_client_request(Input::CommitMulti, &mut state).unwrap()
+        else {
+            panic!();
+        };
+        assert_eq!(arr, [Output::Set]);
+        let v = repo.get(key).unwrap().unwrap();
+        assert_eq!(v, value);
+    }
+
+    #[test]
+    fn repo_is_not_updated_until_commit() {
+        let repo = LockingMemoryRepository::new();
+        let mut state = ClientState::new(MockEventProducerSink, repo.clone());
+        let ClientResult::SendOutput(Output::Multi) =
+            handle_client_request(Input::Multi, &mut state).unwrap()
+        else {
+            panic!();
+        };
+        let (key, value) = ("abc", "xyz");
+        let ClientResult::SendOutput(Output::Queued) = handle_client_request(
+            Input::Set {
+                key: key.into(),
+                value: value.into(),
+                expiry: None,
+                get: false,
+            },
+            &mut state,
+        )
+        .unwrap() else {
+            panic!();
+        };
+        assert!(repo.get(key).unwrap().is_none());
+        let ClientResult::SendOutput(Output::Array(arr)) =
+            handle_client_request(Input::CommitMulti, &mut state).unwrap()
+        else {
+            panic!();
+        };
+        assert_eq!(arr, [Output::Set]);
+        let v = repo.get(key).unwrap().unwrap();
+        assert_eq!(v, value);
+    }
+
+    #[test]
+    fn abort_multi() {}
 }

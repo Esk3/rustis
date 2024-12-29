@@ -7,6 +7,8 @@ use rustis::{
     resp::parser::{RespEncoder, RespParser},
 };
 
+pub mod redis;
+
 fn main() {
     tracing_subscriber::fmt::init();
 
@@ -22,7 +24,8 @@ fn main() {
         tracing::info!("handling new connection");
         let stream = stream.unwrap();
         let stream = rustis::io::TcpStream::new(&stream);
-        connection_handler::<RespParser, RespEncoder, _, _, _>(stream, event.clone(), repo.clone());
+        connection_handler::<RespParser, RespEncoder, _, _, _>(stream, event.clone(), repo.clone())
+            .unwrap();
     }
     tracing::info!("shutting down");
 }
