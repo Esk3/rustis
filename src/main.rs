@@ -1,7 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
 use rustis::{
-    connection::connection_handler,
     event::LockEventProducer,
     repository::LockingMemoryRepository,
     resp::parser::{RespEncoder, RespParser},
@@ -20,12 +19,5 @@ fn main() {
     let repo = LockingMemoryRepository::new();
     let event = LockEventProducer::new();
 
-    for stream in listner.incoming() {
-        tracing::info!("handling new connection");
-        let stream = stream.unwrap();
-        let stream = rustis::io::TcpStream::new(&stream);
-        connection_handler::<RespParser, RespEncoder, _, _, _>(stream, event.clone(), repo.clone())
-            .unwrap();
-    }
     tracing::info!("shutting down");
 }

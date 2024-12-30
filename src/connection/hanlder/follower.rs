@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use tracing::instrument;
 
 use crate::{
+    connection::Input,
     event::{EventSubscriber, Kind},
-    io::{Input, Output},
     repository::Repository,
 };
 
@@ -57,9 +57,8 @@ pub enum FollowerResult {
 #[cfg(test)]
 mod tests {
     use crate::{
-        connection::hanlder::follower::FollowerResult,
+        connection::{hanlder::follower::FollowerResult, Input},
         event::tests::DummyPanicSubscriber,
-        io::Input,
         repository::{LockingMemoryRepository, Repository},
     };
 

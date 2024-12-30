@@ -1,8 +1,8 @@
 use tracing::instrument;
 
 use crate::{
+    connection::{Input, Output},
     event::EventProducer,
-    io::{Input, Output},
     repository::Repository,
 };
 
@@ -67,7 +67,10 @@ pub enum Response {
 #[cfg(test)]
 mod tests {
     use crate::{
-        connection::hanlder::leader::{handle_message_from_leader, LeaderState, Response},
+        connection::{
+            hanlder::leader::{handle_message_from_leader, LeaderState, Response},
+            Input,
+        },
         event::{
             tests::{MockEventProducer, MockEventProducerSink},
             Kind,
@@ -81,7 +84,7 @@ mod tests {
         let mut state = LeaderState::new(MockEventProducerSink, repo.clone());
         let (key, value) = ("abc", "xyz");
         let Response::None = handle_message_from_leader(
-            crate::io::Input::Set {
+            Input::Set {
                 key: key.into(),
                 value: value.into(),
                 expiry: None,
@@ -105,7 +108,7 @@ mod tests {
         }]);
         let mut state = LeaderState::new(event, LockingMemoryRepository::new());
         let Response::None = handle_message_from_leader(
-            crate::io::Input::Set {
+            Input::Set {
                 key: key.into(),
                 value: value.into(),
                 expiry: None,

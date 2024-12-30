@@ -1,4 +1,4 @@
-use crate::{Connection, ConnectionError, ConnectionResult};
+use crate::connection::{Connection, ConnectionError, ConnectionMessage, ConnectionResult, Input};
 
 use super::{client::ClientHandler, IncomingConnection};
 
@@ -7,12 +7,18 @@ fn setup() -> IncomingConnection<DummyConnection> {
     IncomingConnection::new(connection)
 }
 
-fn mock_setup(
-    input: impl Into<Vec<()>>,
-    output: Option<impl Into<Vec<()>>>,
-) -> IncomingConnection<MockConnection> {
-    let connection = MockConnection::new(input, output);
-    IncomingConnection::new(connection)
+macro_rules! setup {
+    () => {
+        setup();
+    };
+    ($input:expr) => {{
+        let connection = MockConnection::new_input($input);
+        IncomingConnection::new(connection)
+    }};
+    ($input:expr, $output:expr) => {{
+        let connection = MockConnection::new($input, $output);
+        IncomingConnection::new(connection)
+    }};
 }
 
 #[test]
@@ -23,13 +29,16 @@ fn create_incoming_connection() {
 
 #[test]
 fn handle_connection_reads_input() {
-    let connection = mock_setup(vec![()], None::<Vec<()>>);
+    let connection = setup!([ConnectionMessage::Input(Input::Ping)].into_iter());
     connection.handle_connection().unwrap();
 }
 
 #[test]
 fn handler_reads_two_inputs() {
-    let connection = mock_setup(vec![(), ()], None::<Vec<()>>);
+    let connection = setup!([
+        ConnectionMessage::Input(Input::Ping),
+        ConnectionMessage::Input(Input::Ping)
+    ]);
     connection.handle_connection().unwrap();
 }
 #[test]
@@ -46,8 +55,10 @@ fn connection_calls_client_connection_handler() {
 #[test]
 fn connection_writes_connection_handlers_response() {
     let mut handler = ClientHandler::new();
-    let output = [handler.handle_request(())];
-    let connection = mock_setup([()], Some(output));
+    let output = [ConnectionMessage::Output(
+        handler.handle_request(Input::Ping),
+    )];
+    let connection = setup!([ConnectionMessage::Input(Input::Ping)], output);
     connection.handle_connection().unwrap();
 }
 
@@ -77,25 +88,42 @@ impl Connection for DummyConnection {
         todo!()
     }
 
-    fn read_command(&mut self) -> ConnectionResult<()> {
+    fn read_command(&mut self) -> ConnectionResult<ConnectionMessage> {
         todo!()
     }
 
-    fn write_command(&mut self, command: ()) -> ConnectionResult<()> {
+    fn write_command(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
         todo!()
     }
 }
 
 struct MockConnection {
-    input: Vec<()>,
-    expected_output: Option<Vec<()>>,
+    input: Vec<ConnectionMessage>,
+    expected_output: Option<Vec<ConnectionMessage>>,
 }
 
 impl MockConnection {
-    pub fn new(input: impl Into<Vec<()>>, expected_output: Option<impl Into<Vec<()>>>) -> Self {
+    pub fn new<I, O>(input: I, expected_output: O) -> Self
+    where
+        I: IntoIterator<Item = ConnectionMessage>,
+        O: IntoIterator<Item = ConnectionMessage>,
+        <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
+        <O as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
+    {
         Self {
-            input: input.into(),
-            expected_output: expected_output.map(|o| o.into()),
+            input: input.into_iter().rev().collect(),
+            expected_output: Some(expected_output.into_iter().rev().collect()),
+        }
+    }
+
+    pub fn new_input<I>(input: I) -> Self
+    where
+        I: IntoIterator<Item = ConnectionMessage>,
+        <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
+    {
+        Self {
+            input: input.into_iter().rev().collect(),
+            expected_output: None,
         }
     }
 }
@@ -113,17 +141,17 @@ impl Connection for MockConnection {
         todo!()
     }
 
-    fn read_command(&mut self) -> ConnectionResult<()> {
+    fn read_command(&mut self) -> ConnectionResult<ConnectionMessage> {
         self.input.pop().ok_or(ConnectionError::EndOfInput)
     }
 
-    fn write_command(&mut self, command: ()) -> ConnectionResult<()> {
+    fn write_command(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
         let Some(ref mut expected) = self.expected_output else {
-            return Ok(());
+            return Ok(1);
         };
         let expected = expected.pop().unwrap();
-        //assert_eq!(command, expected);
-        Ok(())
+        assert_eq!(command, expected);
+        Ok(1)
     }
 }
 

@@ -1,7 +1,7 @@
 use client::ClientHandler;
 use tracing::{debug, info, instrument};
 
-use crate::Connection;
+use crate::connection::{Connection, ConnectionError, ConnectionMessage};
 
 mod client;
 #[cfg(test)]
@@ -27,12 +27,17 @@ where
         loop {
             let request = match self.connection.read_command() {
                 Ok(request) => request,
-                Err(crate::ConnectionError::EndOfInput) => return Ok(()),
+                Err(ConnectionError::EndOfInput) => return Ok(()),
             };
             debug!("handling request: {request:?}");
+            let ConnectionMessage::Input(request) = request else {
+                panic!();
+            };
             let response = client_handler.handle_request(request);
             debug!("writing response: {response:?}");
-            self.connection.write_command(response).unwrap();
+            self.connection
+                .write_command(ConnectionMessage::Output(response))
+                .unwrap();
         }
     }
 }

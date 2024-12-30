@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use tracing::instrument;
 
 use crate::{
+    connection::{Input, Output},
     event::EventProducer,
-    io::{Input, Output},
     repository::Repository,
 };
 
@@ -141,11 +141,11 @@ pub enum ClientResult {
 #[cfg(test)]
 mod tests {
     use crate::{
+        connection::{Input, Output, ReplConf},
         event::{
             tests::{MockEventProducer, MockEventProducerSink},
             Kind,
         },
-        io::{Input, Output},
         repository::{LockingMemoryRepository, Repository},
     };
 
@@ -208,11 +208,9 @@ mod tests {
         let event = MockEventProducerSink;
         let repo = LockingMemoryRepository::new();
         let mut client = ClientState::new(event, repo);
-        let ClientResult::BecomeFollower = handle_client_request(
-            Input::ReplConf(crate::io::ReplConf::ListingPort(1)),
-            &mut client,
-        )
-        .unwrap() else {
+        let ClientResult::BecomeFollower =
+            handle_client_request(Input::ReplConf(ReplConf::ListingPort(1)), &mut client).unwrap()
+        else {
             panic!();
         };
         let ClientResult::BecomeFollower =

@@ -8,5 +8,5 @@ fn create_client_handler() {
 #[test]
 fn client_handler_handles_request() {
     let mut handler = ClientHandler::new();
-    let _response = handler.handle_request(());
+    let _response = handler.handle_request(Input::Ping);
 }

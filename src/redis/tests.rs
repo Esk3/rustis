@@ -2,8 +2,8 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use rustis::{
     config::{RedisConfig, Role},
+    connection::{Connection, ConnectionMessage, ConnectionResult},
     listner::RedisListner,
-    Connection, ConnectionResult,
 };
 
 use super::*;
@@ -177,11 +177,11 @@ impl Connection for DummyConnection {
         todo!()
     }
 
-    fn read_command(&mut self) -> ConnectionResult<()> {
+    fn read_command(&mut self) -> ConnectionResult<ConnectionMessage> {
         todo!()
     }
 
-    fn write_command(&mut self, command: ()) -> ConnectionResult<()> {
+    fn write_command(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
         todo!()
     }
 }

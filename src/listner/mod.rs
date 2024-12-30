@@ -1,4 +1,4 @@
-use crate::Connection;
+use crate::connection::Connection;
 
 pub trait RedisListner {
     type Connection: Connection;

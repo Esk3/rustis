@@ -1,4 +1,4 @@
-use crate::io::NetworkMessage;
+use crate::connection::{ConnectionMessage as NetworkMessage, Input, Output, ReplConf};
 
 use super::Value;
 
@@ -12,11 +12,11 @@ impl Parse for RespParser {
         let arr = value.into_array().unwrap();
         if let Ok([cmd]) = TryInto::<[Value; 1]>::try_into(arr) {
             if cmd.eq_ignore_ascii_case("PING") {
-                return Ok(NetworkMessage::Input(crate::io::Input::Ping));
+                return Ok(NetworkMessage::Input(Input::Ping));
             }
             if cmd.eq_ignore_ascii_case("REPLCONF") {
-                return Ok(NetworkMessage::Input(crate::io::Input::ReplConf(
-                    crate::io::ReplConf::ListingPort(1),
+                return Ok(NetworkMessage::Input(Input::ReplConf(
+                    ReplConf::ListingPort(1),
                 )));
             }
         }
@@ -34,26 +34,26 @@ impl Encode for RespEncoder {
         let value = match message {
             NetworkMessage::Input(_) => todo!(),
             NetworkMessage::Output(output) => match output {
-                crate::io::Output::Pong => Value::SimpleString("PONG".into()),
-                crate::io::Output::Get(value) => {
+                Output::Pong => Value::SimpleString("PONG".into()),
+                Output::Get(value) => {
                     if let Some(value) = value {
                         Value::BulkString(value)
                     } else {
                         Value::NullArray
                     }
                 }
-                crate::io::Output::Set => Value::SimpleString("Ok".into()),
-                crate::io::Output::ReplConf(_) => Value::SimpleString("Ok".into()),
-                crate::io::Output::Psync => todo!(),
-                crate::io::Output::Null => Value::NullArray,
-                crate::io::Output::Ok => Value::SimpleString("Ok".into()),
-                crate::io::Output::Array(arr) => Value::Array(
+                Output::Set => Value::SimpleString("Ok".into()),
+                Output::ReplConf(_) => Value::SimpleString("Ok".into()),
+                Output::Psync => todo!(),
+                Output::Null => Value::NullArray,
+                Output::Ok => Value::SimpleString("Ok".into()),
+                Output::Array(arr) => Value::Array(
                     arr.into_iter()
                         .map(|value| Self::encode(NetworkMessage::Output(value)).unwrap())
                         .collect(),
                 ),
-                crate::io::Output::Multi => todo!(),
-                crate::io::Output::Queued => Value::SimpleString("Queued".into()),
+                Output::Multi => todo!(),
+                Output::Queued => Value::SimpleString("Queued".into()),
             },
         };
         Ok(value)

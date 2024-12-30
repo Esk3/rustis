@@ -1,166 +1,73 @@
 use std::fmt::Debug;
 
-use hanlder::{
-    client::{handle_client_request, ClientResult, ClientState},
-    follower::{handle_follower_event, FollowerState},
-    leader::{handle_message_from_leader, LeaderState},
-};
 use thiserror::Error;
 use tracing::instrument;
-
-use crate::{
-    event::{EventProducer, EventSubscriber},
-    io::{Io, IoError, NetworkMessage},
-    repository::Repository,
-    resp::parser::{Encode, Parse},
-};
 
 pub mod hanlder;
 pub mod incoming;
 pub mod outgoing;
 
-#[instrument(skip(repo))]
-pub fn connection_handler<P, En, I, E, R>(
-    mut io: I,
-    event: E,
-    repo: R,
-) -> Result<(), ConnectionError>
-where
-    P: Parse,
-    En: Encode,
-    I: Io + Debug,
-    E: EventProducer + Debug,
-    R: Repository + Debug,
-    <E as EventProducer>::Subscriber: std::fmt::Debug,
-{
-    let mut state = ClientState::new(event, repo.clone());
-
-    loop {
-        let value = io.read_value()?;
-        tracing::debug!("got value {value:?}");
-        let message = P::parse(value).unwrap();
-        let NetworkMessage::Input(input) = message else {
-            todo!()
-        };
-        let response = handle_client_request(input, &mut state).unwrap();
-        match response {
-            ClientResult::None => (),
-            ClientResult::SendOutput(output) => {
-                let value = En::encode(NetworkMessage::Output(output)).unwrap();
-                io.write_value(value).unwrap();
-            }
-            ClientResult::BecomeFollower => break,
-        }
-    }
-
-    let mut state = FollowerState::new(state.event().subscribe(), repo);
-    loop {
-        let event = state.subscriber().recive();
-        let result = handle_follower_event(event, &mut state).unwrap();
-        match result {
-            hanlder::follower::FollowerResult::None => (),
-            hanlder::follower::FollowerResult::SendToFollower(msg) => {
-                let value = En::encode(NetworkMessage::Input(msg)).unwrap();
-                io.write_value(value).unwrap();
-            }
-        }
-    }
+pub trait Connection {
+    fn read_resp(&mut self, buf: &mut [u8]) -> ConnectionResult<usize>;
+    fn write_resp(&mut self, buf: &[u8]) -> ConnectionResult<()>;
+    fn from_connection<C>(value: C) -> Self;
+    fn read_command(&mut self) -> ConnectionResult<ConnectionMessage>;
+    fn write_command(&mut self, command: ConnectionMessage) -> ConnectionResult<usize>;
 }
 
 #[derive(Error, Debug)]
 pub enum ConnectionError {
-    #[error("io error {0}")]
-    IoError(#[from] IoError),
+    #[error("end of input")]
+    EndOfInput,
 }
 
-#[instrument]
-pub fn leader_connection_handler<P, En, I, E, R>(mut io: I, event_producer: E, repo: R)
-where
-    P: Parse,
-    En: Encode,
-    I: Io + Debug,
-    E: EventProducer + Debug,
-    R: Repository + Debug,
-{
-    let mut state = LeaderState::new(event_producer, repo);
-    loop {
-        let value = io.read_value().unwrap();
-        tracing::debug!("got value: {value:?}");
-        let NetworkMessage::Input(input) = P::parse(value).unwrap() else {
-            panic!()
-        };
-        tracing::debug!("got input: {input:?}");
-        let response = handle_message_from_leader(input, &mut state).unwrap();
+pub type ConnectionResult<T> = Result<T, ConnectionError>;
 
-        tracing::debug!("response: {response:?}");
-        match response {
-            hanlder::leader::Response::None => (),
-            hanlder::leader::Response::SendOutput(output) => {
-                let value = En::encode(NetworkMessage::Output(output)).unwrap();
-                io.write_value(value).unwrap();
-            }
-        }
-    }
+#[derive(Debug, PartialEq, Eq)]
+pub enum ConnectionMessage {
+    Input(Input),
+    Output(Output),
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::{
-        connection::ConnectionError,
-        event::tests::MockEventProducerSink,
-        io::tests::MockIo,
-        repository::LockingMemoryRepository,
-        resp::{
-            parser::{RespEncoder, RespParser},
-            Value,
-        },
-    };
+#[derive(Debug, PartialEq, Eq)]
+pub enum Input {
+    Ping,
 
-    use super::connection_handler;
+    Get(String),
+    Set {
+        key: String,
+        value: String,
+        expiry: Option<std::time::Duration>,
+        get: bool,
+    },
 
-    #[test]
-    fn ping_client() {
-        let io = MockIo::new(
-            [
-                Value::Array(vec![Value::BulkString("PING".into())]),
-                Value::SimpleString("end".into()),
-            ],
-            [Value::SimpleString("PONG".into())],
-        );
-        let ConnectionError::IoError(crate::io::IoError::EndOfInput) =
-            connection_handler::<RespParser, RespEncoder, _, _, _>(
-                io,
-                MockEventProducerSink,
-                LockingMemoryRepository::new(),
-            )
-            .unwrap_err()
-        else {
-            panic!()
-        };
-    }
+    Multi,
+    CommitMulti,
 
-    #[test]
-    #[ignore = "reason"]
-    fn replication() {
-        let io = MockIo::new(
-            [
-                Value::Array([Value::BulkString("REPLCONF".into())].into()),
-                Value::Array([Value::BulkString("REPLCONF".into())].into()),
-                Value::Array([Value::BulkString("PSYNC".into())].into()),
-                Value::SimpleString("end".into()),
-            ],
-            [],
-        );
-        connection_handler::<RespParser, RespEncoder, _, _, _>(
-            io,
-            MockEventProducerSink,
-            LockingMemoryRepository::new(),
-        )
-        .unwrap();
-    }
-    #[test]
-    #[ignore = "reason"]
-    fn connection_to_leader_replicates_silently() {
-        todo!()
-    }
+    ReplConf(ReplConf),
+    Psync,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Output {
+    Pong,
+    Get(Option<String>),
+    Set,
+
+    Multi,
+    Queued,
+
+    ReplConf(ReplConf),
+    Psync,
+    Null,
+    Ok,
+    Array(Vec<Self>),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReplConf {
+    ListingPort(u16),
+    Capa(String),
+    GetAck(i32),
+    Ack(i32),
 }
