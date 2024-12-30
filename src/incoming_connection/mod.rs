@@ -1,64 +1,38 @@
-use crate::{Connection, RedisCommandsConnection, RespConnection};
+use client::ClientHandler;
+use tracing::{debug, info, instrument};
 
+use crate::Connection;
+
+mod client;
 #[cfg(test)]
 mod tests;
 
-pub trait IncomingConnectionHandler {
-    type Connection: Connection;
-    fn accept_connection(connection: Self::Connection);
+pub struct IncomingConnection<C> {
+    connection: C,
 }
 
-pub struct IncomingRedisConnectionHandler<C> {
-    pd: std::marker::PhantomData<C>,
-}
-
-impl<C> IncomingRedisConnectionHandler<C>
+impl<C> IncomingConnection<C>
 where
-    C: RedisCommandsConnection,
+    C: Connection,
 {
-    fn new(connection: C) -> Self {
-        Self {
-            pd: std::marker::PhantomData,
+    #[must_use]
+    pub fn new(connection: C) -> Self {
+        Self { connection }
+    }
+
+    #[instrument(skip(self))]
+    pub fn handle_connection(mut self) -> anyhow::Result<()> {
+        info!("handling new connection");
+        let mut client_handler = ClientHandler::new();
+        loop {
+            let request = match self.connection.read_command() {
+                Ok(request) => request,
+                Err(crate::ConnectionError::EndOfInput) => return Ok(()),
+            };
+            debug!("handling request: {request:?}");
+            let response = client_handler.handle_request(request);
+            debug!("writing response: {response:?}");
+            self.connection.write_command(response).unwrap();
         }
-    }
-}
-
-impl IncomingConnectionHandler for IncomingRedisConnectionHandler<()> {
-    type Connection = RedisTcpConnection;
-    fn accept_connection(connection: Self::Connection) {
-        todo!()
-    }
-}
-
-pub struct RedisTcpConnection;
-
-impl RespConnection for RedisTcpConnection {
-    fn read_resp(&mut self, buf: &mut [u8]) -> anyhow::Result<usize> {
-        todo!()
-    }
-
-    fn write_resp(&mut self, buf: &[u8]) -> anyhow::Result<()> {
-        todo!()
-    }
-
-    fn into_inner(self) -> impl Connection {
-        self
-    }
-}
-
-impl Connection for RedisTcpConnection {}
-
-impl std::io::Read for RedisTcpConnection {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        todo!()
-    }
-}
-impl std::io::Write for RedisTcpConnection {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        todo!()
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        todo!()
     }
 }

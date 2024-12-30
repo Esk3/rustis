@@ -1,8 +1,8 @@
 use rustis::{
     config::{RedisConfig, Role},
-    incoming_connection::IncomingConnectionHandler,
+    incoming_connection::IncomingConnection,
     listner::RedisListner,
-    outgoing_connection::OutgoingConnectionHandler,
+    outgoing_connection::OutgoingConnection,
 };
 use tracing::{error, info, instrument};
 
@@ -33,38 +33,29 @@ where
         self.config.port()
     }
 
-    fn connect_to_leader<O>(&mut self)
-    where
-        O: OutgoingConnectionHandler,
-    {
+    fn connect_to_leader(&mut self) {
         if !self.is_follower() {
             error!("tried to connect to leader without being a follower");
             panic!("is not follower");
         }
-        O::connect(
+        OutgoingConnection::connect(
             self.config
                 .leader_addr()
                 .expect("should be set if follower"),
         );
     }
 
-    fn incoming<I>(self)
-    where
-        I: IncomingConnectionHandler<Connection = L::Connection>,
-    {
+    fn incoming(self) {
         info!("accepting incoming connections");
         for connection in self.listner.incoming() {
             info!("connection accepted");
-            I::accept_connection(connection);
+            let connection = IncomingConnection::new(connection);
+            connection.handle_connection();
         }
     }
 
     #[instrument(skip(self))]
-    pub fn run<I, O>(mut self)
-    where
-        I: IncomingConnectionHandler<Connection = L::Connection>,
-        O: OutgoingConnectionHandler,
-    {
+    pub fn run(mut self) {
         info!(
             "starting to run redis server as {}",
             if self.is_leader() {
@@ -74,10 +65,10 @@ where
             }
         );
         if self.is_follower() {
-            self.connect_to_leader::<O>();
+            self.connect_to_leader();
             info!("connected to leader");
         }
-        self.incoming::<I>();
+        self.incoming();
     }
 
     pub fn role(&self) -> Role {
