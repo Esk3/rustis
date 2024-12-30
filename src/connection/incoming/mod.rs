@@ -1,42 +1,38 @@
-use std::fmt::Debug;
+use client::ClientHandler;
+use tracing::{debug, info, instrument};
 
-use super::hanlder::{
-    self,
-    client::{handle_client_request, ClientResult, ClientState},
-    follower::{handle_follower_event, FollowerState},
-};
+use crate::Connection;
 
-use thiserror::Error;
-use tracing::instrument;
-
-use crate::{
-    event::{EventProducer, EventSubscriber},
-    io::{IoError, MessageIo, NetworkMessage},
-    repository::Repository,
-    resp::parser::{Encode, Parse},
-};
-
-pub struct Incoming<P, En, I, E, R> {
-    pd: std::marker::PhantomData<(P, En, I, E, R)>,
-}
-
+mod client;
 #[cfg(test)]
 mod tests;
 
-impl<P, En, I, E, R> Incoming<P, En, I, E, R>
+pub struct IncomingConnection<C> {
+    connection: C,
+}
+
+impl<C> IncomingConnection<C>
 where
-    P: Parse,
-    En: Encode,
-    I: MessageIo + Debug,
-    E: EventProducer + Debug,
-    R: Repository + Debug,
-    <E as EventProducer>::Subscriber: std::fmt::Debug,
+    C: Connection,
 {
     #[must_use]
-    pub fn new(io: I, producer: E, repo: R) -> Self {
-        todo!()
+    pub fn new(connection: C) -> Self {
+        Self { connection }
     }
 
     #[instrument(skip(self))]
-    pub fn run(self) {}
+    pub fn handle_connection(mut self) -> anyhow::Result<()> {
+        info!("handling new connection");
+        let mut client_handler = ClientHandler::new();
+        loop {
+            let request = match self.connection.read_command() {
+                Ok(request) => request,
+                Err(crate::ConnectionError::EndOfInput) => return Ok(()),
+            };
+            debug!("handling request: {request:?}");
+            let response = client_handler.handle_request(request);
+            debug!("writing response: {response:?}");
+            self.connection.write_command(response).unwrap();
+        }
+    }
 }

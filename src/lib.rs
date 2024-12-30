@@ -3,10 +3,8 @@ use thiserror::Error;
 pub mod config;
 pub mod connection;
 pub mod event;
-pub mod incoming_connection;
 pub mod io;
 pub mod listner;
-pub mod outgoing_connection;
 pub mod repository;
 pub mod resp;
 

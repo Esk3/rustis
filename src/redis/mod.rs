@@ -1,8 +1,7 @@
 use rustis::{
     config::{RedisConfig, Role},
-    incoming_connection::IncomingConnection,
+    connection::{incoming::IncomingConnection, outgoing::OutgoingConnection},
     listner::RedisListner,
-    outgoing_connection::OutgoingConnection,
 };
 use tracing::{error, info, instrument};
 
