@@ -1,7 +1,8 @@
 use rustis::{
     config::{RedisConfig, Role},
-    connection::{incoming::IncomingConnection, outgoing::OutgoingConnection},
+    connection::{incoming::IncomingConnection, outgoing::OutgoingConnection, Connection},
     listner::RedisListner,
+    repository::LockingMemoryRepository,
 };
 use tracing::{error, info, instrument};
 
@@ -11,6 +12,7 @@ mod tests;
 pub struct Redis<L> {
     config: RedisConfig,
     listner: L,
+    repo: LockingMemoryRepository,
 }
 
 impl<L> Redis<L>
@@ -24,7 +26,11 @@ where
 
     pub fn bind_from_config(config: RedisConfig) -> anyhow::Result<Self> {
         let listner = L::bind(config.port())?;
-        Ok(Self { config, listner })
+        Ok(Self {
+            config,
+            listner,
+            repo: LockingMemoryRepository::new(),
+        })
     }
 
     #[must_use]
@@ -32,12 +38,15 @@ where
         self.config.port()
     }
 
-    fn connect_to_leader(&mut self) {
+    fn connect_to_leader<C>(&mut self)
+    where
+        C: Connection,
+    {
         if !self.is_follower() {
             error!("tried to connect to leader without being a follower");
             panic!("is not follower");
         }
-        OutgoingConnection::connect(
+        OutgoingConnection::<C>::connect(
             self.config
                 .leader_addr()
                 .expect("should be set if follower"),
@@ -48,13 +57,16 @@ where
         info!("accepting incoming connections");
         for connection in self.listner.incoming() {
             info!("connection accepted");
-            let connection = IncomingConnection::new(connection);
-            connection.handle_connection();
+            let connection = IncomingConnection::new(connection, self.repo.clone());
+            connection.handle_connection().unwrap();
         }
     }
 
     #[instrument(skip(self))]
-    pub fn run(mut self) {
+    pub fn run<C>(mut self)
+    where
+        C: Connection,
+    {
         info!(
             "starting to run redis server as {}",
             if self.is_leader() {
@@ -64,7 +76,7 @@ where
             }
         );
         if self.is_follower() {
-            self.connect_to_leader();
+            self.connect_to_leader::<C>();
             info!("connected to leader");
         }
         self.incoming();

@@ -3,6 +3,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+#[cfg(test)]
+mod tests;
+
 pub trait Repository: Clone {
     fn get(&self, key: &str) -> anyhow::Result<Option<String>>;
     fn set(

@@ -8,11 +8,11 @@ pub mod incoming;
 pub mod outgoing;
 
 pub trait Connection {
-    fn read_resp(&mut self, buf: &mut [u8]) -> ConnectionResult<usize>;
-    fn write_resp(&mut self, buf: &[u8]) -> ConnectionResult<()>;
-    fn from_connection<C>(value: C) -> Self;
-    fn read_command(&mut self) -> ConnectionResult<ConnectionMessage>;
-    fn write_command(&mut self, command: ConnectionMessage) -> ConnectionResult<usize>;
+    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
+    where
+        Self: Sized;
+    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage>;
+    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize>;
 }
 
 #[derive(Error, Debug)]
@@ -23,13 +23,30 @@ pub enum ConnectionError {
 
 pub type ConnectionResult<T> = Result<T, ConnectionError>;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConnectionMessage {
     Input(Input),
     Output(Output),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+impl ConnectionMessage {
+    pub fn into_input(self) -> Result<Input, Self> {
+        if let Self::Input(input) = self {
+            Ok(input)
+        } else {
+            Err(self)
+        }
+    }
+    pub fn into_output(self) -> Result<Output, Self> {
+        if let Self::Output(output) = self {
+            Ok(output)
+        } else {
+            Err(self)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Input {
     Ping,
 
@@ -48,13 +65,14 @@ pub enum Input {
     Psync,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Output {
     Pong,
     Get(Option<String>),
     Set,
 
     Multi,
+    MultiError,
     Queued,
 
     ReplConf(ReplConf),
@@ -64,10 +82,31 @@ pub enum Output {
     Array(Vec<Self>),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ReplConf {
     ListingPort(u16),
     Capa(String),
     GetAck(i32),
     Ack(i32),
+}
+
+impl From<Output> for ConnectionMessage {
+    fn from(value: Output) -> Self {
+        Self::Output(value)
+    }
+}
+impl From<Input> for ConnectionMessage {
+    fn from(value: Input) -> Self {
+        Self::Input(value)
+    }
+}
+impl From<ReplConf> for Input {
+    fn from(value: ReplConf) -> Self {
+        Self::ReplConf(value)
+    }
+}
+impl From<ReplConf> for Output {
+    fn from(value: ReplConf) -> Self {
+        Self::ReplConf(value)
+    }
 }

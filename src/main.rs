@@ -1,5 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
+use redis::Redis;
 use rustis::{
     event::LockEventProducer,
     repository::LockingMemoryRepository,

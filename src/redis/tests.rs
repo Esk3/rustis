@@ -90,7 +90,7 @@ fn get_listner() {
 #[should_panic(expected = "incoming called on dummy listner")]
 fn calls_listers_incoming_on_run() {
     let redis = DummyRedis::bind().unwrap();
-    redis.run();
+    redis.run::<DummyConnection>();
 }
 
 #[test]
@@ -104,20 +104,20 @@ fn listner_is_bound_to_right_port() {
 #[ignore = "todo"]
 fn creates_incoming_connection_on_listner_output() {
     let redis = Redis::<MockOnceListner>::bind().unwrap();
-    redis.run();
+    redis.run::<DummyConnection>();
 }
 
 #[test]
 #[should_panic(expected = "is not follower")]
 fn creating_outgoing_connection_as_leader_panics() {
     let mut redis = DummyRedis::bind().unwrap();
-    redis.connect_to_leader();
+    redis.connect_to_leader::<DummyConnection>();
 }
 
 #[test]
 fn create_outgoing_connection_as_follower_is_ok() {
     let mut redis = setup_follower();
-    redis.connect_to_leader();
+    redis.connect_to_leader::<DummyConnection>();
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn creates_outgoing_connection_on_run_as_follower() {
         SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 4321)),
     ))
     .unwrap();
-    redis.run();
+    redis.run::<DummyConnection>();
 }
 
 struct DummyListner;
@@ -165,37 +165,18 @@ impl RedisListner for MockOnceListner {
 
 struct DummyConnection;
 impl Connection for DummyConnection {
-    fn read_resp(&mut self, buf: &mut [u8]) -> ConnectionResult<usize> {
+    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
+    where
+        Self: Sized,
+    {
+        Ok(Self)
+    }
+
+    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage> {
         todo!()
     }
 
-    fn write_resp(&mut self, buf: &[u8]) -> ConnectionResult<()> {
-        todo!()
-    }
-
-    fn from_connection<C>(value: C) -> Self {
-        todo!()
-    }
-
-    fn read_command(&mut self) -> ConnectionResult<ConnectionMessage> {
-        todo!()
-    }
-
-    fn write_command(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
-        todo!()
-    }
-}
-impl std::io::Read for DummyConnection {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        todo!()
-    }
-}
-impl std::io::Write for DummyConnection {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        todo!()
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
+    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
         todo!()
     }
 }

@@ -1,10 +1,14 @@
-use crate::connection::{Connection, ConnectionError, ConnectionMessage, ConnectionResult, Input};
+use crate::{
+    connection::{Connection, ConnectionError, ConnectionMessage, ConnectionResult, Input},
+    repository::LockingMemoryRepository,
+};
 
-use super::{client::ClientHandler, IncomingConnection};
+use super::{client::Client, IncomingConnection};
 
-fn setup() -> IncomingConnection<DummyConnection> {
+fn dummy_setup() -> IncomingConnection<DummyConnection> {
     let connection = DummyConnection;
-    IncomingConnection::new(connection)
+    let repo = LockingMemoryRepository::new();
+    IncomingConnection::new(connection, repo)
 }
 
 macro_rules! setup {
@@ -13,18 +17,21 @@ macro_rules! setup {
     };
     ($input:expr) => {{
         let connection = MockConnection::new_input($input);
-        IncomingConnection::new(connection)
+        let repo = LockingMemoryRepository::new();
+        IncomingConnection::new(connection, repo)
     }};
     ($input:expr, $output:expr) => {{
         let connection = MockConnection::new($input, $output);
-        IncomingConnection::new(connection)
+        let repo = LockingMemoryRepository::new();
+        IncomingConnection::new(connection, repo)
     }};
 }
 
 #[test]
 fn create_incoming_connection() {
     let connection = DummyConnection;
-    let _ = IncomingConnection::new(connection);
+    let repo = LockingMemoryRepository::new();
+    let _ = IncomingConnection::new(connection, repo);
 }
 
 #[test]
@@ -54,9 +61,10 @@ fn connection_calls_client_connection_handler() {
 
 #[test]
 fn connection_writes_connection_handlers_response() {
-    let mut handler = ClientHandler::new();
+    let repo = LockingMemoryRepository::new();
+    let mut handler = Client::new(repo);
     let output = [ConnectionMessage::Output(
-        handler.handle_request(Input::Ping),
+        handler.handle_request(Input::Ping).unwrap(),
     )];
     let connection = setup!([ConnectionMessage::Input(Input::Ping)], output);
     connection.handle_connection().unwrap();
@@ -76,28 +84,21 @@ fn connection_writes_same_output_as_follower_connection_handler_when_connection_
 
 struct DummyConnection;
 impl Connection for DummyConnection {
-    fn read_resp(&mut self, buf: &mut [u8]) -> ConnectionResult<usize> {
+    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self> {
         todo!()
     }
 
-    fn write_resp(&mut self, buf: &[u8]) -> ConnectionResult<()> {
+    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage> {
         todo!()
     }
 
-    fn from_connection<C>(value: C) -> Self {
-        todo!()
-    }
-
-    fn read_command(&mut self) -> ConnectionResult<ConnectionMessage> {
-        todo!()
-    }
-
-    fn write_command(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
+    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
         todo!()
     }
 }
 
-struct MockConnection {
+#[derive(Debug)]
+pub struct MockConnection {
     input: Vec<ConnectionMessage>,
     expected_output: Option<Vec<ConnectionMessage>>,
 }
@@ -129,29 +130,21 @@ impl MockConnection {
 }
 
 impl Connection for MockConnection {
-    fn read_resp(&mut self, buf: &mut [u8]) -> ConnectionResult<usize> {
-        todo!()
-    }
-
-    fn write_resp(&mut self, buf: &[u8]) -> ConnectionResult<()> {
-        todo!()
-    }
-
-    fn from_connection<C>(value: C) -> Self {
-        todo!()
-    }
-
-    fn read_command(&mut self) -> ConnectionResult<ConnectionMessage> {
-        self.input.pop().ok_or(ConnectionError::EndOfInput)
-    }
-
-    fn write_command(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
+    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
         let Some(ref mut expected) = self.expected_output else {
             return Ok(1);
         };
         let expected = expected.pop().unwrap();
         assert_eq!(command, expected);
         Ok(1)
+    }
+
+    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self> {
+        todo!()
+    }
+
+    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage> {
+        self.input.pop().ok_or(ConnectionError::EndOfInput)
     }
 }
 
