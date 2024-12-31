@@ -6,15 +6,7 @@ use std::{
 #[cfg(test)]
 mod tests;
 
-pub trait Repository: Clone {
-    fn get(&self, key: &str) -> anyhow::Result<Option<String>>;
-    fn set(
-        &self,
-        key: String,
-        value: String,
-        expiry: Option<std::time::Duration>,
-    ) -> anyhow::Result<Option<String>>;
-}
+pub type Repository = LockingMemoryRepository;
 
 #[derive(Debug, Clone)]
 pub struct LockingMemoryRepository {
@@ -28,19 +20,22 @@ impl LockingMemoryRepository {
             kv_store: Arc::new(Mutex::new(HashMap::new())),
         }
     }
-}
 
-impl Repository for LockingMemoryRepository {
-    fn get(&self, key: &str) -> anyhow::Result<Option<String>> {
+    pub fn get(&self, key: &str) -> anyhow::Result<Option<String>> {
         Ok(self.kv_store.lock().unwrap().get(key).cloned())
     }
 
-    fn set(
+    pub fn set(
         &self,
         key: String,
         value: String,
         expiry: Option<std::time::Duration>,
     ) -> anyhow::Result<Option<String>> {
         Ok(self.kv_store.lock().unwrap().insert(key, value))
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.kv_store.lock().unwrap().is_empty()
     }
 }

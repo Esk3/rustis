@@ -9,16 +9,16 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct FollowerState<E, R> {
+pub struct FollowerState<E> {
     subscriber: E,
-    repo: R,
+    repo: Repository,
 }
 
-impl<E, R> FollowerState<E, R>
+impl<E> FollowerState<E>
 where
     E: EventSubscriber,
 {
-    pub fn new(subscriber: E, repo: R) -> Self {
+    pub fn new(subscriber: E, repo: Repository) -> Self {
         Self { subscriber, repo }
     }
 
@@ -28,13 +28,12 @@ where
 }
 
 #[instrument(skip(state))]
-pub fn handle_follower_event<E, R>(
+pub fn handle_follower_event<E>(
     event: Kind,
-    state: &mut FollowerState<E, R>,
+    state: &mut FollowerState<E>,
 ) -> anyhow::Result<FollowerResult>
 where
     E: EventSubscriber + Debug,
-    R: Repository,
 {
     tracing::debug!("handling event {event:?}");
     let msg = match event {

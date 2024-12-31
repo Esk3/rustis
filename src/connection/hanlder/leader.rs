@@ -6,17 +6,16 @@ use crate::{
     repository::Repository,
 };
 
-pub struct LeaderState<R, E> {
-    repo: R,
+pub struct LeaderState<E> {
+    repo: Repository,
     event_emitter: E,
 }
 
-impl<R, E> LeaderState<R, E>
+impl<E> LeaderState<E>
 where
-    R: Repository,
     E: EventProducer,
 {
-    pub fn new(event_emitter: E, repo: R) -> Self {
+    pub fn new(event_emitter: E, repo: Repository) -> Self {
         Self {
             repo,
             event_emitter,
@@ -25,12 +24,11 @@ where
 }
 
 #[instrument(skip(state))]
-pub fn handle_message_from_leader<R, E>(
+pub fn handle_message_from_leader<E>(
     message: Input,
-    state: &mut LeaderState<R, E>,
+    state: &mut LeaderState<E>,
 ) -> anyhow::Result<Response>
 where
-    R: Repository,
     E: EventProducer,
 {
     let response = match message {

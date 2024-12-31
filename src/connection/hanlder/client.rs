@@ -9,18 +9,17 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ClientState<R, E> {
-    repo: R,
+pub struct ClientState<E> {
+    repo: Repository,
     event: E,
     queue: Option<Vec<Input>>,
 }
 
-impl<R, E> ClientState<R, E>
+impl<E> ClientState<E>
 where
-    R: Repository,
     E: EventProducer,
 {
-    pub fn new(event: E, repo: R) -> Self {
+    pub fn new(event: E, repo: Repository) -> Self {
         Self {
             repo,
             event,
@@ -34,12 +33,11 @@ where
 }
 
 #[instrument]
-pub fn handle_client_request<R, E>(
+pub fn handle_client_request<E>(
     request: Input,
-    state: &mut ClientState<R, E>,
+    state: &mut ClientState<E>,
 ) -> anyhow::Result<ClientResult>
 where
-    R: Repository + Debug,
     E: EventProducer + Debug,
 {
     tracing::debug!("handling request: {request:?}");
@@ -68,9 +66,8 @@ fn replication_layer(request: &Input) -> ReplicationResult {
     }
 }
 
-fn transaction_layer<R, E>(request: Input, state: &mut ClientState<R, E>) -> anyhow::Result<Output>
+fn transaction_layer<E>(request: Input, state: &mut ClientState<E>) -> anyhow::Result<Output>
 where
-    R: Repository,
     E: EventProducer,
 {
     if let Some(ref mut queue) = state.queue {
@@ -93,9 +90,8 @@ where
     }
 }
 
-fn handler<R, E>(request: Input, state: &mut ClientState<R, E>) -> anyhow::Result<Output>
+fn handler<E>(request: Input, state: &mut ClientState<E>) -> anyhow::Result<Output>
 where
-    R: Repository,
     E: EventProducer,
 {
     let response = match request {
