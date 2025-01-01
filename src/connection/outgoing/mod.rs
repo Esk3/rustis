@@ -20,6 +20,7 @@ where
     pub fn new(connection: C) -> Self {
         Self { connection }
     }
+
     pub fn connect(addr: SocketAddr) -> anyhow::Result<Self> {
         Ok(Self {
             connection: C::connect(addr)?,

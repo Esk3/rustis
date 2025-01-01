@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use thiserror::Error;
-use tracing::instrument;
 
 pub mod hanlder;
 pub mod incoming;

@@ -4,7 +4,7 @@ use tracing::{debug, info, instrument};
 
 use crate::{
     connection::{Connection, ConnectionError, ConnectionMessage},
-    repository::LockingMemoryRepository,
+    repository::Repository,
 };
 
 mod client;
@@ -14,7 +14,7 @@ pub mod tests;
 
 pub struct IncomingConnection<C> {
     connection: C,
-    repo: LockingMemoryRepository,
+    repo: Repository,
 }
 
 impl<C> IncomingConnection<C>
@@ -22,7 +22,7 @@ where
     C: Connection,
 {
     #[must_use]
-    pub fn new(connection: C, repo: LockingMemoryRepository) -> Self {
+    pub fn new(connection: C, repo: Repository) -> Self {
         Self { connection, repo }
     }
 

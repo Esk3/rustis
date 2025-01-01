@@ -2,8 +2,15 @@ use super::*;
 
 macro_rules! request_response {
     ($($req:expr),+; $($res:expr),+) => {
-    let repo = LockingMemoryRepository::new();
+    let repo = Repository::new();
     let mut handler = Client::new(repo);
+    $(
+        let response = handler.handle_request($req).unwrap();
+        assert_eq!(response, $res);
+    )+
+    };
+    ($repo:expr ; $($req:expr),+; $($res:expr),+) => {
+    let mut handler = Client::new($repo.clone());
     $(
         let response = handler.handle_request($req).unwrap();
         assert_eq!(response, $res);
@@ -13,13 +20,13 @@ macro_rules! request_response {
 
 #[test]
 fn create_client_handler() {
-    let repo = LockingMemoryRepository::new();
+    let repo = Repository::new();
     let _: Client = Client::new(repo);
 }
 
 #[test]
 fn client_handler_handles_request() {
-    let repo = LockingMemoryRepository::new();
+    let repo = Repository::new();
     let mut handler = Client::new(repo);
     let _response = handler.handle_request(Input::Ping).unwrap();
 }
@@ -55,8 +62,9 @@ fn set_returns_set_response() {
 
 #[test]
 fn set_and_get_stores_values() {
+    let repo = Repository::new();
     let (key, value) = ("abc", "xyz");
-    request_response!(Input::Get(key.into()), Input::Set {
+    request_response!(repo ; Input::Get(key.into()), Input::Set {
         key: key.into(),
         value: value.into(),
         expiry: None,
@@ -67,6 +75,8 @@ fn set_and_get_stores_values() {
     Output::Set,
     Output::Get(Some(value.into()))
     );
+    let some_value = repo.get(key).unwrap();
+    assert_eq!(some_value, Some(value.into()));
 }
 
 #[test]

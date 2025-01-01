@@ -1,6 +1,6 @@
 use crate::{
     connection::{Input, Output},
-    repository::{LockingMemoryRepository, Repository},
+    repository::Repository,
     Service,
 };
 
@@ -12,7 +12,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(repo: LockingMemoryRepository) -> Self {
+    pub fn new(repo: Repository) -> Self {
         Self {
             inner: ReplicationService {
                 inner: MultiService::new(repo),
@@ -49,7 +49,7 @@ struct MultiService {
 }
 
 impl MultiService {
-    fn new(repo: LockingMemoryRepository) -> Self {
+    fn new(repo: Repository) -> Self {
         Self {
             inner: Hanlder::new(repo),
             queue: None,
@@ -97,12 +97,12 @@ impl Service<Input> for MultiService {
     }
 }
 
-struct Hanlder<Repo = LockingMemoryRepository> {
-    repo: Repo,
+struct Hanlder {
+    repo: Repository,
 }
 
-impl<Repo> Hanlder<Repo> {
-    fn new(repo: Repo) -> Self {
+impl Hanlder {
+    fn new(repo: Repository) -> Self {
         Self { repo }
     }
 }
