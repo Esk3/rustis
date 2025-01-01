@@ -1,5 +1,6 @@
 use crate::{
     connection::{Connection, ConnectionError, ConnectionMessage, ConnectionResult, Input},
+    event::EventEmitter,
     repository::LockingMemoryRepository,
 };
 
@@ -8,7 +9,8 @@ use super::{client::Client, IncomingConnection};
 fn dummy_setup() -> IncomingConnection<DummyConnection> {
     let connection = DummyConnection;
     let repo = LockingMemoryRepository::new();
-    IncomingConnection::new(connection, repo)
+    let emitter = EventEmitter::new();
+    IncomingConnection::new(connection, emitter, repo)
 }
 
 macro_rules! setup {
@@ -18,12 +20,14 @@ macro_rules! setup {
     ($input:expr) => {{
         let connection = MockConnection::new_input($input);
         let repo = LockingMemoryRepository::new();
-        IncomingConnection::new(connection, repo)
+        let emitter = EventEmitter::new();
+        IncomingConnection::new(connection, emitter, repo)
     }};
     ($input:expr, $output:expr) => {{
         let connection = MockConnection::new($input, $output);
         let repo = LockingMemoryRepository::new();
-        IncomingConnection::new(connection, repo)
+        let emitter = EventEmitter::new();
+        IncomingConnection::new(connection, emitter, repo)
     }};
 }
 
@@ -31,7 +35,8 @@ macro_rules! setup {
 fn create_incoming_connection() {
     let connection = DummyConnection;
     let repo = LockingMemoryRepository::new();
-    let _ = IncomingConnection::new(connection, repo);
+    let emitter = EventEmitter::new();
+    let _ = IncomingConnection::new(connection, emitter, repo);
 }
 
 #[test]
@@ -62,7 +67,8 @@ fn connection_calls_client_connection_handler() {
 #[test]
 fn connection_writes_connection_handlers_response() {
     let repo = LockingMemoryRepository::new();
-    let mut handler = Client::new(repo);
+    let emitter = EventEmitter::new();
+    let mut handler = Client::new(emitter, repo);
     let output = [ConnectionMessage::Output(
         handler.handle_request(Input::Ping).unwrap(),
     )];
@@ -124,6 +130,13 @@ impl MockConnection {
     {
         Self {
             input: input.into_iter().rev().collect(),
+            expected_output: None,
+        }
+    }
+
+    pub(crate) fn empty() -> MockConnection {
+        Self {
+            input: Vec::new(),
             expected_output: None,
         }
     }

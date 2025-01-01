@@ -4,6 +4,7 @@ use tracing::{debug, info, instrument};
 
 use crate::{
     connection::{Connection, ConnectionError, ConnectionMessage},
+    event::EventEmitter,
     repository::Repository,
 };
 
@@ -15,6 +16,7 @@ pub mod tests;
 pub struct IncomingConnection<C> {
     connection: C,
     repo: Repository,
+    emitter: EventEmitter,
 }
 
 impl<C> IncomingConnection<C>
@@ -22,8 +24,12 @@ where
     C: Connection,
 {
     #[must_use]
-    pub fn new(connection: C, repo: Repository) -> Self {
-        Self { connection, repo }
+    pub fn new(connection: C, emitter: EventEmitter, repo: Repository) -> Self {
+        Self {
+            connection,
+            emitter,
+            repo,
+        }
     }
 
     #[instrument(skip(self))]
@@ -36,7 +42,7 @@ where
 
     fn handle_client_connection(&mut self) -> anyhow::Result<()> {
         info!("handling client connection");
-        let mut client_handler = Client::new(self.repo.clone());
+        let mut client_handler = Client::new(self.emitter.clone(), self.repo.clone());
         loop {
             let request = match self.connection.read_message() {
                 Ok(request) => request,

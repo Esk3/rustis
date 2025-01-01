@@ -4,22 +4,19 @@ use tracing::instrument;
 
 use crate::{
     connection::{Input, Output},
-    event::EventProducer,
+    event::EventEmitter,
     repository::Repository,
 };
 
 #[derive(Debug)]
-pub struct ClientState<E> {
+pub struct ClientState {
     repo: Repository,
-    event: E,
+    event: EventEmitter,
     queue: Option<Vec<Input>>,
 }
 
-impl<E> ClientState<E>
-where
-    E: EventProducer,
-{
-    pub fn new(event: E, repo: Repository) -> Self {
+impl ClientState {
+    pub fn new(event: EventEmitter, repo: Repository) -> Self {
         Self {
             repo,
             event,
@@ -27,19 +24,16 @@ where
         }
     }
 
-    pub fn event(&self) -> &E {
+    pub fn event(&self) -> &EventEmitter {
         &self.event
     }
 }
 
 #[instrument]
-pub fn handle_client_request<E>(
+pub fn handle_client_request(
     request: Input,
-    state: &mut ClientState<E>,
-) -> anyhow::Result<ClientResult>
-where
-    E: EventProducer + Debug,
-{
+    state: &mut ClientState,
+) -> anyhow::Result<ClientResult> {
     tracing::debug!("handling request: {request:?}");
     match replication_layer(&request) {
         ReplicationResult::Replicate => return Ok(ClientResult::BecomeFollower),
@@ -66,10 +60,7 @@ fn replication_layer(request: &Input) -> ReplicationResult {
     }
 }
 
-fn transaction_layer<E>(request: Input, state: &mut ClientState<E>) -> anyhow::Result<Output>
-where
-    E: EventProducer,
-{
+fn transaction_layer(request: Input, state: &mut ClientState) -> anyhow::Result<Output> {
     if let Some(ref mut queue) = state.queue {
         if let Input::CommitMulti = request {
             let queue = state.queue.take().unwrap();
@@ -90,10 +81,7 @@ where
     }
 }
 
-fn handler<E>(request: Input, state: &mut ClientState<E>) -> anyhow::Result<Output>
-where
-    E: EventProducer,
-{
+fn handler(request: Input, state: &mut ClientState) -> anyhow::Result<Output> {
     let response = match request {
         Input::Ping => Output::Pong,
         Input::Get(key) => {
@@ -138,10 +126,7 @@ pub enum ClientResult {
 mod tests {
     use crate::{
         connection::{Input, Output, ReplConf},
-        event::{
-            tests::{MockEventProducer, MockEventProducerSink},
-            Kind,
-        },
+        event::{EventEmitter, Kind},
         repository::{LockingMemoryRepository, Repository},
     };
 
@@ -149,7 +134,7 @@ mod tests {
 
     #[test]
     fn ping() {
-        let event = MockEventProducerSink;
+        let event = EventEmitter::new();
         let repo = LockingMemoryRepository::new();
         let mut client = ClientState::new(event, repo);
         let input = Input::Ping;
@@ -162,7 +147,7 @@ mod tests {
 
     #[test]
     fn get_unset() {
-        let event = MockEventProducerSink;
+        let event = EventEmitter::new();
         let repo = LockingMemoryRepository::new();
         let mut client = ClientState::new(event, repo);
         let res = handle_client_request(Input::Get("abc".into()), &mut client).unwrap();
@@ -174,7 +159,7 @@ mod tests {
 
     #[test]
     fn set_and_get_value() {
-        let event = MockEventProducerSink;
+        let event = EventEmitter::new();
         let repo = LockingMemoryRepository::new();
         let mut client = ClientState::new(event, repo);
         let (key, value) = ("abc", "xyz");
@@ -201,7 +186,7 @@ mod tests {
 
     #[test]
     fn repl_conf_returns_into_follower() {
-        let event = MockEventProducerSink;
+        let event = EventEmitter::new();
         let repo = LockingMemoryRepository::new();
         let mut client = ClientState::new(event, repo);
         let ClientResult::BecomeFollower =
@@ -220,11 +205,12 @@ mod tests {
     fn handler_send_event_on_set() {
         let repo = LockingMemoryRepository::new();
         let (key, value) = ("abc", "xyz");
-        let event = MockEventProducer::new(vec![Kind::Set {
-            key: key.into(),
-            value: value.into(),
-            expiry: (),
-        }]);
+        //let event = EventEmitter::new(vec![Kind::Set {
+        //    key: key.into(),
+        //    value: value.into(),
+        //    expiry: (),
+        //}]);
+        let event = EventEmitter::new();
 
         let mut state = ClientState::new(event, repo);
         let ClientResult::SendOutput(_output) = handle_client_request(
@@ -243,7 +229,7 @@ mod tests {
 
     #[test]
     fn start_multi() {
-        let mut state = ClientState::new(MockEventProducerSink, LockingMemoryRepository::new());
+        let mut state = ClientState::new(EventEmitter::new(), LockingMemoryRepository::new());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
         else {
@@ -253,7 +239,7 @@ mod tests {
 
     #[test]
     fn queue_multi() {
-        let mut state = ClientState::new(MockEventProducerSink, LockingMemoryRepository::new());
+        let mut state = ClientState::new(EventEmitter::new(), LockingMemoryRepository::new());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
         else {
@@ -276,7 +262,7 @@ mod tests {
 
     #[test]
     fn commit_empty_multi() {
-        let mut state = ClientState::new(MockEventProducerSink, LockingMemoryRepository::new());
+        let mut state = ClientState::new(EventEmitter::new(), LockingMemoryRepository::new());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
         else {
@@ -299,7 +285,7 @@ mod tests {
     #[test]
     fn commit_multi() {
         let repo = LockingMemoryRepository::new();
-        let mut state = ClientState::new(MockEventProducerSink, repo.clone());
+        let mut state = ClientState::new(EventEmitter::new(), repo.clone());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
         else {
@@ -331,7 +317,7 @@ mod tests {
     #[test]
     fn repo_is_not_updated_until_commit() {
         let repo = LockingMemoryRepository::new();
-        let mut state = ClientState::new(MockEventProducerSink, repo.clone());
+        let mut state = ClientState::new(EventEmitter::new(), repo.clone());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
         else {

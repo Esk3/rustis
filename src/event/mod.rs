@@ -6,16 +6,8 @@ use std::sync::{
 #[cfg(test)]
 pub mod tests;
 
-pub trait EventProducer {
-    type Subscriber: EventSubscriber;
-    fn emmit(&self, kind: Kind);
-
-    fn subscribe(&self) -> Self::Subscriber;
-}
-
-pub trait EventSubscriber {
-    fn recive(&self) -> Kind;
-}
+pub type EventEmitter = LockEventProducer;
+pub type EventSubscriber = ChannelEventSubscriber;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -38,11 +30,7 @@ impl LockEventProducer {
             subscribers: Arc::default(),
         }
     }
-}
-
-impl EventProducer for LockEventProducer {
-    type Subscriber = ChannelEventSubscriber;
-    fn emmit(&self, kind: Kind) {
+    pub fn emmit(&self, kind: Kind) {
         self.subscribers
             .lock()
             .unwrap()
@@ -50,10 +38,11 @@ impl EventProducer for LockEventProducer {
             .for_each(|tx| tx.send(kind.clone()).unwrap());
     }
 
-    fn subscribe(&self) -> Self::Subscriber {
+    #[must_use]
+    pub fn subscribe(&self) -> EventSubscriber {
         let (tx, rx) = channel();
         self.subscribers.lock().unwrap().push(tx);
-        ChannelEventSubscriber::new(rx)
+        EventSubscriber::new(rx)
     }
 }
 
@@ -61,15 +50,19 @@ impl EventProducer for LockEventProducer {
 pub struct ChannelEventSubscriber {
     rx: Receiver<Kind>,
 }
+
 impl ChannelEventSubscriber {
     #[must_use]
     pub fn new(rx: Receiver<Kind>) -> Self {
         Self { rx }
     }
-}
 
-impl EventSubscriber for ChannelEventSubscriber {
-    fn recive(&self) -> Kind {
+    #[must_use]
+    pub fn recive(&self) -> Kind {
         self.rx.recv().unwrap()
+    }
+    #[must_use]
+    pub fn try_recive(&self) -> Option<Kind> {
+        self.rx.try_recv().ok()
     }
 }

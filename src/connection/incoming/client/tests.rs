@@ -1,16 +1,20 @@
+use crate::event::EventEmitter;
+
 use super::*;
 
 macro_rules! request_response {
     ($($req:expr),+; $($res:expr),+) => {
     let repo = Repository::new();
-    let mut handler = Client::new(repo);
+    let emitter = EventEmitter::new();
+    let mut handler = Client::new(emitter, repo);
     $(
         let response = handler.handle_request($req).unwrap();
         assert_eq!(response, $res);
     )+
     };
     ($repo:expr ; $($req:expr),+; $($res:expr),+) => {
-    let mut handler = Client::new($repo.clone());
+    let emitter = EventEmitter::new();
+    let mut handler = Client::new(emitter, $repo.clone());
     $(
         let response = handler.handle_request($req).unwrap();
         assert_eq!(response, $res);
@@ -21,13 +25,15 @@ macro_rules! request_response {
 #[test]
 fn create_client_handler() {
     let repo = Repository::new();
-    let _: Client = Client::new(repo);
+    let event_emitter = EventEmitter::new();
+    let _: Client = Client::new(event_emitter, repo);
 }
 
 #[test]
 fn client_handler_handles_request() {
     let repo = Repository::new();
-    let mut handler = Client::new(repo);
+    let emitter = EventEmitter::new();
+    let mut handler = Client::new(emitter, repo);
     let _response = handler.handle_request(Input::Ping).unwrap();
 }
 
@@ -102,11 +108,13 @@ fn client_returns_queue_when_in_multi() {
         Output::Queued,
         Output::Queued);
 }
+
 #[test]
 fn client_returns_empty_array_when_comitting_empty_multi() {
     request_response!(Input::Multi, Input::CommitMulti ;
         Output::Multi, Output::Array(Vec::new()));
 }
+
 #[test]
 #[ignore = "todo"]
 fn client_returns_array_with_responses_when_comitting_multi() {
@@ -124,10 +132,93 @@ fn client_returns_into_follower_on_replconf() {
 }
 
 #[test]
+fn event_layer_returns_none_for_ping() {
+    let none_event = EventLayer::get_event(&Input::Ping);
+    assert_eq!(none_event, None);
+}
+
+#[test]
+fn event_layer_returns_none_for_get() {
+    let none_event = EventLayer::get_event(&Input::Get(String::new()));
+    assert_eq!(none_event, None);
+}
+
+#[test]
+fn event_layer_returns_some_for_set() {
+    let some_event = EventLayer::get_event(&Input::Set {
+        key: "key".into(),
+        value: "value".into(),
+        expiry: None,
+        get: false,
+    });
+    assert!(some_event.is_some());
+}
+
+#[test]
+fn event_layer_returns_set_for_set() {
+    let key = "key";
+    let value = "value";
+    let input = Input::Set {
+        key: key.into(),
+        value: value.into(),
+        expiry: None,
+        get: false,
+    };
+    let some_event = EventLayer::get_event(&input);
+    let expected = event::Kind::Set {
+        key: key.into(),
+        value: value.into(),
+        expiry: (),
+    };
+    assert_eq!(some_event, Some(expected));
+}
+
+#[test]
+fn event_layer_emits_event_from_get_event_on_call() {
+    let emitter = EventEmitter::new();
+    let subscriber = emitter.subscribe();
+    let mut event_layer = EventLayer::new(emitter, Hanlder::new(Repository::new()));
+    let input = Input::Ping;
+    _ = event_layer.call(input.clone());
+    let event = subscriber.try_recive();
+    let expected = EventLayer::get_event(&input);
+    assert_eq!(event, expected);
+
+    let input = Input::Set {
+        key: "abc".into(),
+        value: "xyz".into(),
+        expiry: None,
+        get: false,
+    };
+    _ = event_layer.call(input.clone());
+    let event = subscriber.try_recive();
+    let expected = EventLayer::get_event(&input);
+    assert_eq!(event, expected);
+}
+
+#[test]
+fn event_layer_gets_called() {
+    let emitter = EventEmitter::new();
+    let subscriber = emitter.subscribe();
+    let repo = Repository::new();
+    let mut handler = Client::new(emitter, repo);
+
+    let input = Input::Ping;
+    _ = handler.handle_request(input.clone());
+    assert_eq!(subscriber.try_recive(), EventLayer::get_event(&input));
+
+    let input = Input::Set {
+        key: "abc".into(),
+        value: "xyz".into(),
+        expiry: None,
+        get: false,
+    };
+    _ = handler.handle_request(input.clone());
+    assert_eq!(subscriber.try_recive(), EventLayer::get_event(&input));
+}
+
+#[test]
 #[ignore = "todo"]
-fn client_emmits_set_event_on_set_request() {
-    // testing:
-    //      event manager interface & mock?
-    //      event layer with fn that determins the event to send adn test that?
+fn even_is_not_emitted_on_handler_panic() {
     todo!()
 }

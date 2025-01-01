@@ -4,37 +4,31 @@ use tracing::instrument;
 
 use crate::{
     connection::Input,
-    event::{EventSubscriber, Kind},
+    event::{EventEmitter, EventSubscriber, Kind},
     repository::Repository,
 };
 
 #[derive(Debug)]
-pub struct FollowerState<E> {
-    subscriber: E,
+pub struct FollowerState {
+    subscriber: EventEmitter,
     repo: Repository,
 }
 
-impl<E> FollowerState<E>
-where
-    E: EventSubscriber,
-{
-    pub fn new(subscriber: E, repo: Repository) -> Self {
+impl FollowerState {
+    pub fn new(subscriber: EventEmitter, repo: Repository) -> Self {
         Self { subscriber, repo }
     }
 
-    pub fn subscriber(&self) -> &E {
+    pub fn subscriber(&self) -> &EventEmitter {
         &self.subscriber
     }
 }
 
 #[instrument(skip(state))]
-pub fn handle_follower_event<E>(
+pub fn handle_follower_event(
     event: Kind,
-    state: &mut FollowerState<E>,
-) -> anyhow::Result<FollowerResult>
-where
-    E: EventSubscriber + Debug,
-{
+    state: &mut FollowerState,
+) -> anyhow::Result<FollowerResult> {
     tracing::debug!("handling event {event:?}");
     let msg = match event {
         Kind::Set { key, value, expiry } => Input::Set {
@@ -57,7 +51,7 @@ pub enum FollowerResult {
 mod tests {
     use crate::{
         connection::{hanlder::follower::FollowerResult, Input},
-        event::tests::DummyPanicSubscriber,
+        event::EventEmitter,
         repository::{LockingMemoryRepository, Repository},
     };
 
@@ -66,8 +60,8 @@ mod tests {
     #[test]
     fn propegates_set_to_follower() {
         let (key, value) = ("abc", "xyz");
-        let repo = LockingMemoryRepository::new();
-        let mut state = FollowerState::new(DummyPanicSubscriber, repo.clone());
+        let repo = Repository::new();
+        let mut state = FollowerState::new(EventEmitter::new(), repo.clone());
         assert!(repo.get(key).unwrap().is_none());
         let FollowerResult::SendToFollower(msg) = handle_follower_event(
             crate::event::Kind::Set {

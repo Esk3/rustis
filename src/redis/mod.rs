@@ -1,6 +1,7 @@
 use rustis::{
     config::{RedisConfig, Role},
     connection::{incoming::IncomingConnection, outgoing::OutgoingConnection, Connection},
+    event::EventEmitter,
     listner::RedisListner,
     repository::LockingMemoryRepository,
 };
@@ -13,6 +14,7 @@ pub struct Redis<L> {
     config: RedisConfig,
     listner: L,
     repo: LockingMemoryRepository,
+    emitter: EventEmitter,
 }
 
 impl<L> Redis<L>
@@ -30,6 +32,7 @@ where
             config,
             listner,
             repo: LockingMemoryRepository::new(),
+            emitter: EventEmitter::new(),
         })
     }
 
@@ -57,7 +60,8 @@ where
         info!("accepting incoming connections");
         for connection in self.listner.incoming() {
             info!("connection accepted");
-            let connection = IncomingConnection::new(connection, self.repo.clone());
+            let connection =
+                IncomingConnection::new(connection, self.emitter.clone(), self.repo.clone());
             connection.handle_connection().unwrap();
         }
     }

@@ -1,5 +1,6 @@
 use crate::{
     connection::{Input, Output},
+    event::{self, EventEmitter},
     repository::Repository,
     Service,
 };
@@ -12,10 +13,10 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(repo: Repository) -> Self {
+    pub fn new(emitter: EventEmitter, repo: Repository) -> Self {
         Self {
             inner: ReplicationService {
-                inner: MultiService::new(repo),
+                inner: MultiService::new(emitter, Hanlder::new(repo)),
             },
         }
     }
@@ -44,14 +45,14 @@ impl Service<Input> for ReplicationService {
 }
 
 struct MultiService {
-    inner: Hanlder,
+    inner: EventLayer,
     queue: Option<Vec<Input>>,
 }
 
 impl MultiService {
-    fn new(repo: Repository) -> Self {
+    fn new(emitter: EventEmitter, handler: Hanlder) -> Self {
         Self {
-            inner: Hanlder::new(repo),
+            inner: EventLayer::new(emitter, handler),
             queue: None,
         }
     }
@@ -94,6 +95,55 @@ impl Service<Input> for MultiService {
             Input::CommitMulti => todo!(),
             _ => self.inner.call(request),
         }
+    }
+}
+
+struct EventLayer {
+    emitter: EventEmitter,
+    handler: Hanlder,
+}
+
+impl EventLayer {
+    fn new(emitter: EventEmitter, handler: Hanlder) -> Self {
+        Self { emitter, handler }
+    }
+
+    fn get_event(input: &Input) -> Option<event::Kind> {
+        match input {
+            Input::Ping => None,
+            Input::Get(_) => None,
+            Input::Set {
+                key,
+                value,
+                expiry,
+                get,
+            } => Some(event::Kind::Set {
+                key: key.to_string(),
+                value: value.to_string(),
+                expiry: (),
+            }),
+            Input::Multi => todo!(),
+            Input::CommitMulti => todo!(),
+            Input::ReplConf(_) => todo!(),
+            Input::Psync => todo!(),
+        }
+    }
+}
+
+impl Service<Input> for EventLayer {
+    type Response = Output;
+
+    type Error = anyhow::Error;
+
+    fn call(&mut self, request: Input) -> Result<Self::Response, Self::Error> {
+        let get_event = Self::get_event(&request);
+        let result = self.handler.call(request);
+        if let Some(event) = get_event {
+            if result.is_ok() {
+                self.emitter.emmit(event);
+            }
+        }
+        result
     }
 }
 

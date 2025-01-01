@@ -14,6 +14,30 @@ pub trait Connection {
     fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize>;
 }
 
+pub struct RedisTcpConnection(std::net::TcpStream);
+impl Connection for RedisTcpConnection {
+    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage> {
+        Ok(ConnectionMessage::Input(Input::Ping))
+    }
+
+    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
+        Ok(1)
+    }
+}
+
+impl From<std::net::TcpStream> for RedisTcpConnection {
+    fn from(value: std::net::TcpStream) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum ConnectionError {
     #[error("end of input")]

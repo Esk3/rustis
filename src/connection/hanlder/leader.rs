@@ -2,20 +2,17 @@ use tracing::instrument;
 
 use crate::{
     connection::{Input, Output},
-    event::EventProducer,
+    event::EventEmitter,
     repository::Repository,
 };
 
-pub struct LeaderState<E> {
+pub struct LeaderState {
     repo: Repository,
-    event_emitter: E,
+    event_emitter: EventEmitter,
 }
 
-impl<E> LeaderState<E>
-where
-    E: EventProducer,
-{
-    pub fn new(event_emitter: E, repo: Repository) -> Self {
+impl LeaderState {
+    pub fn new(event_emitter: EventEmitter, repo: Repository) -> Self {
         Self {
             repo,
             event_emitter,
@@ -24,13 +21,10 @@ where
 }
 
 #[instrument(skip(state))]
-pub fn handle_message_from_leader<E>(
+pub fn handle_message_from_leader(
     message: Input,
-    state: &mut LeaderState<E>,
-) -> anyhow::Result<Response>
-where
-    E: EventProducer,
-{
+    state: &mut LeaderState,
+) -> anyhow::Result<Response> {
     let response = match message {
         Input::Ping => Response::None,
         Input::Get(_) => todo!(),
@@ -69,17 +63,14 @@ mod tests {
             hanlder::leader::{handle_message_from_leader, LeaderState, Response},
             Input,
         },
-        event::{
-            tests::{MockEventProducer, MockEventProducerSink},
-            Kind,
-        },
-        repository::{LockingMemoryRepository, Repository},
+        event::EventEmitter,
+        repository::Repository,
     };
 
     #[test]
     fn sets_silently() {
-        let repo = LockingMemoryRepository::new();
-        let mut state = LeaderState::new(MockEventProducerSink, repo.clone());
+        let repo = Repository::new();
+        let mut state = LeaderState::new(EventEmitter::new(), repo.clone());
         let (key, value) = ("abc", "xyz");
         let Response::None = handle_message_from_leader(
             Input::Set {
@@ -99,12 +90,13 @@ mod tests {
     #[test]
     fn emmits_event_on_set() {
         let (key, value) = ("abc", "xyz");
-        let event = MockEventProducer::new([Kind::Set {
-            key: key.into(),
-            value: value.into(),
-            expiry: (),
-        }]);
-        let mut state = LeaderState::new(event, LockingMemoryRepository::new());
+        //let event = MockEventProducer::new([Kind::Set {
+        //    key: key.into(),
+        //    value: value.into(),
+        //    expiry: (),
+        //}]);
+        let event = EventEmitter::new();
+        let mut state = LeaderState::new(event, Repository::new());
         let Response::None = handle_message_from_leader(
             Input::Set {
                 key: key.into(),
