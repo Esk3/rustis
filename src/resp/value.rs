@@ -28,7 +28,7 @@ impl Value {
 
     pub fn into_byte_string(self) -> Result<Vec<u8>, Self> {
         match self {
-            Value::SimpleString(_) => todo!(),
+            Value::SimpleString(_) => Err(self),
             Value::BulkString(_) => todo!(),
             Value::BulkByteString(bytes) => Ok(bytes),
             Value::NullString => todo!(),

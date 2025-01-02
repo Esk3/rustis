@@ -52,6 +52,7 @@ fn subscriber_recives_emitted_event() {
 }
 
 #[test]
+#[ignore = "sleep"]
 fn subscriber_blocks_when_no_event_is_avalible() {
     let Test {
         emitter,

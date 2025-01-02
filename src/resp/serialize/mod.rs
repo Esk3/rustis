@@ -5,6 +5,7 @@ use super::Value;
 #[cfg(test)]
 mod tests;
 
+#[must_use]
 pub fn serialize_value(value: &Value) -> Vec<u8> {
     let s = value.clone().into_string().unwrap();
     let mut buf = Vec::with_capacity(s.len());
@@ -16,13 +17,19 @@ pub fn serialize_value(value: &Value) -> Vec<u8> {
 
 pub fn deserialize_value(bytes: &[u8]) -> anyhow::Result<(Value, usize)> {
     let ident = bytes.get_identifier()?;
-    match ident {
+    let value = match ident {
         Identifier::SimpleString => {
             let (s, length) = deserialize_simple_string(&bytes[ident.get_byte_length()..]).unwrap();
+            (Value::SimpleString(s), length + ident.get_byte_length())
         }
         Identifier::SimpleError => todo!(),
         Identifier::Integer => todo!(),
-        Identifier::BulkString => todo!(),
+        Identifier::BulkString => {
+            let (length, header_length) = bytes.get_header()?;
+            let length = length.try_into().expect("todo null value");
+            let (bytes, length) = deserialize_bulk_string(&bytes[header_length..], length).unwrap();
+            (Value::BulkString(String::from_utf8(bytes).unwrap()), length)
+        }
         Identifier::Array => todo!(),
         Identifier::Null => todo!(),
         Identifier::Boolean => todo!(),
@@ -34,8 +41,8 @@ pub fn deserialize_value(bytes: &[u8]) -> anyhow::Result<(Value, usize)> {
         Identifier::Attribute => todo!(),
         Identifier::Set => todo!(),
         Identifier::Pushe => todo!(),
-    }
-    deserialize_simple_string(&bytes[1..]).map(|(s, i)| (Value::SimpleString(s), i))
+    };
+    Ok(value)
 }
 
 pub fn deserialize_simple_string(bytes: &[u8]) -> anyhow::Result<(String, usize)> {
@@ -46,10 +53,41 @@ pub fn deserialize_simple_string(bytes: &[u8]) -> anyhow::Result<(String, usize)
     ))
 }
 
+pub fn deserialize_header(mut bytes: &[u8]) -> anyhow::Result<(isize, usize)> {
+    let mut length = 0;
+    if bytes
+        .first()
+        .is_some_and(|byte| Identifier::from_byte(*byte).is_ok())
+    {
+        bytes = &bytes[1..];
+        length += 1;
+    }
+    let linefeed = bytes
+        .find_linefeed()
+        .map_err(|_| anyhow!("found invalid token"))?
+        .ok_or(anyhow!("linefeed not found"))?;
+    length += linefeed + 2;
+    let digits = &bytes[..linefeed];
+    let digits = String::from_utf8(digits.to_vec())?;
+    let number = digits.parse()?;
+    Ok((number, length))
+}
+
 pub fn deserialize_bulk_string(bytes: &[u8], length: usize) -> anyhow::Result<(Vec<u8>, usize)> {
     assert!(&bytes[length..].is_at_linefeed().unwrap());
     let s = bytes[..length].to_vec();
     Ok((s, length + 2))
+}
+
+pub fn deserialize_array(bytes: &[u8], items: usize) -> anyhow::Result<(Vec<Value>, usize)> {
+    let mut result = Vec::with_capacity(items);
+    let mut length = 0;
+    for _ in 0..items {
+        let (value, bytes_consumed) = deserialize_value(bytes)?;
+        result.push(value);
+        length += bytes_consumed;
+    }
+    Ok((result, length))
 }
 
 fn is_linefeed(cr: u8, lf: u8) -> Result<bool, ()> {
@@ -108,6 +146,7 @@ impl Identifier {
         Ok(ident)
     }
 
+    #[must_use]
     pub fn as_byte(&self) -> u8 {
         match self {
             Self::SimpleString => b'+',
@@ -169,5 +208,14 @@ impl FindLinefeed for [u8] {
             return Ok(false);
         };
         is_linefeed(*cr, *lf)
+    }
+}
+
+trait GetHeader {
+    fn get_header(&self) -> anyhow::Result<(isize, usize)>;
+}
+impl GetHeader for [u8] {
+    fn get_header(&self) -> anyhow::Result<(isize, usize)> {
+        deserialize_header(self)
     }
 }
