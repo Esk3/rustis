@@ -28,9 +28,17 @@ pub fn deserialize_value(bytes: &[u8]) -> anyhow::Result<(Value, usize)> {
             let (length, header_length) = bytes.get_header()?;
             let length = length.try_into().expect("todo null value");
             let (bytes, length) = deserialize_bulk_string(&bytes[header_length..], length).unwrap();
-            (Value::BulkString(String::from_utf8(bytes).unwrap()), length)
+            (
+                Value::BulkString(String::from_utf8(bytes).unwrap()),
+                length + header_length,
+            )
         }
-        Identifier::Array => todo!(),
+        Identifier::Array => {
+            let (array_size, header_length) = bytes.get_header()?;
+            let array_size = array_size.try_into().expect("todo null array");
+            let (arr, array_length) = deserialize_array(&bytes[header_length..], array_size)?;
+            (Value::Array(arr), header_length + array_length)
+        }
         Identifier::Null => todo!(),
         Identifier::Boolean => todo!(),
         Identifier::Double => todo!(),
@@ -79,13 +87,14 @@ pub fn deserialize_bulk_string(bytes: &[u8], length: usize) -> anyhow::Result<(V
     Ok((s, length + 2))
 }
 
-pub fn deserialize_array(bytes: &[u8], items: usize) -> anyhow::Result<(Vec<Value>, usize)> {
+pub fn deserialize_array(mut bytes: &[u8], items: usize) -> anyhow::Result<(Vec<Value>, usize)> {
     let mut result = Vec::with_capacity(items);
     let mut length = 0;
     for _ in 0..items {
         let (value, bytes_consumed) = deserialize_value(bytes)?;
         result.push(value);
         length += bytes_consumed;
+        bytes = &bytes[bytes_consumed..];
     }
     Ok((result, length))
 }

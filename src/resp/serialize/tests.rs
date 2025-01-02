@@ -80,6 +80,7 @@ fn deserialize_bulk_string_value_test() {
     };
     let (byte_string, s_consumed) = deserialize_bulk_string(&bytes[4..], length).unwrap();
     assert_eq!(value.as_bytes(), byte_string);
+    assert_eq!(v_consumed, bytes.len());
 }
 
 #[test]
@@ -100,7 +101,7 @@ fn deserialize_bulk_string_value_matches_bulk_string_test() {
         };
         let (byte_string, b_length) = deserialize_bulk_string(&bytes[4..], length).unwrap();
         assert_eq!(s.as_bytes(), byte_string);
-        assert_eq!(v_length, b_length);
+        assert_eq!(v_length, bytes.len());
     }
 }
 
@@ -150,6 +151,63 @@ fn deserialize_array_with_one_item_has_matching_item() {
     let bytes = b"+MyStr\r\n";
     let (arr, _bytes_consumed) = deserialize_array(bytes, 1).unwrap();
     assert_eq!(arr[0], Value::SimpleString("MyStr".into()));
+}
+
+#[test]
+fn deserialize_array_with_bulk_string() {
+    let bytes = b"$5\r\nhello\r\n";
+    let (arr, consumed) = deserialize_array(bytes, 1).unwrap();
+    assert_eq!(arr[0], Value::BulkString("hello".into()));
+    assert_eq!(consumed, bytes.len());
+}
+
+#[test]
+fn deserialize_array_with_multiple_items() {
+    let bytes = b"+StrOne\r\n+SimpleTwo\r\n";
+    let (arr, bytes_consumed) = deserialize_array(bytes, 2).unwrap();
+    assert_eq!(
+        arr,
+        [
+            Value::SimpleString("StrOne".into()),
+            Value::SimpleString("SimpleTwo".into())
+        ]
+    );
+    assert_eq!(bytes_consumed, bytes.len());
+}
+
+#[test]
+fn deserialize_array_value_test() {
+    let bytes = b"*1\r\n+hello\r\n";
+    let (value, bytes_consumed) = deserialize_value(bytes).unwrap();
+    assert_eq!(bytes_consumed, bytes.len());
+    let Value::Array(arr) = value else { panic!() };
+    assert_eq!(arr.len(), 1);
+    assert_eq!(arr[0], Value::SimpleString("hello".into()));
+}
+
+#[test]
+fn deserialize_array_matches_deserialize_array() {
+    let bytes = b"*2\r\n+hello\r\n$5\r\nworld\r\n";
+
+    let (arr, _bytes_consumed) = deserialize_array(&bytes[4..], 2).unwrap();
+
+    let (value, bytes_consumed) = deserialize_value(bytes).unwrap();
+    let Value::Array(arr_value) = value else {
+        panic!()
+    };
+    assert_eq!(arr_value, arr);
+    assert_eq!(bytes_consumed, bytes.len());
+}
+
+#[test]
+fn deserialize_nested_array_test() {
+    let bytes = b"*1\r\n+simpleStr\r\n";
+    let (arr, consumed) = deserialize_array(bytes, 1).unwrap();
+    assert_eq!(
+        arr[0],
+        Value::Array(vec![Value::SimpleString("simpleStr".into())])
+    );
+    assert_eq!(consumed, bytes.len());
 }
 
 #[test]
