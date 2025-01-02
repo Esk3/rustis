@@ -1,5 +1,6 @@
 use anyhow::bail;
 use client::Client;
+use follower::Follower;
 use tracing::{debug, info, instrument};
 
 use crate::{
@@ -35,7 +36,7 @@ where
     #[instrument(skip(self))]
     pub fn handle_connection(mut self) -> anyhow::Result<()> {
         if self.handle_client_connection().is_ok() {
-            self.handle_follower_connection().unwrap();
+            self.handle_follower_connection();
         }
         Ok(())
     }
@@ -59,8 +60,14 @@ where
                 .unwrap();
         }
     }
-    fn handle_follower_connection(mut self) -> anyhow::Result<()> {
+
+    fn handle_follower_connection(mut self) -> crate::event::Kind {
         info!("handling follower connection");
+        let subscriber = self.emitter.subscribe();
+        let mut handler = Follower::new();
+        for event in subscriber {
+            todo!()
+        }
         todo!()
     }
 }

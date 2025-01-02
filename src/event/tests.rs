@@ -77,3 +77,27 @@ fn subscriber_recives_event_from_cloned_emitter() {
     });
     let event = subscriber.recive();
 }
+
+#[test]
+fn iter_events() {
+    let Test {
+        emitter,
+        subscriber,
+    } = Test::setup();
+    let events = [
+        Kind::Set {
+            key: "123".into(),
+            value: "abc".into(),
+            expiry: (),
+        },
+        Kind::Set {
+            key: "abc".into(),
+            value: "123".into(),
+            expiry: (),
+        },
+    ];
+    events.iter().for_each(|e| emitter.emmit(e.clone()));
+    drop(emitter);
+    let recived_events = subscriber.into_iter().collect::<Vec<_>>();
+    assert_eq!(recived_events, events);
+}

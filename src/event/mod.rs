@@ -30,7 +30,9 @@ impl LockEventProducer {
             subscribers: Arc::default(),
         }
     }
+
     pub fn emmit(&self, kind: Kind) {
+        tracing::debug!("emitting event: {kind:?}");
         self.subscribers
             .lock()
             .unwrap()
@@ -59,10 +61,25 @@ impl ChannelEventSubscriber {
 
     #[must_use]
     pub fn recive(&self) -> Kind {
-        self.rx.recv().unwrap()
+        let event = self.rx.recv().unwrap();
+        tracing::debug!("reciving event: {event:?}");
+        event
     }
+
     #[must_use]
     pub fn try_recive(&self) -> Option<Kind> {
-        self.rx.try_recv().ok()
+        let event = self.rx.try_recv().ok();
+        tracing::debug!("try recive event: {event:?}");
+        event
+    }
+}
+
+impl IntoIterator for ChannelEventSubscriber {
+    type Item = Kind;
+
+    type IntoIter = std::sync::mpsc::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rx.into_iter()
     }
 }

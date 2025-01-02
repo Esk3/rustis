@@ -2,22 +2,19 @@ use crate::{connection::incoming::tests::MockConnection, event};
 
 use super::*;
 
-fn setup() -> Follower<MockConnection> {
-    Follower::new(MockConnection::empty())
+fn setup() -> Follower {
+    Follower::new()
 }
 
 macro_rules! setup {
     ($follower:ident) => {
-        let $follower = Follower::new(MockConnection::empty());
-    };
-    ($follower:ident, $input:expr, $output:expr) => {
-        let mut $follower = Follower::new(MockConnection::new($input, $output));
+        let mut $follower = Follower::new();
     };
 }
 
 #[test]
 fn create_follower() {
-    let _: Follower<_> = Follower::new(MockConnection::empty());
+    let _: Follower = Follower::new();
 }
 
 #[test]
@@ -69,14 +66,14 @@ fn set_event_returns_set_message() {
 #[should_panic(expected = "EndOfInput")]
 fn follower_recives_handshake() {
     let mut follower = setup();
-    follower.handshake().unwrap();
+    follower.handshake(&mut MockConnection::empty()).unwrap();
 }
 
 #[test]
 fn follower_uses_incoming_handshake() {
     let handshake = IncomingHandshake::new();
-    setup!(
-        follower,
+    setup!(follower);
+    let mut connection = MockConnection::new(
         handshake
             .get_all_messages()
             .into_iter()
@@ -86,20 +83,20 @@ fn follower_uses_incoming_handshake() {
             .get_all_responses()
             .into_iter()
             .map(std::convert::Into::into)
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>(),
     );
-    follower.handshake().unwrap();
+    follower.handshake(&mut connection).unwrap();
 }
 
 #[test]
 #[should_panic]
 fn follower_panics_on_invalid_handshake() {
-    setup!(
-        follower,
+    setup!(follower);
+    let mut connection = MockConnection::new(
         [Input::Ping.into(), Input::Ping.into()],
-        [Output::Pong.into()]
+        [Output::Pong.into()],
     );
-    follower.handshake().unwrap();
+    follower.handshake(&mut connection).unwrap();
 }
 
 #[test]

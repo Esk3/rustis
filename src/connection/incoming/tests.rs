@@ -1,6 +1,6 @@
 use crate::{
     connection::{Connection, ConnectionError, ConnectionMessage, ConnectionResult, Input},
-    event::EventEmitter,
+    event::{self, EventEmitter},
     repository::LockingMemoryRepository,
 };
 
@@ -16,6 +16,15 @@ fn dummy_setup() -> IncomingConnection<DummyConnection> {
 macro_rules! setup {
     () => {
         setup();
+    };
+    ($connection:ident) => {
+        let $connection = dummy_setup();
+    };
+    ($connection:ident, emitter: $emitter:ident) => {
+        let connection = DummyConnection;
+        let repo = LockingMemoryRepository::new();
+        let $emitter = EventEmitter::new();
+        let $connection = IncomingConnection::new(connection, $emitter.clone(), repo);
     };
     ($input:expr) => {{
         let connection = MockConnection::new_input($input);
@@ -86,6 +95,16 @@ fn connection_calls_follower_connection_hanlder_when_connection_is_to_a_follower
 #[ignore = "todo"]
 fn connection_writes_same_output_as_follower_connection_handler_when_connection_is_to_a_follower() {
     todo!("setup conn, send replconf, send command and match against FollowerHandler")
+}
+
+#[test_log::test]
+fn handle_follower_connection_writes_same_output_as_follower_handler() {
+    setup!(connection, emitter: emitter);
+    let event = event::Kind::Set {
+        key: "abc".into(),
+        value: "efg".into(),
+        expiry: (),
+    };
 }
 
 struct DummyConnection;

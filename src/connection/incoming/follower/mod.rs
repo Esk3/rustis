@@ -1,28 +1,23 @@
 use anyhow::bail;
 
-use crate::connection::{Connection, ConnectionMessage, Input, Output, ReplConf};
+use crate::{
+    connection::{Connection, ConnectionMessage, Input, Output, ReplConf},
+    event::Kind,
+};
 
 #[cfg(test)]
 mod tests;
 
-pub struct Follower<C> {
-    connection: C,
-}
+pub struct Follower;
 
-impl<C> Follower<C>
-where
-    C: Connection,
-{
-    pub fn new(connection: C) -> Self {
-        Self { connection }
+impl Follower {
+    pub fn new() -> Self {
+        Self
     }
 
-    fn handle_event(
-        &mut self,
-        event: crate::event::Kind,
-    ) -> anyhow::Result<Option<ConnectionMessage>> {
+    fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<ConnectionMessage>> {
         let res = match event {
-            crate::event::Kind::Set { key, value, expiry } => {
+            Kind::Set { key, value, expiry } => {
                 Some(ConnectionMessage::Input(crate::connection::Input::Set {
                     key,
                     value,
@@ -34,18 +29,16 @@ where
         Ok(res)
     }
 
-    fn handshake(&mut self) -> anyhow::Result<()> {
+    fn handshake<C>(&mut self, connection: &mut C) -> anyhow::Result<()>
+    where
+        C: Connection,
+    {
         let mut handshake = IncomingHandshake::new();
         while !handshake.is_finished() {
-            let response = self
-                .connection
-                .read_message()
-                .unwrap()
-                .into_input()
-                .unwrap();
+            let response = connection.read_message().unwrap().into_input().unwrap();
             let msg = handshake.get_message().unwrap();
             handshake.handle_message_recived(response).unwrap();
-            self.connection.write_message(msg.into()).unwrap();
+            connection.write_message(msg.into()).unwrap();
         }
         Ok(())
     }

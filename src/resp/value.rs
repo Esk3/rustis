@@ -25,6 +25,17 @@ impl Value {
             Err(self)
         }
     }
+
+    pub fn into_byte_string(self) -> Result<Vec<u8>, Self> {
+        match self {
+            Value::SimpleString(_) => todo!(),
+            Value::BulkString(_) => todo!(),
+            Value::BulkByteString(bytes) => Ok(bytes),
+            Value::NullString => todo!(),
+            Value::Array(_) => todo!(),
+            Value::NullArray => todo!(),
+        }
+    }
     #[must_use]
     pub fn eq_ignore_ascii_case(&self, other: &str) -> bool {
         match self {

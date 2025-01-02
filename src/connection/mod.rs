@@ -15,6 +15,7 @@ pub trait Connection {
 }
 
 pub struct RedisTcpConnection(std::net::TcpStream);
+
 impl Connection for RedisTcpConnection {
     fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
     where
