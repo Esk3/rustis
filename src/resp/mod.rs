@@ -1,5 +1,5 @@
 pub mod parser;
-pub mod serialize;
+pub mod protocol;
 pub mod value;
 
 pub use value::Value;

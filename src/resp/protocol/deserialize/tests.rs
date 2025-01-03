@@ -1,21 +1,6 @@
 use super::*;
 
 #[test]
-fn serialize_value_test() {
-    let value = Value::SimpleString("hello world".to_string());
-    let bytes: Vec<u8> = serialize_value(&value);
-}
-
-#[test]
-fn serialize_simple_string_test() {
-    let bytes = serialize_value(&Value::SimpleString("hey".into()));
-    assert_eq!(bytes, b"+hey\r\n");
-
-    let bytes = serialize_value(&Value::SimpleString("hello".into()));
-    assert_eq!(bytes, b"+hello\r\n");
-}
-
-#[test]
 fn deserialize_bytes_test() {
     let bytes = b"+helloWorld\r\n";
     let (value, bytes_consumed): (Value, usize) = deserialize_value(bytes).unwrap();
@@ -209,103 +194,6 @@ fn deserialize_nested_array_test() {
     );
     assert_eq!(consumed, bytes.len());
 }
-
-#[test]
-fn get_identifier_from_byte() {
-    let identifer = Identifier::from_byte(b'+');
-}
-
-fn get_all_idents_variants() -> [Identifier; 15] {
-    [
-        Identifier::SimpleString,
-        Identifier::SimpleError,
-        Identifier::Integer,
-        Identifier::BulkString,
-        Identifier::Array,
-        Identifier::Null,
-        Identifier::Boolean,
-        Identifier::Double,
-        Identifier::BigNumber,
-        Identifier::BulkError,
-        Identifier::VerbatimString,
-        Identifier::Map,
-        Identifier::Attribute,
-        Identifier::Set,
-        Identifier::Pushe,
-    ]
-}
-
-fn get_all_ident_bytes() -> [u8; 15] {
-    [
-        b'+', b'-', b':', b'$', b'*', b'_', b'#', b',', b'(', b'!', b'=', b'%', b'`', b'~', b'>',
-    ]
-}
-
-#[test]
-fn valid_identifer_returns_ok_test() {
-    let idents = get_all_ident_bytes();
-    let expected = get_all_idents_variants();
-
-    let results = idents
-        .iter()
-        .map(|ident| Identifier::from_byte(*ident).unwrap())
-        .collect::<Vec<_>>();
-    assert_eq!(results, expected);
-}
-
-#[test]
-fn to_byte_identifier_test() {
-    let idents = get_all_idents_variants();
-    let idents = idents
-        .iter()
-        .map(super::Identifier::as_byte)
-        .collect::<Vec<u8>>();
-    let expected = get_all_ident_bytes();
-    assert_eq!(idents, expected);
-}
-
-#[test]
-fn get_identifier_length_test() {
-    let ident = Identifier::SimpleString;
-    let length: usize = ident.get_byte_length();
-}
-
-#[test]
-fn length_of_all_identifiers_is_one() {
-    get_all_idents_variants()
-        .iter()
-        .map(Identifier::get_byte_length)
-        .for_each(|i| assert_eq!(i, 1));
-}
-
-#[test]
-fn invalid_identifier_returns_err_test() {
-    let idents = b"abcxyz123";
-    let result = idents
-        .iter()
-        .map(|ident| Identifier::from_byte(*ident))
-        .all(|res| res.is_err());
-    assert!(result);
-}
-
-#[test]
-fn get_identifier_from_slice_test() {
-    let b = b"+";
-    let identifier = b.get_identifier().unwrap();
-}
-
-#[test]
-fn get_identifier_from_test_is_same_as_get_identifier() {
-    let mut s = get_all_ident_bytes().to_vec();
-    s.extend(1..10);
-    s.into_iter()
-        .for_each(|i| match ([i].get_identifier(), Identifier::from_byte(i)) {
-            (Err(_), Err(_)) => (),
-            (Ok(a), Ok(b)) if a == b => (),
-            (a, b) => panic!("{a:?}, {b:?}"),
-        });
-}
-
 #[test]
 fn is_linefeed_test() {
     assert_eq!(is_linefeed(1, 2), Ok(false));

@@ -1,6 +1,14 @@
-use std::fmt::Debug;
+use std::{
+    fmt::Debug,
+    io::{Read, Write},
+};
 
 use thiserror::Error;
+
+use crate::resp::{
+    parser::{Encode, Parse, RespEncoder, RespParser},
+    protocol::{deserialize_value, serialize_value},
+};
 
 pub mod hanlder;
 pub mod incoming;
@@ -14,7 +22,11 @@ pub trait Connection {
     fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize>;
 }
 
-pub struct RedisTcpConnection(std::net::TcpStream);
+pub struct RedisTcpConnection {
+    stream: std::net::TcpStream,
+    buf: [u8; 1024],
+    i: usize,
+}
 
 impl Connection for RedisTcpConnection {
     fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
@@ -25,17 +37,42 @@ impl Connection for RedisTcpConnection {
     }
 
     fn read_message(&mut self) -> ConnectionResult<ConnectionMessage> {
-        Ok(ConnectionMessage::Input(Input::Ping))
+        let bytes_read = self.stream.read(&mut self.buf[self.i..]).unwrap();
+        self.i += bytes_read;
+        tracing::debug!(
+            "buffer: {:?}",
+            String::from_utf8(self.buf[..self.i].to_vec()).unwrap()
+        );
+        let (value, bytes_consumed) = deserialize_value(&self.buf[..self.i]).unwrap();
+        tracing::debug!("got value {value:?}");
+        self.buf.rotate_left(bytes_consumed);
+        self.i -= bytes_consumed;
+        let message = RespParser::parse(value).unwrap();
+        tracing::debug!("got message {message:?}");
+        Ok(message)
     }
 
-    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
-        Ok(1)
+    fn write_message(&mut self, message: ConnectionMessage) -> ConnectionResult<usize> {
+        let value = RespEncoder::encode(message).unwrap();
+        tracing::debug!("got value: {value:?}");
+        let bytes = serialize_value(&value);
+        tracing::debug!(
+            "serialized: {} \r\n {:?}",
+            String::from_utf8(bytes.clone()).unwrap(),
+            bytes
+        );
+        self.stream.write_all(&bytes).unwrap();
+        Ok(bytes.len())
     }
 }
 
 impl From<std::net::TcpStream> for RedisTcpConnection {
     fn from(value: std::net::TcpStream) -> Self {
-        Self(value)
+        Self {
+            stream: value,
+            buf: [0; 1024],
+            i: 0,
+        }
     }
 }
 

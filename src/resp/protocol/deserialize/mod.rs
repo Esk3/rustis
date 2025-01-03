@@ -1,19 +1,10 @@
+use crate::resp::Value;
 use anyhow::{anyhow, bail};
 
-use super::Value;
+use super::{GetIdentifier, Identifier};
 
 #[cfg(test)]
 mod tests;
-
-#[must_use]
-pub fn serialize_value(value: &Value) -> Vec<u8> {
-    let s = value.clone().into_string().unwrap();
-    let mut buf = Vec::with_capacity(s.len());
-    buf.push(b'+');
-    buf.extend(s.as_bytes());
-    buf.extend(b"\r\n");
-    buf
-}
 
 pub fn deserialize_value(bytes: &[u8]) -> anyhow::Result<(Value, usize)> {
     let ident = bytes.get_identifier()?;
@@ -113,84 +104,6 @@ fn is_linefeed(cr: u8, lf: u8) -> Result<bool, ()> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Identifier {
-    SimpleString,
-    SimpleError,
-    Integer,
-    BulkString,
-    Array,
-    Null,
-    Boolean,
-    Double,
-    BigNumber,
-    BulkError,
-    VerbatimString,
-    Map,
-    Attribute,
-    Set,
-    Pushe,
-}
-
-impl Identifier {
-    pub fn from_byte(byte: u8) -> anyhow::Result<Self> {
-        let ident = match byte {
-            b'+' => Self::SimpleString,
-            b'-' => Self::SimpleError,
-            b':' => Self::Integer,
-            b'$' => Self::BulkString,
-            b'*' => Self::Array,
-            b'_' => Self::Null,
-            b'#' => Self::Boolean,
-            b',' => Self::Double,
-            b'(' => Self::BigNumber,
-            b'!' => Self::BulkError,
-            b'=' => Self::VerbatimString,
-            b'%' => Self::Map,
-            b'`' => Self::Attribute,
-            b'~' => Self::Set,
-            b'>' => Self::Pushe,
-            _ => bail!("{byte} is not a valid identifier"),
-        };
-        Ok(ident)
-    }
-
-    #[must_use]
-    pub fn as_byte(&self) -> u8 {
-        match self {
-            Self::SimpleString => b'+',
-            Self::SimpleError => b'-',
-            Self::Integer => b':',
-            Self::BulkString => b'$',
-            Self::Array => b'*',
-            Self::Null => b'_',
-            Self::Boolean => b'#',
-            Self::Double => b',',
-            Self::BigNumber => b'(',
-            Self::BulkError => b'!',
-            Self::VerbatimString => b'=',
-            Self::Map => b'%',
-            Self::Attribute => b'`',
-            Self::Set => b'~',
-            Self::Pushe => b'>',
-        }
-    }
-
-    fn get_byte_length(&self) -> usize {
-        1
-    }
-}
-
-trait GetIdentifier {
-    fn get_identifier(&self) -> anyhow::Result<Identifier>;
-}
-
-impl GetIdentifier for [u8] {
-    fn get_identifier(&self) -> anyhow::Result<Identifier> {
-        Identifier::from_byte(*self.first().ok_or(anyhow!("empty slice"))?)
-    }
-}
-
 trait FindLinefeed {
     fn find_linefeed(&self) -> Result<Option<usize>, ()>;
     fn is_at_linefeed(&self) -> Result<bool, ()>;
@@ -220,7 +133,7 @@ impl FindLinefeed for [u8] {
     }
 }
 
-trait GetHeader {
+pub trait GetHeader {
     fn get_header(&self) -> anyhow::Result<(isize, usize)>;
 }
 impl GetHeader for [u8] {
