@@ -127,7 +127,7 @@ mod tests {
     use crate::{
         connection::{Input, Output, ReplConf},
         event::{EventEmitter, Kind},
-        repository::{LockingMemoryRepository, Repository},
+        repository::Repository,
     };
 
     use super::{handle_client_request, ClientResult, ClientState};
@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn ping() {
         let event = EventEmitter::new();
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let mut client = ClientState::new(event, repo);
         let input = Input::Ping;
         let res = handle_client_request(input, &mut client).unwrap();
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn get_unset() {
         let event = EventEmitter::new();
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let mut client = ClientState::new(event, repo);
         let res = handle_client_request(Input::Get("abc".into()), &mut client).unwrap();
         let ClientResult::SendOutput(res) = res else {
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn set_and_get_value() {
         let event = EventEmitter::new();
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let mut client = ClientState::new(event, repo);
         let (key, value) = ("abc", "xyz");
         let res = handle_client_request(
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn repl_conf_returns_into_follower() {
         let event = EventEmitter::new();
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let mut client = ClientState::new(event, repo);
         let ClientResult::BecomeFollower =
             handle_client_request(Input::ReplConf(ReplConf::ListingPort(1)), &mut client).unwrap()
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn handler_send_event_on_set() {
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let (key, value) = ("abc", "xyz");
         //let event = EventEmitter::new(vec![Kind::Set {
         //    key: key.into(),
@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn start_multi() {
-        let mut state = ClientState::new(EventEmitter::new(), LockingMemoryRepository::new());
+        let mut state = ClientState::new(EventEmitter::new(), Repository::new());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
         else {
@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn queue_multi() {
-        let mut state = ClientState::new(EventEmitter::new(), LockingMemoryRepository::new());
+        let mut state = ClientState::new(EventEmitter::new(), Repository::new());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
         else {
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn commit_empty_multi() {
-        let mut state = ClientState::new(EventEmitter::new(), LockingMemoryRepository::new());
+        let mut state = ClientState::new(EventEmitter::new(), Repository::new());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
         else {
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn commit_multi() {
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let mut state = ClientState::new(EventEmitter::new(), repo.clone());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()
@@ -316,7 +316,7 @@ mod tests {
 
     #[test]
     fn repo_is_not_updated_until_commit() {
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let mut state = ClientState::new(EventEmitter::new(), repo.clone());
         let ClientResult::SendOutput(Output::Multi) =
             handle_client_request(Input::Multi, &mut state).unwrap()

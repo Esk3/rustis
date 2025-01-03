@@ -1,14 +1,14 @@
 use crate::{
     connection::{Connection, ConnectionError, ConnectionMessage, ConnectionResult, Input},
     event::{self, EventEmitter},
-    repository::LockingMemoryRepository,
+    repository::Repository,
 };
 
 use super::{client::Client, IncomingConnection};
 
 fn dummy_setup() -> IncomingConnection<DummyConnection> {
     let connection = DummyConnection;
-    let repo = LockingMemoryRepository::new();
+    let repo = Repository::new();
     let emitter = EventEmitter::new();
     IncomingConnection::new(connection, emitter, repo)
 }
@@ -22,19 +22,19 @@ macro_rules! setup {
     };
     ($connection:ident, emitter: $emitter:ident) => {
         let connection = DummyConnection;
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let $emitter = EventEmitter::new();
         let $connection = IncomingConnection::new(connection, $emitter.clone(), repo);
     };
     ($input:expr) => {{
         let connection = MockConnection::new_input($input);
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let emitter = EventEmitter::new();
         IncomingConnection::new(connection, emitter, repo)
     }};
     ($input:expr, $output:expr) => {{
         let connection = MockConnection::new($input, $output);
-        let repo = LockingMemoryRepository::new();
+        let repo = Repository::new();
         let emitter = EventEmitter::new();
         IncomingConnection::new(connection, emitter, repo)
     }};
@@ -43,7 +43,7 @@ macro_rules! setup {
 #[test]
 fn create_incoming_connection() {
     let connection = DummyConnection;
-    let repo = LockingMemoryRepository::new();
+    let repo = Repository::new();
     let emitter = EventEmitter::new();
     let _ = IncomingConnection::new(connection, emitter, repo);
 }
@@ -75,7 +75,7 @@ fn connection_calls_client_connection_handler() {
 
 #[test]
 fn connection_writes_connection_handlers_response() {
-    let repo = LockingMemoryRepository::new();
+    let repo = Repository::new();
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     let output = [ConnectionMessage::Output(

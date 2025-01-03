@@ -52,7 +52,7 @@ mod tests {
     use crate::{
         connection::{hanlder::follower::FollowerResult, Input},
         event::EventEmitter,
-        repository::{LockingMemoryRepository, Repository},
+        repository::Repository,
     };
 
     use super::{handle_follower_event, FollowerState};

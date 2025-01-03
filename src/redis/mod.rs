@@ -3,7 +3,7 @@ use rustis::{
     connection::{incoming::IncomingConnection, outgoing::OutgoingConnection, Connection},
     event::EventEmitter,
     listner::RedisListner,
-    repository::LockingMemoryRepository,
+    repository::Repository,
 };
 use tracing::{error, info, instrument};
 
@@ -13,7 +13,7 @@ mod tests;
 pub struct Redis<L> {
     config: RedisConfig,
     listner: L,
-    repo: LockingMemoryRepository,
+    repo: Repository,
     emitter: EventEmitter,
 }
 
@@ -31,7 +31,7 @@ where
         Ok(Self {
             config,
             listner,
-            repo: LockingMemoryRepository::new(),
+            repo: Repository::new(),
             emitter: EventEmitter::new(),
         })
     }
