@@ -21,7 +21,7 @@ impl Follower {
                 Some(ConnectionMessage::Input(crate::connection::Input::Set {
                     key,
                     value,
-                    expiry: None,
+                    expiry,
                     get: false,
                 }))
             }

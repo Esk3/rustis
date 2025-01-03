@@ -4,7 +4,7 @@ use tracing::instrument;
 
 use crate::{
     connection::Input,
-    event::{EventEmitter, EventSubscriber, Kind},
+    event::{EventEmitter, Kind},
     repository::Repository,
 };
 

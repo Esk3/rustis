@@ -1,5 +1,5 @@
 use crate::resp::Value;
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 
 use super::{GetIdentifier, Identifier};
 

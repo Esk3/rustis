@@ -4,7 +4,10 @@ use crate::{
     repository::Repository,
 };
 
-use super::{client::Client, IncomingConnection};
+use super::{
+    client::{Client, ClientRequest},
+    IncomingConnection,
+};
 
 fn dummy_setup() -> IncomingConnection<DummyConnection> {
     let connection = DummyConnection;
@@ -79,7 +82,9 @@ fn connection_writes_connection_handlers_response() {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     let output = [ConnectionMessage::Output(
-        handler.handle_request(Input::Ping).unwrap(),
+        handler
+            .handle_request(ClientRequest::now(Input::Ping, 0))
+            .unwrap(),
     )];
     let connection = setup!([ConnectionMessage::Input(Input::Ping)], output);
     connection.handle_connection().unwrap();
@@ -97,13 +102,13 @@ fn connection_writes_same_output_as_follower_connection_handler_when_connection_
     todo!("setup conn, send replconf, send command and match against FollowerHandler")
 }
 
-#[test_log::test]
+#[test]
 fn handle_follower_connection_writes_same_output_as_follower_handler() {
     setup!(connection, emitter: emitter);
     let event = event::Kind::Set {
         key: "abc".into(),
         value: "efg".into(),
-        expiry: (),
+        expiry: None,
     };
 }
 

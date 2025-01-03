@@ -1,5 +1,5 @@
 use anyhow::bail;
-use client::Client;
+use client::{Client, ClientRequest};
 use follower::Follower;
 use tracing::{debug, info, instrument};
 
@@ -53,6 +53,7 @@ where
             let ConnectionMessage::Input(request) = request else {
                 panic!();
             };
+            let request = ClientRequest::now(request, 0);
             let response = client_handler.handle_request(request).unwrap();
             debug!("writing response: {response:?}");
             self.connection

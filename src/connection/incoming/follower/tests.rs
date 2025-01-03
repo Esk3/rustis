@@ -24,7 +24,7 @@ fn follower_handles_event() {
     let kind = event::Kind::Set {
         key: key.into(),
         value: value.into(),
-        expiry: (),
+        expiry: None,
     };
     let _ = follower.handle_event(kind);
 }
@@ -36,7 +36,7 @@ fn follower_returns_message() {
     let kind = event::Kind::Set {
         key: key.into(),
         value: value.into(),
-        expiry: (),
+        expiry: None,
     };
     let _: anyhow::Result<Option<ConnectionMessage>> = follower.handle_event(kind);
 }
@@ -48,7 +48,7 @@ fn set_event_returns_set_message() {
     let kind = event::Kind::Set {
         key: key.into(),
         value: value.into(),
-        expiry: (),
+        expiry: None,
     };
     let response = follower.handle_event(kind).unwrap().unwrap();
     assert_eq!(
@@ -101,7 +101,7 @@ fn follower_panics_on_invalid_handshake() {
 
 #[test]
 fn create_incoming_handshake() {
-    let handshake: IncomingHandshake = IncomingHandshake::new();
+    let _handshake: IncomingHandshake = IncomingHandshake::new();
 }
 
 #[test]

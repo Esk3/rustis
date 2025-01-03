@@ -8,6 +8,22 @@ use crate::{
 #[cfg(test)]
 mod tests;
 
+pub struct ClientRequest {
+    pub input: Input,
+    pub input_length: usize,
+    pub timestamp: std::time::SystemTime,
+}
+
+impl ClientRequest {
+    pub fn now(input: Input, input_length: usize) -> Self {
+        Self {
+            input,
+            input_length,
+            timestamp: std::time::SystemTime::now(),
+        }
+    }
+}
+
 pub struct Client {
     inner: ReplicationService,
 }
@@ -21,7 +37,7 @@ impl Client {
         }
     }
 
-    pub fn handle_request(&mut self, request: Input) -> anyhow::Result<Output> {
+    pub fn handle_request(&mut self, request: ClientRequest) -> anyhow::Result<Output> {
         self.inner.call(request)
     }
 }
@@ -30,23 +46,34 @@ struct ReplicationService {
     inner: MultiService,
 }
 
-impl Service<Input> for ReplicationService {
+impl Service<ClientRequest> for ReplicationService {
     type Response = Output;
 
     type Error = anyhow::Error;
 
-    fn call(&mut self, request: Input) -> Result<Self::Response, Self::Error> {
-        match request {
+    fn call(
+        &mut self,
+        ClientRequest {
+            input,
+            input_length,
+            timestamp,
+        }: ClientRequest,
+    ) -> Result<Self::Response, Self::Error> {
+        match input {
             Input::ReplConf(_) => todo!(),
             Input::Psync => todo!(),
-            _ => self.inner.call(request),
+            input => self.inner.call(ClientRequest {
+                input,
+                input_length,
+                timestamp,
+            }),
         }
     }
 }
 
 struct MultiService {
     inner: EventLayer,
-    queue: Option<Vec<Input>>,
+    queue: Option<Vec<ClientRequest>>,
 }
 
 impl MultiService {
@@ -58,14 +85,14 @@ impl MultiService {
     }
 }
 
-impl Service<Input> for MultiService {
+impl Service<ClientRequest> for MultiService {
     type Response = Output;
 
     type Error = anyhow::Error;
 
-    fn call(&mut self, request: Input) -> Result<Self::Response, Self::Error> {
+    fn call(&mut self, request: ClientRequest) -> Result<Self::Response, Self::Error> {
         if let Some(ref mut queue) = self.queue {
-            let res = match request {
+            let res = match request.input {
                 Input::Multi => Output::MultiError,
                 Input::CommitMulti => {
                     let arr = self
@@ -78,13 +105,17 @@ impl Service<Input> for MultiService {
                     Output::Array(arr)
                 }
                 req => {
-                    queue.push(req);
+                    queue.push(ClientRequest {
+                        input: req,
+                        input_length: request.input_length,
+                        timestamp: request.timestamp,
+                    });
                     Output::Queued
                 }
             };
             return Ok(res);
         }
-        match request {
+        match request.input {
             Input::Multi => {
                 if self.queue.is_some() {
                     return Ok(Output::MultiError);
@@ -116,11 +147,11 @@ impl EventLayer {
                 key,
                 value,
                 expiry,
-                get,
+                get: _,
             } => Some(event::Kind::Set {
                 key: key.to_string(),
                 value: value.to_string(),
-                expiry: (),
+                expiry: *expiry,
             }),
             Input::Multi => todo!(),
             Input::CommitMulti => todo!(),
@@ -130,13 +161,13 @@ impl EventLayer {
     }
 }
 
-impl Service<Input> for EventLayer {
+impl Service<ClientRequest> for EventLayer {
     type Response = Output;
 
     type Error = anyhow::Error;
 
-    fn call(&mut self, request: Input) -> Result<Self::Response, Self::Error> {
-        let get_event = Self::get_event(&request);
+    fn call(&mut self, request: ClientRequest) -> Result<Self::Response, Self::Error> {
+        let get_event = Self::get_event(&request.input);
         let result = self.handler.call(request);
         if let Some(event) = get_event {
             if result.is_ok() {
@@ -157,16 +188,23 @@ impl Hanlder {
     }
 }
 
-impl Service<Input> for Hanlder {
+impl Service<ClientRequest> for Hanlder {
     type Response = Output;
 
     type Error = anyhow::Error;
 
-    fn call(&mut self, request: Input) -> Result<Self::Response, Self::Error> {
-        let res = match request {
+    fn call(
+        &mut self,
+        ClientRequest {
+            input,
+            input_length,
+            timestamp,
+        }: ClientRequest,
+    ) -> Result<Self::Response, Self::Error> {
+        let res = match input {
             Input::Ping => Output::Pong,
             Input::Get(key) => {
-                let value = self.repo.get(&key).unwrap();
+                let value = self.repo.get(&key, timestamp).unwrap();
                 Output::Get(value)
             }
             Input::Set {

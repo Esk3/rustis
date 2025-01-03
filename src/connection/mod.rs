@@ -10,7 +10,7 @@ use crate::resp::{
     protocol::{deserialize_value, serialize_value},
 };
 
-pub mod hanlder;
+//pub mod hanlder;
 pub mod incoming;
 pub mod outgoing;
 
@@ -115,7 +115,7 @@ pub enum Input {
     Set {
         key: String,
         value: String,
-        expiry: Option<std::time::Duration>,
+        expiry: Option<std::time::SystemTime>,
         get: bool,
     },
 

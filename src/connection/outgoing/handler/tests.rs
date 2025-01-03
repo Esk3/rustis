@@ -100,7 +100,7 @@ fn handler_writes_to_repo_on_set() {
             get: false,
         })
         .unwrap();
-    let some_value = repo.get(key).unwrap();
+    let some_value = repo.get(key, std::time::SystemTime::now()).unwrap();
     assert_eq!(some_value, Some(value.into()));
 }
 

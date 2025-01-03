@@ -32,7 +32,7 @@ fn emit_event() {
     emitter.emmit(Kind::Set {
         key: "key".to_string(),
         value: "value".to_string(),
-        expiry: (),
+        expiry: None,
     });
 }
 
@@ -46,7 +46,7 @@ fn subscriber_recives_emitted_event() {
     emitter.emmit(Kind::Set {
         key: key.into(),
         value: value.into(),
-        expiry: (),
+        expiry: None,
     });
     let event = subscriber.recive();
 }
@@ -74,7 +74,7 @@ fn subscriber_recives_event_from_cloned_emitter() {
     clone.emmit(Kind::Set {
         key: key.into(),
         value: value.into(),
-        expiry: (),
+        expiry: None,
     });
     let event = subscriber.recive();
 }
@@ -89,12 +89,12 @@ fn iter_events() {
         Kind::Set {
             key: "123".into(),
             value: "abc".into(),
-            expiry: (),
+            expiry: None,
         },
         Kind::Set {
             key: "abc".into(),
             value: "123".into(),
-            expiry: (),
+            expiry: None,
         },
     ];
     events.iter().for_each(|e| emitter.emmit(e.clone()));

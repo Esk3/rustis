@@ -14,7 +14,7 @@ pub enum Kind {
     Set {
         key: String,
         value: String,
-        expiry: (),
+        expiry: Option<std::time::SystemTime>,
     },
 }
 

@@ -8,7 +8,7 @@ macro_rules! request_response {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     $(
-        let response = handler.handle_request($req).unwrap();
+        let response = handler.handle_request(ClientRequest::now($req,0)).unwrap();
         assert_eq!(response, $res);
     )+
     };
@@ -16,7 +16,7 @@ macro_rules! request_response {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, $repo.clone());
     $(
-        let response = handler.handle_request($req).unwrap();
+        let response = handler.handle_request(ClientRequest::now($req, 0)).unwrap();
         assert_eq!(response, $res);
     )+
     };
@@ -34,7 +34,9 @@ fn client_handler_handles_request() {
     let repo = Repository::new();
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
-    let _response = handler.handle_request(Input::Ping).unwrap();
+    let _response = handler
+        .handle_request(ClientRequest::now(Input::Ping, 0))
+        .unwrap();
 }
 
 #[test]
@@ -81,7 +83,7 @@ fn set_and_get_stores_values() {
     Output::Set,
     Output::Get(Some(value.into()))
     );
-    let some_value = repo.get(key).unwrap();
+    let some_value = repo.get(key, std::time::SystemTime::now()).unwrap();
     assert_eq!(some_value, Some(value.into()));
 }
 
@@ -168,7 +170,7 @@ fn event_layer_returns_set_for_set() {
     let expected = event::Kind::Set {
         key: key.into(),
         value: value.into(),
-        expiry: (),
+        expiry: None,
     };
     assert_eq!(some_event, Some(expected));
 }
@@ -179,7 +181,8 @@ fn event_layer_emits_event_from_get_event_on_call() {
     let subscriber = emitter.subscribe();
     let mut event_layer = EventLayer::new(emitter, Hanlder::new(Repository::new()));
     let input = Input::Ping;
-    _ = event_layer.call(input.clone());
+    let request = ClientRequest::now(input.clone(), 0);
+    _ = event_layer.call(request);
     let event = subscriber.try_recive();
     let expected = EventLayer::get_event(&input);
     assert_eq!(event, expected);
@@ -190,7 +193,8 @@ fn event_layer_emits_event_from_get_event_on_call() {
         expiry: None,
         get: false,
     };
-    _ = event_layer.call(input.clone());
+    let req = ClientRequest::now(input.clone(), 0);
+    _ = event_layer.call(req);
     let event = subscriber.try_recive();
     let expected = EventLayer::get_event(&input);
     assert_eq!(event, expected);
@@ -204,7 +208,7 @@ fn event_layer_gets_called() {
     let mut handler = Client::new(emitter, repo);
 
     let input = Input::Ping;
-    _ = handler.handle_request(input.clone());
+    _ = handler.handle_request(ClientRequest::now(input.clone(), 0));
     assert_eq!(subscriber.try_recive(), EventLayer::get_event(&input));
 
     let input = Input::Set {
@@ -213,7 +217,7 @@ fn event_layer_gets_called() {
         expiry: None,
         get: false,
     };
-    _ = handler.handle_request(input.clone());
+    _ = handler.handle_request(ClientRequest::now(input.clone(), 0));
     assert_eq!(subscriber.try_recive(), EventLayer::get_event(&input));
 }
 

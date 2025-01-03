@@ -47,16 +47,6 @@ fn replication_layer(request: &Input) -> ReplicationResult {
     match request {
         Input::ReplConf(_) | Input::Psync => ReplicationResult::Replicate,
         _ => ReplicationResult::Continue,
-        Input::Ping => todo!(),
-        Input::Get(_) => todo!(),
-        Input::Set {
-            key,
-            value,
-            expiry,
-            get,
-        } => todo!(),
-        Input::Multi => todo!(),
-        Input::CommitMulti => todo!(),
     }
 }
 
@@ -126,7 +116,7 @@ pub enum ClientResult {
 mod tests {
     use crate::{
         connection::{Input, Output, ReplConf},
-        event::{EventEmitter, Kind},
+        event::EventEmitter,
         repository::Repository,
     };
 
