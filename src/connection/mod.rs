@@ -18,7 +18,7 @@ pub trait Connection {
     where
         Self: Sized;
     fn read_message(&mut self) -> ConnectionResult<ConnectionMessage>;
-    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize>;
+    fn write_message(&mut self, message: ConnectionMessage) -> ConnectionResult<usize>;
 }
 
 pub struct RedisTcpConnection {

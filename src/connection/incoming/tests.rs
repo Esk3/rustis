@@ -1,13 +1,9 @@
 use crate::{
-    connection::{Connection, ConnectionError, ConnectionMessage, ConnectionResult, Input},
-    event::{self, EventEmitter},
-    repository::Repository,
+    connection::{ConnectionResult, Input, Output, ReplConf},
+    event,
 };
 
-use super::{
-    client::{Client, ClientRequest},
-    IncomingConnection,
-};
+use super::*;
 
 fn dummy_setup() -> IncomingConnection<DummyConnection> {
     let connection = DummyConnection;
@@ -23,8 +19,14 @@ macro_rules! setup {
     ($connection:ident) => {
         let $connection = dummy_setup();
     };
-    ($connection:ident, emitter: $emitter:ident) => {
+    ($connection:ident, emitter: $emitter:ident $(, $input:expr, $output:expr)?) => {
         let connection = DummyConnection;
+        $(
+            let connection = MockConnection::new(
+                $input.into_iter().map(std::convert::Into::into).collect::<Vec<ConnectionMessage>>(),
+            $output.into_iter().map(std::convert::Into::into).collect::<Vec<ConnectionMessage>>()
+            );
+        )?
         let repo = Repository::new();
         let $emitter = EventEmitter::new();
         let $connection = IncomingConnection::new(connection, $emitter.clone(), repo);
@@ -54,7 +56,7 @@ fn create_incoming_connection() {
 #[test]
 fn handle_connection_reads_input() {
     let connection = setup!([ConnectionMessage::Input(Input::Ping)].into_iter());
-    connection.handle_connection().unwrap();
+    connection.run_handler().unwrap();
 }
 
 #[test]
@@ -63,7 +65,7 @@ fn handler_reads_two_inputs() {
         ConnectionMessage::Input(Input::Ping),
         ConnectionMessage::Input(Input::Ping)
     ]);
-    connection.handle_connection().unwrap();
+    connection.run_handler().unwrap();
 }
 #[test]
 #[ignore = "todo"]
@@ -83,16 +85,52 @@ fn connection_writes_connection_handlers_response() {
     let mut handler = Client::new(emitter, repo);
     let output = [ConnectionMessage::Output(
         handler
-            .handle_request(ClientRequest::now(Input::Ping, 0))
+            .handle_request(client::Request::now(Input::Ping, 0))
+            .unwrap()
+            .into_output()
             .unwrap(),
     )];
     let connection = setup!([ConnectionMessage::Input(Input::Ping)], output);
-    connection.handle_connection().unwrap();
+    connection.run_handler().unwrap();
+}
+
+#[test]
+fn handle_client_connection_returns_ok_on_replconf() {
+    let mut connection = setup!(
+        [Input::ReplConf(crate::connection::ReplConf::ListingPort(1)).into()],
+        []
+    );
+    connection.handle_client_connection().unwrap();
+}
+
+#[test]
+fn connection_calls_follower_connection_hanlder_when_connection_is_to_a_follower() {
+    let mut follower = Follower::new();
+    let event = event::Kind::Set {
+        key: "abc".into(),
+        value: "qwerty".into(),
+        expiry: None,
+    };
+    let response = follower.handle_event(event.clone()).unwrap().unwrap();
+    setup!(
+        connection,
+        emitter: emitter,
+        [Input::ReplConf(ReplConf::ListingPort(1))],
+        [response]
+    );
+    let handle = std::thread::spawn(move || {
+        connection.run_handler().unwrap();
+    });
+    std::thread::sleep(std::time::Duration::from_millis(1));
+    emitter.emmit(event.clone());
+    std::thread::sleep(std::time::Duration::from_millis(1));
+    assert!(handle.is_finished());
+    handle.join().unwrap();
 }
 
 #[test]
 #[ignore = "todo"]
-fn connection_calls_follower_connection_hanlder_when_connection_is_to_a_follower() {
+fn connection_preformes_follower_handshake_on_replconf() {
     todo!()
 }
 
@@ -103,13 +141,15 @@ fn connection_writes_same_output_as_follower_connection_handler_when_connection_
 }
 
 #[test]
+#[ignore = "todo"]
 fn handle_follower_connection_writes_same_output_as_follower_handler() {
-    setup!(connection, emitter: emitter);
+    setup!(_connection, emitter: emitter);
     let event = event::Kind::Set {
         key: "abc".into(),
         value: "efg".into(),
         expiry: None,
     };
+    todo!()
 }
 
 struct DummyConnection;

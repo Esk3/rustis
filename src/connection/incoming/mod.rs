@@ -1,5 +1,5 @@
 use anyhow::bail;
-use client::{Client, ClientRequest};
+use client::Client;
 use follower::Follower;
 use tracing::{debug, info, instrument};
 
@@ -34,11 +34,18 @@ where
     }
 
     #[instrument(skip(self))]
-    pub fn handle_connection(mut self) -> anyhow::Result<()> {
+    pub fn run_handler(mut self) -> anyhow::Result<()> {
         if self.handle_client_connection().is_ok() {
             self.handle_follower_connection();
         }
         Ok(())
+    }
+
+    pub fn spawn_handler(self)
+    where
+        C: std::marker::Send + 'static,
+    {
+        std::thread::spawn(move || self.run_handler());
     }
 
     fn handle_client_connection(&mut self) -> anyhow::Result<()> {
@@ -53,22 +60,24 @@ where
             let ConnectionMessage::Input(request) = request else {
                 panic!();
             };
-            let request = ClientRequest::now(request, 0);
+            let request = client::Request::now(request, 0);
             let response = client_handler.handle_request(request).unwrap();
-            debug!("writing response: {response:?}");
-            self.connection
-                .write_message(ConnectionMessage::Output(response))
-                .unwrap();
+            debug!("got response: {response:?}");
+            match response {
+                client::Response::SendOutput(output) => {
+                    self.connection.write_message(output.into()).unwrap();
+                }
+                client::Response::RecivedReplconf(_) => return Ok(()),
+            }
         }
     }
 
-    fn handle_follower_connection(mut self) -> crate::event::Kind {
+    fn handle_follower_connection(mut self) {
         info!("handling follower connection");
         let subscriber = self.emitter.subscribe();
         let mut handler = Follower::new();
-        for event in subscriber {
-            todo!()
-        }
-        todo!()
+        let event = subscriber.recive();
+        let response = handler.handle_event(event).unwrap().unwrap();
+        self.connection.write_message(response).unwrap();
     }
 }

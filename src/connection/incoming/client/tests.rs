@@ -1,4 +1,7 @@
-use crate::event::EventEmitter;
+use crate::{
+    connection::{incoming::client, ReplConf},
+    event::EventEmitter,
+};
 
 use super::*;
 
@@ -8,16 +11,16 @@ macro_rules! request_response {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     $(
-        let response = handler.handle_request(ClientRequest::now($req,0)).unwrap();
-        assert_eq!(response, $res);
+        let response = handler.handle_request(client::Request::now($req,0)).unwrap();
+        assert_eq!(response, client::Response::SendOutput($res));
     )+
     };
     ($repo:expr ; $($req:expr),+; $($res:expr),+) => {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, $repo.clone());
     $(
-        let response = handler.handle_request(ClientRequest::now($req, 0)).unwrap();
-        assert_eq!(response, $res);
+        let response = handler.handle_request(client::Request::now($req, 0)).unwrap();
+        assert_eq!(response, client::Response::SendOutput($res));
     )+
     };
 }
@@ -35,7 +38,7 @@ fn client_handler_handles_request() {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     let _response = handler
-        .handle_request(ClientRequest::now(Input::Ping, 0))
+        .handle_request(Request::now(Input::Ping, 0))
         .unwrap();
 }
 
@@ -122,11 +125,44 @@ fn client_returns_empty_array_when_comitting_empty_multi() {
 fn client_returns_array_with_responses_when_comitting_multi() {
     todo!()
 }
+
 #[test]
-#[ignore = "todo"]
-fn repl_conf() {
+#[ignore = "reason"]
+fn repository_is_not_updated_until_multi_is_commited() {
     todo!()
 }
+
+#[test]
+fn repl_conf_returns_become_follower_command() {
+    let repo = Repository::new();
+    let emitter = EventEmitter::new();
+    let mut replication_layer = ReplicationService {
+        inner: MultiService::new(emitter, Hanlder::new(repo)),
+    };
+    let replconf = ReplConf::ListingPort(1);
+    let replication_response: ReplicationResponse<Output> = replication_layer
+        .call(Request::epoc(replconf.clone().into(), 0))
+        .unwrap();
+    assert_eq!(
+        replication_response,
+        ReplicationResponse::ReplicationRequest(replconf)
+    );
+}
+
+#[test]
+fn handler_returns_replconf_on_replconf() {
+    let repo = Repository::new();
+    let event_emitter = EventEmitter::new();
+    let mut client: Client = Client::new(event_emitter, repo);
+    let res = client
+        .handle_request(Request::epoc(ReplConf::ListingPort(1).into(), 0))
+        .unwrap();
+    match res {
+        Response::SendOutput(_) => panic!("expected replconf"),
+        Response::RecivedReplconf(_) => (),
+    }
+}
+
 #[test]
 #[ignore = "todo"]
 fn client_returns_into_follower_on_replconf() {
@@ -181,7 +217,7 @@ fn event_layer_emits_event_from_get_event_on_call() {
     let subscriber = emitter.subscribe();
     let mut event_layer = EventLayer::new(emitter, Hanlder::new(Repository::new()));
     let input = Input::Ping;
-    let request = ClientRequest::now(input.clone(), 0);
+    let request = Request::now(input.clone(), 0);
     _ = event_layer.call(request);
     let event = subscriber.try_recive();
     let expected = EventLayer::get_event(&input);
@@ -193,7 +229,7 @@ fn event_layer_emits_event_from_get_event_on_call() {
         expiry: None,
         get: false,
     };
-    let req = ClientRequest::now(input.clone(), 0);
+    let req = Request::now(input.clone(), 0);
     _ = event_layer.call(req);
     let event = subscriber.try_recive();
     let expected = EventLayer::get_event(&input);
@@ -208,7 +244,7 @@ fn event_layer_gets_called() {
     let mut handler = Client::new(emitter, repo);
 
     let input = Input::Ping;
-    _ = handler.handle_request(ClientRequest::now(input.clone(), 0));
+    _ = handler.handle_request(Request::now(input.clone(), 0));
     assert_eq!(subscriber.try_recive(), EventLayer::get_event(&input));
 
     let input = Input::Set {
@@ -217,7 +253,7 @@ fn event_layer_gets_called() {
         expiry: None,
         get: false,
     };
-    _ = handler.handle_request(ClientRequest::now(input.clone(), 0));
+    _ = handler.handle_request(Request::now(input.clone(), 0));
     assert_eq!(subscriber.try_recive(), EventLayer::get_event(&input));
 }
 

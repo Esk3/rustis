@@ -44,6 +44,7 @@ impl LockEventProducer {
     pub fn subscribe(&self) -> EventSubscriber {
         let (tx, rx) = channel();
         self.subscribers.lock().unwrap().push(tx);
+        tracing::debug!("subscriber added");
         EventSubscriber::new(rx)
     }
 }

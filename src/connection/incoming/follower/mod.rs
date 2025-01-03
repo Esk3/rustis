@@ -15,7 +15,7 @@ impl Follower {
         Self
     }
 
-    fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<ConnectionMessage>> {
+    pub fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<ConnectionMessage>> {
         let res = match event {
             Kind::Set { key, value, expiry } => {
                 Some(ConnectionMessage::Input(crate::connection::Input::Set {
@@ -29,7 +29,7 @@ impl Follower {
         Ok(res)
     }
 
-    fn handshake<C>(&mut self, connection: &mut C) -> anyhow::Result<()>
+    pub fn handshake<C>(&mut self, connection: &mut C) -> anyhow::Result<()>
     where
         C: Connection,
     {

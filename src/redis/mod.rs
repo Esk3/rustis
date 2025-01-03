@@ -41,7 +41,7 @@ where
         self.config.port()
     }
 
-    fn connect_to_leader<C>(&mut self)
+    fn connect_to_leader<C>(&mut self) -> anyhow::Result<OutgoingConnection<C>>
     where
         C: Connection,
     {
@@ -53,16 +53,19 @@ where
             self.config
                 .leader_addr()
                 .expect("should be set if follower"),
-        );
+        )
     }
 
-    fn incoming(self) {
+    fn incoming(self)
+    where
+        <L as RedisListner>::Connection: std::marker::Send + 'static,
+    {
         info!("accepting incoming connections");
         for connection in self.listner.incoming() {
             info!("connection accepted");
             let connection =
                 IncomingConnection::new(connection, self.emitter.clone(), self.repo.clone());
-            connection.handle_connection().unwrap();
+            connection.spawn_handler();
         }
     }
 
@@ -70,6 +73,7 @@ where
     pub fn run<C>(mut self)
     where
         C: Connection,
+        <L as RedisListner>::Connection: std::marker::Send + 'static,
     {
         info!(
             "starting to run redis server as {}",
@@ -80,7 +84,7 @@ where
             }
         );
         if self.is_follower() {
-            self.connect_to_leader::<C>();
+            let connection_to_leader = self.connect_to_leader::<C>();
             info!("connected to leader");
         }
         self.incoming();

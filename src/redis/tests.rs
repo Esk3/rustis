@@ -117,7 +117,7 @@ fn creating_outgoing_connection_as_leader_panics() {
 #[test]
 fn create_outgoing_connection_as_follower_is_ok() {
     let mut redis = setup_follower();
-    redis.connect_to_leader::<DummyConnection>();
+    let _connection_to_leader = redis.connect_to_leader::<DummyConnection>().unwrap();
 }
 
 #[test]
@@ -129,6 +129,24 @@ fn creates_outgoing_connection_on_run_as_follower() {
     ))
     .unwrap();
     redis.run::<DummyConnection>();
+}
+
+#[test]
+#[ignore = "todo"]
+fn still_listens_for_incoming_connection_after_connection_to_leader() {
+    todo!()
+}
+
+#[test]
+#[ignore = "todo"]
+fn sends_handshake_to_leader_when_follower() {
+    todo!()
+}
+
+#[test]
+#[ignore = "todo"]
+fn can_accept_multiple_incoming_connections() {
+    todo!()
 }
 
 struct DummyListner;

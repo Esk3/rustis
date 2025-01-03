@@ -100,6 +100,18 @@ fn follower_panics_on_invalid_handshake() {
 }
 
 #[test]
+#[ignore = "todo"]
+fn returns_bytes_processed_after_no_messages() {
+    todo!()
+}
+
+#[test]
+#[ignore = "todo"]
+fn returns_bytes_processed_after_messages() {
+    todo!()
+}
+
+#[test]
 fn create_incoming_handshake() {
     let _handshake: IncomingHandshake = IncomingHandshake::new();
 }

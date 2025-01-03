@@ -1,5 +1,5 @@
 use crate::{
-    connection::{Input, Output},
+    connection::{Input, Output, ReplConf},
     event::{self, EventEmitter},
     repository::Repository,
     Service,
@@ -8,18 +8,41 @@ use crate::{
 #[cfg(test)]
 mod tests;
 
-pub struct ClientRequest {
+pub struct Request {
     pub input: Input,
     pub input_length: usize,
     pub timestamp: std::time::SystemTime,
 }
 
-impl ClientRequest {
+impl Request {
     pub fn now(input: Input, input_length: usize) -> Self {
         Self {
             input,
             input_length,
             timestamp: std::time::SystemTime::now(),
+        }
+    }
+    pub const fn epoc(input: Input, input_length: usize) -> Self {
+        Self {
+            input,
+            input_length,
+            timestamp: std::time::SystemTime::UNIX_EPOCH,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Response {
+    SendOutput(Output),
+    RecivedReplconf(ReplConf),
+}
+
+impl Response {
+    pub fn into_output(self) -> Result<Output, Self> {
+        if let Self::SendOutput(output) = self {
+            Ok(output)
+        } else {
+            Err(self)
         }
     }
 }
@@ -37,43 +60,57 @@ impl Client {
         }
     }
 
-    pub fn handle_request(&mut self, request: ClientRequest) -> anyhow::Result<Output> {
-        self.inner.call(request)
+    pub fn handle_request(&mut self, request: Request) -> anyhow::Result<Response> {
+        self.inner.call(request).map(|res| match res {
+            ReplicationResponse::ReplicationRequest(replconf) => {
+                Response::RecivedReplconf(replconf)
+            }
+            ReplicationResponse::Inner(output) => Response::SendOutput(output),
+        })
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ReplicationResponse<T> {
+    ReplicationRequest(ReplConf),
+    Inner(T),
 }
 
 struct ReplicationService {
     inner: MultiService,
 }
 
-impl Service<ClientRequest> for ReplicationService {
-    type Response = Output;
+impl Service<Request> for ReplicationService {
+    type Response = ReplicationResponse<Output>;
 
     type Error = anyhow::Error;
 
     fn call(
         &mut self,
-        ClientRequest {
+        Request {
             input,
             input_length,
             timestamp,
-        }: ClientRequest,
+        }: Request,
     ) -> Result<Self::Response, Self::Error> {
         match input {
-            Input::ReplConf(_) => todo!(),
+            Input::ReplConf(replconf) => Ok(ReplicationResponse::ReplicationRequest(replconf)),
             Input::Psync => todo!(),
-            input => self.inner.call(ClientRequest {
-                input,
-                input_length,
-                timestamp,
-            }),
+            input => self
+                .inner
+                .call(Request {
+                    input,
+                    input_length,
+                    timestamp,
+                })
+                .map(ReplicationResponse::Inner),
         }
     }
 }
 
 struct MultiService {
     inner: EventLayer,
-    queue: Option<Vec<ClientRequest>>,
+    queue: Option<Vec<Request>>,
 }
 
 impl MultiService {
@@ -85,12 +122,12 @@ impl MultiService {
     }
 }
 
-impl Service<ClientRequest> for MultiService {
+impl Service<Request> for MultiService {
     type Response = Output;
 
     type Error = anyhow::Error;
 
-    fn call(&mut self, request: ClientRequest) -> Result<Self::Response, Self::Error> {
+    fn call(&mut self, request: Request) -> Result<Self::Response, Self::Error> {
         if let Some(ref mut queue) = self.queue {
             let res = match request.input {
                 Input::Multi => Output::MultiError,
@@ -105,7 +142,7 @@ impl Service<ClientRequest> for MultiService {
                     Output::Array(arr)
                 }
                 req => {
-                    queue.push(ClientRequest {
+                    queue.push(Request {
                         input: req,
                         input_length: request.input_length,
                         timestamp: request.timestamp,
@@ -141,8 +178,7 @@ impl EventLayer {
 
     fn get_event(input: &Input) -> Option<event::Kind> {
         match input {
-            Input::Ping => None,
-            Input::Get(_) => None,
+            Input::Ping | Input::Get(_) => None,
             Input::Set {
                 key,
                 value,
@@ -161,12 +197,12 @@ impl EventLayer {
     }
 }
 
-impl Service<ClientRequest> for EventLayer {
+impl Service<Request> for EventLayer {
     type Response = Output;
 
     type Error = anyhow::Error;
 
-    fn call(&mut self, request: ClientRequest) -> Result<Self::Response, Self::Error> {
+    fn call(&mut self, request: Request) -> Result<Self::Response, Self::Error> {
         let get_event = Self::get_event(&request.input);
         let result = self.handler.call(request);
         if let Some(event) = get_event {
@@ -188,18 +224,18 @@ impl Hanlder {
     }
 }
 
-impl Service<ClientRequest> for Hanlder {
+impl Service<Request> for Hanlder {
     type Response = Output;
 
     type Error = anyhow::Error;
 
     fn call(
         &mut self,
-        ClientRequest {
+        Request {
             input,
             input_length,
             timestamp,
-        }: ClientRequest,
+        }: Request,
     ) -> Result<Self::Response, Self::Error> {
         let res = match input {
             Input::Ping => Output::Pong,
@@ -216,10 +252,7 @@ impl Service<ClientRequest> for Hanlder {
                 self.repo.set(key, value, expiry).unwrap();
                 Output::Set
             }
-            Input::Multi => todo!(),
-            Input::CommitMulti => todo!(),
-            Input::ReplConf(_) => todo!(),
-            Input::Psync => todo!(),
+            Input::Multi | Input::CommitMulti | Input::ReplConf(_) | Input::Psync => unreachable!(),
         };
         Ok(res)
     }

@@ -16,7 +16,8 @@ pub fn serialize_value(value: &Value) -> Vec<u8> {
 }
 
 pub fn serialize_simple_string(s: &str) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(s.len() + 3);
+    let (identifier_len, linefeed_len) = (1, 2);
+    let mut bytes = Vec::with_capacity(s.len() + identifier_len + linefeed_len);
     bytes.extend_identifier(&Identifier::SimpleString);
     bytes.extend(s.as_bytes());
     bytes.extend_linefeed();
@@ -24,7 +25,8 @@ pub fn serialize_simple_string(s: &str) -> Vec<u8> {
 }
 
 pub fn serialize_bulk_string(s: &str) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(s.len() + 10);
+    let identifier_header_linefeed_padding = 10;
+    let mut bytes = Vec::with_capacity(s.len() + identifier_header_linefeed_padding);
     bytes.extend_header(&Identifier::BulkString, s.len().try_into().unwrap());
     bytes.extend(s.as_bytes());
     bytes.extend_linefeed();
