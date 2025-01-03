@@ -10,6 +10,7 @@ use crate::resp::{
     protocol::{deserialize_value, serialize_value},
 };
 
+pub mod handshake;
 pub mod incoming;
 pub mod outgoing;
 

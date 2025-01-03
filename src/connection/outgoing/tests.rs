@@ -48,60 +48,6 @@ fn handshake_send_replconf_to_connection() {
 }
 
 #[test]
-fn get_message() {
-    let _: Input = OutgoingHandshake::new().get_message();
-}
-
-#[test]
-fn handle_response() {
-    OutgoingHandshake::new().handle_response(Output::Pong.into());
-}
-
-#[test]
-fn handshake_messsage_order() {
-    let mut handshake = OutgoingHandshake::new();
-    let ping = handshake.get_message();
-    assert_eq!(ping, Input::Ping);
-    handshake.next();
-    let replconf = handshake.get_message();
-    assert!(matches!(
-        replconf,
-        Input::ReplConf(ReplConf::ListingPort(1))
-    ));
-
-    handshake.next();
-    let replconf = handshake.get_message();
-    let s = String::new();
-    assert!(matches!(replconf, Input::ReplConf(ReplConf::Capa(s))));
-
-    handshake.next();
-    let psync = handshake.get_message();
-    assert_eq!(psync, Input::Psync);
-}
-
-#[test]
-fn handshake_steps_on_expected_response() {
-    let mut handshake = OutgoingHandshake::new();
-    let first = handshake.get_message();
-    handshake.handle_response(Output::Pong.into()).unwrap();
-    let second = handshake.get_message();
-    assert_ne!(first, second);
-}
-
-#[test]
-fn handshake_is_finished_on_end() {
-    let mut handshake = OutgoingHandshake::new();
-    handshake.next();
-    assert!(!handshake.is_finished());
-    handshake.next();
-    assert!(!handshake.is_finished());
-    handshake.next();
-    assert!(!handshake.is_finished());
-    handshake.next();
-    assert!(handshake.is_finished());
-}
-
-#[test]
 #[should_panic]
 fn run_sends_handshake() {
     let handshake: Vec<ConnectionMessage> = OutgoingHandshake::new()

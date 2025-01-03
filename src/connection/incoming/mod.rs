@@ -28,8 +28,8 @@ where
     pub fn new(connection: C, emitter: EventEmitter, repo: Repository) -> Self {
         Self {
             connection,
-            emitter,
             repo,
+            emitter,
         }
     }
 

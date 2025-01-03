@@ -1,7 +1,8 @@
-use anyhow::bail;
-
 use crate::{
-    connection::{Connection, ConnectionMessage, Input, Output, ReplConf},
+    connection::{
+        handshake::incoming::IncomingHandshake, Connection, ConnectionMessage, Input, Output,
+        ReplConf,
+    },
     event::Kind,
 };
 
@@ -41,58 +42,5 @@ impl Follower {
             connection.write_message(msg.into()).unwrap();
         }
         Ok(())
-    }
-}
-
-struct IncomingHandshake {
-    input: Vec<Input>,
-    output: Vec<Output>,
-}
-impl IncomingHandshake {
-    pub fn new() -> Self {
-        Self {
-            input: [
-                Input::Ping,
-                ReplConf::ListingPort(1).into(),
-                ReplConf::Capa(String::new()).into(),
-                Input::Psync,
-            ]
-            .to_vec(),
-            output: [
-                Output::Pong,
-                ReplConf::ListingPort(1).into(),
-                ReplConf::Capa(String::new()).into(),
-                Output::Psync,
-            ]
-            .to_vec(),
-        }
-    }
-
-    fn get_all_messages(&self) -> Vec<Input> {
-        self.input.clone()
-    }
-
-    fn get_all_responses(&self) -> Vec<Output> {
-        self.output.clone()
-    }
-
-    fn handle_message_recived(&mut self, response: Input) -> anyhow::Result<()> {
-        if response != self.input[0] {
-            bail!("expected : {:?}", self.input[0]);
-        }
-        self.advance();
-        Ok(())
-    }
-
-    fn get_message(&self) -> Option<Output> {
-        self.output.first().cloned()
-    }
-
-    fn advance(&mut self) {
-        self.input.remove(0);
-        self.output.remove(0);
-    }
-    fn is_finished(&self) -> bool {
-        self.input.is_empty()
     }
 }
