@@ -1,9 +1,8 @@
 use super::*;
+use crate::connection::DummyConnection;
 use std::{net::SocketAddrV4, str::FromStr};
 
-use crate::connection::{
-    incoming::tests::MockConnection, Connection, ConnectionMessage, Output, ReplConf,
-};
+use crate::connection::{Connection, ConnectionMessage, MockConnection, Output, ReplConf};
 
 fn setup<I, O>(input: I, expected_output: O) -> OutgoingConnection<MockConnection>
 where
@@ -17,6 +16,7 @@ where
 }
 
 #[test]
+#[should_panic(expected = "tried to connect to dummy connection")]
 fn create_outgoing_connection() {
     let _connection: OutgoingConnection<DummyConnection> =
         OutgoingConnection::connect(SocketAddrV4::from_str("127.0.0.1:6739").unwrap().into())
@@ -30,11 +30,10 @@ fn create_outgoing_handshake() {
 
 #[test]
 fn handshake_send_replconf_to_connection() {
-    let handshake: Vec<ConnectionMessage> = OutgoingHandshake::new()
-        .get_all_messages()
+    let handshake = crate::connection::handshake::outgoing::tests::EXPECTED_ORDER
         .into_iter()
-        .map(std::convert::Into::into)
-        .collect();
+        .filter_map(|msg| msg.map(std::convert::Into::into))
+        .collect::<Vec<ConnectionMessage>>();
     let mut connection = setup(
         [
             Output::Pong.into(),
@@ -50,21 +49,19 @@ fn handshake_send_replconf_to_connection() {
 #[test]
 #[should_panic]
 fn run_sends_handshake() {
-    let handshake: Vec<ConnectionMessage> = OutgoingHandshake::new()
-        .get_all_messages()
+    let handshake = crate::connection::handshake::outgoing::tests::EXPECTED_ORDER
         .into_iter()
-        .map(std::convert::Into::into)
-        .collect();
+        .map(|msg| msg.unwrap().into())
+        .collect::<Vec<ConnectionMessage>>();
     let connection = setup([], handshake);
     connection.run().unwrap();
 }
 
 #[test]
 fn run_reads_input_after_handshake() {
-    let handshake: Vec<ConnectionMessage> = OutgoingHandshake::new()
-        .get_all_messages()
+    let handshake = crate::connection::handshake::outgoing::tests::EXPECTED_ORDER
         .into_iter()
-        .map(std::convert::Into::into)
+        .filter_map(|msg| msg.map(std::convert::Into::into))
         .collect::<Vec<ConnectionMessage>>();
     let connection = setup(
         [
@@ -77,27 +74,4 @@ fn run_reads_input_after_handshake() {
         handshake,
     );
     connection.run().unwrap();
-}
-
-struct DummyConnection;
-impl Connection for DummyConnection {
-    fn connect(addr: std::net::SocketAddr) -> crate::connection::ConnectionResult<Self>
-    where
-        Self: Sized,
-    {
-        Ok(Self)
-    }
-
-    fn read_message(
-        &mut self,
-    ) -> crate::connection::ConnectionResult<crate::connection::ConnectionMessage> {
-        todo!()
-    }
-
-    fn write_message(
-        &mut self,
-        command: crate::connection::ConnectionMessage,
-    ) -> crate::connection::ConnectionResult<usize> {
-        todo!()
-    }
 }

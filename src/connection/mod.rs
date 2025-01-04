@@ -13,6 +13,10 @@ use crate::resp::{
 pub mod handshake;
 pub mod incoming;
 pub mod outgoing;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+pub use tests::*;
 
 pub trait Connection {
     fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
@@ -80,6 +84,8 @@ impl From<std::net::TcpStream> for RedisTcpConnection {
 pub enum ConnectionError {
     #[error("end of input")]
     EndOfInput,
+    #[error("{0}")]
+    Any(#[from] anyhow::Error),
 }
 
 pub type ConnectionResult<T> = Result<T, ConnectionError>;
@@ -149,6 +155,7 @@ pub enum ReplConf {
     Capa(String),
     GetAck(i32),
     Ack(i32),
+    Ok,
 }
 
 impl From<Output> for ConnectionMessage {

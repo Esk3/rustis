@@ -1,59 +1,31 @@
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 
 use crate::connection::{Input, Output, ReplConf};
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub struct IncomingHandshake {
-    input: Vec<Input>,
-    output: Vec<Output>,
+    finished: usize,
 }
 impl IncomingHandshake {
     pub fn new() -> Self {
-        Self {
-            input: [
-                Input::Ping,
-                ReplConf::ListingPort(1).into(),
-                ReplConf::Capa(String::new()).into(),
-                Input::Psync,
-            ]
-            .to_vec(),
-            output: [
-                Output::Pong,
-                ReplConf::ListingPort(1).into(),
-                ReplConf::Capa(String::new()).into(),
-                Output::Psync,
-            ]
-            .to_vec(),
-        }
+        Self { finished: 0 }
     }
 
-    pub fn get_all_messages(&self) -> Vec<Input> {
-        self.input.clone()
-    }
-
-    pub fn get_all_responses(&self) -> Vec<Output> {
-        self.output.clone()
-    }
-
-    pub fn handle_message_recived(&mut self, response: Input) -> anyhow::Result<()> {
-        if response != self.input[0] {
-            bail!("expected : {:?}", self.input[0]);
-        }
-        self.advance();
-        Ok(())
-    }
-
-    pub fn get_message(&self) -> Option<Output> {
-        self.output.first().cloned()
-    }
-
-    fn advance(&mut self) {
-        self.input.remove(0);
-        self.output.remove(0);
-    }
     pub fn is_finished(&self) -> bool {
-        self.input.is_empty()
+        self.finished >= 4
+    }
+
+    pub fn try_advance(&mut self, input: &Input) -> anyhow::Result<Output> {
+        let res = match input {
+            Input::Ping => Ok(Output::Pong),
+            Input::ReplConf(ReplConf::ListingPort(_)) => Ok(ReplConf::Ok.into()),
+            Input::ReplConf(ReplConf::Capa(_)) => Ok(ReplConf::Ok.into()),
+            Input::Psync => Ok(Output::Psync),
+            _ => Err(anyhow!("invalid start")),
+        };
+        self.finished += 1;
+        res
     }
 }

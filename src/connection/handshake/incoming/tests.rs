@@ -1,48 +1,98 @@
 use super::*;
 
-#[test]
-fn create_incoming_handshake() {
-    let _handshake: IncomingHandshake = IncomingHandshake::new();
+struct IncomingHandshakeTest {
+    handshake: IncomingHandshake,
 }
 
-#[test]
-fn get_all_handshake_messages() {
-    let messages = IncomingHandshake::new().get_all_messages();
-    assert_eq!(
-        messages,
-        [
+impl IncomingHandshakeTest {
+    fn setup() -> Self {
+        Self {
+            handshake: IncomingHandshake::new(),
+        }
+    }
+}
+
+macro_rules! handshake_test {
+    ($name:ident, $handshake:ident, $body:tt) => {
+        #[test]
+        fn $name() {
+            #[allow(unused_mut, unused_variables)]
+            let IncomingHandshakeTest{
+                handshake:
+                    mut $handshake,
+            } = IncomingHandshakeTest::setup();
+            $body
+        }
+    };
+    ([ok] $name:ident, $handshake:ident, $body:tt) => {
+        handshake_test!($name, $handshake, {
+            let result = $body;
+            assert!(result.is_ok());
+        });
+    };
+    ([err] $name:ident, $handshake:ident, $body:tt) => {
+        handshake_test!($name, $handshake, {
+            let result = $body;
+            assert!(result.is_err());
+        });
+    };
+    ( {$handshake:ident}, $( $( [$mod:ident] )? $name:ident, $body:tt );* $(;)? ) => {
+        $(
+            handshake_test!( $( [$mod] )? $name, $handshake, $body);
+        )*
+    };
+}
+
+pub const EXPECTED_INPUT: [Input; 4] = [
+    Input::Ping,
+    Input::ReplConf(ReplConf::ListingPort(1)),
+    Input::ReplConf(ReplConf::Capa(String::new())),
+    Input::Psync,
+];
+
+pub const EXPECTED_OUTPUT: [Output; 4] = [
+    Output::Pong,
+    Output::ReplConf(ReplConf::Ok),
+    Output::ReplConf(ReplConf::Ok),
+    Output::Psync,
+];
+
+handshake_test! {
+    { handshake },
+    new_handshake_is_not_finished,  {
+        assert!(!handshake.is_finished());
+    };
+    [ok]
+    can_start_with_ping, {
+        handshake.try_advance(&Input::Ping)
+    };
+    [ok]
+    can_start_with_repl_conf_listing_port, {
+        handshake.try_advance(&Input::ReplConf(ReplConf::ListingPort(1)))
+    };
+    [err]
+    invalid_start_input_is_err, {
+        handshake.try_advance(&Input::Multi)
+    };
+    expected_use, {
+        let dummy_input = [
             Input::Ping,
-            ReplConf::ListingPort(1).into(),
-            ReplConf::Capa(String::new()).into(),
-            Input::Psync,
-        ]
-    );
+            Input::ReplConf(ReplConf::ListingPort(1)),
+            Input::ReplConf(ReplConf::Capa(String::new())),
+            Input::Psync
+        ];
+        let expected_output = [
+            Output::Pong,
+            Output::ReplConf(ReplConf::Ok),
+            Output::ReplConf(ReplConf::Ok),
+            Output::Psync
+        ];
+        for (i, (input, expected_response)) in dummy_input.into_iter().zip(expected_output).enumerate() {
+            assert!(!handshake.is_finished());
+            let response = handshake.try_advance(&input).unwrap();
+            assert_eq!(response, expected_response,
+                "{i}, {input:?}, {expected_response:?}");
+        }
+        assert!(handshake.is_finished());
+    }
 }
-
-#[test]
-#[ignore = "todo"]
-fn handshake_returns_messages_in_correct_order() {
-    todo!()
-}
-
-#[test]
-fn handshake_returns_ok_and_advances_on_correct_response() {
-    let mut handshake = IncomingHandshake::new();
-    let first: Option<Output> = handshake.get_message();
-    handshake.handle_message_recived(Input::Ping).unwrap();
-    let second = handshake.get_message();
-    assert_ne!(first, second);
-}
-
-#[test]
-fn handshake_returns_err_and_does_not_advances_on_wrong_response() {
-    let mut handshake = IncomingHandshake::new();
-    let first = handshake.get_message();
-    assert!(handshake
-        .handle_message_recived(Input::Get(String::new()))
-        .is_err());
-    let second = handshake.get_message();
-    assert_eq!(first, second);
-}
-
-// give follower connection/mut connection on handle_event?

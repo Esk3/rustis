@@ -1,5 +1,5 @@
 use crate::{
-    connection::{handshake::incoming::IncomingHandshake, incoming::tests::MockConnection},
+    connection::{handshake::incoming::IncomingHandshake, MockConnection},
     event,
 };
 
@@ -74,16 +74,15 @@ fn follower_recives_handshake() {
 
 #[test]
 fn follower_uses_incoming_handshake() {
-    let handshake = IncomingHandshake::new();
     setup!(follower);
+    let input = crate::connection::handshake::incoming::tests::EXPECTED_INPUT;
+    let output = crate::connection::handshake::incoming::tests::EXPECTED_OUTPUT;
     let mut connection = MockConnection::new(
-        handshake
-            .get_all_messages()
+        input
             .into_iter()
             .map(std::convert::Into::into)
             .collect::<Vec<_>>(),
-        handshake
-            .get_all_responses()
+        output
             .into_iter()
             .map(std::convert::Into::into)
             .collect::<Vec<_>>(),

@@ -31,11 +31,11 @@ where
 
     fn handshake(&mut self) -> anyhow::Result<usize> {
         let mut handshake = OutgoingHandshake::new();
+        let mut response = None;
         while !handshake.is_finished() {
-            let message = handshake.get_message();
+            let message = handshake.try_advance(&response).unwrap();
             self.connection.write_message(message.into()).unwrap();
-            let response = self.connection.read_message()?;
-            handshake.handle_response(response).unwrap();
+            response = Some(self.connection.read_message()?.into_output().unwrap());
         }
         Ok(1)
     }
@@ -48,6 +48,7 @@ where
                 Ok(msg) => msg,
                 Err(err) => match err {
                     super::ConnectionError::EndOfInput => return Ok(()),
+                    super::ConnectionError::Any(_) => todo!(),
                 },
             };
         }

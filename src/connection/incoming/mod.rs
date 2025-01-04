@@ -55,6 +55,7 @@ where
             let request = match self.connection.read_message() {
                 Ok(request) => request,
                 Err(ConnectionError::EndOfInput) => bail!("out of input"),
+                Err(ConnectionError::Any(_)) => todo!(),
             };
             debug!("handling request: {request:?}");
             let ConnectionMessage::Input(request) = request else {
