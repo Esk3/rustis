@@ -1,49 +1,6 @@
-use crate::connection::Connection;
+use crate::{connection::Connection, test_helper};
 
 use super::*;
-
-struct OutgoingHandshakeTest {
-    handshake: OutgoingHandshake,
-}
-
-impl OutgoingHandshakeTest {
-    fn setup() -> Self {
-        Self {
-            handshake: OutgoingHandshake::new(),
-        }
-    }
-}
-
-macro_rules! handshake_test {
-    ($name:ident, $handshake:ident, $body:tt) => {
-        #[test]
-        fn $name() {
-            #[allow(unused_mut, unused_variables)]
-            let OutgoingHandshakeTest {
-                handshake:
-                    mut $handshake,
-            } = OutgoingHandshakeTest::setup();
-            $body
-        }
-    };
-    ([ok] $name:ident, $handshake:ident, $body:tt) => {
-        handshake_test!($name, $handshake, {
-            let result = $body;
-            assert!(result.is_ok());
-        });
-    };
-    ([err] $name:ident, $handshake:ident, $body:tt) => {
-        handshake_test!($name, $handshake, {
-            let result = $body;
-            assert!(result.is_err());
-        });
-    };
-    ( {$handshake:ident}, $( $( [$mod:ident] )? $name:ident, $body:tt );* $(;)? ) => {
-        $(
-            handshake_test!( $( [$mod] )? $name, $handshake, $body);
-        )*
-    };
-}
 
 pub const EXPECTED_ORDER: [Option<Output>; 5] = [
     None,
@@ -53,22 +10,24 @@ pub const EXPECTED_ORDER: [Option<Output>; 5] = [
     Some(Output::Psync),
 ];
 
-handshake_test! {
-    { handshake },
+test_helper! {
+    OutgoingHandshakeTest, { handshake: OutgoingHandshake, OutgoingHandshake::new() },
+    [false]
     new_handshake_is_not_finished,  {
-        assert!(!handshake.is_finished());
+        handshake.is_finished()
     };
     [err]
     incorrect_try_advance_errors, {
         let response = Output::Get(None);
         handshake.try_advance(&Some(response))
     };
+    [true]
     handshake_is_finished_after_five_sucessfull_advances, {
         for message in EXPECTED_ORDER {
             assert!(!handshake.is_finished());
             handshake.try_advance(&message).unwrap();
         }
-        assert!(handshake.is_finished());
+        handshake.is_finished()
     };
     handshake_try_advance_returns_correct_messages_on_sucessful_advance, {
         let expected_advance_return_value_order = [
@@ -83,6 +42,7 @@ handshake_test! {
             assert_eq!(actual, expected, "i: {i}, msg: {msg:?}");
         }
     };
+    [true]
     handshake_resets_on_trying_to_advance_on_wrong_message, {
         let messages = EXPECTED_ORDER.into_iter()
             .take(4)
@@ -93,7 +53,7 @@ handshake_test! {
             let res = handshake.try_advance(&message);
             if i != 4 { res.unwrap(); }
         }
-        assert!(handshake.is_finished());
+        handshake.is_finished()
     };
     [err]
     handshake_returns_err_on_advancing_after_finish, {

@@ -1,47 +1,6 @@
+use crate::test_helper;
+
 use super::*;
-
-struct IncomingHandshakeTest {
-    handshake: IncomingHandshake,
-}
-
-impl IncomingHandshakeTest {
-    fn setup() -> Self {
-        Self {
-            handshake: IncomingHandshake::new(),
-        }
-    }
-}
-
-macro_rules! handshake_test {
-    ($name:ident, $handshake:ident, $body:tt) => {
-        #[test]
-        fn $name() {
-            #[allow(unused_mut, unused_variables)]
-            let IncomingHandshakeTest{
-                handshake:
-                    mut $handshake,
-            } = IncomingHandshakeTest::setup();
-            $body
-        }
-    };
-    ([ok] $name:ident, $handshake:ident, $body:tt) => {
-        handshake_test!($name, $handshake, {
-            let result = $body;
-            assert!(result.is_ok());
-        });
-    };
-    ([err] $name:ident, $handshake:ident, $body:tt) => {
-        handshake_test!($name, $handshake, {
-            let result = $body;
-            assert!(result.is_err());
-        });
-    };
-    ( {$handshake:ident}, $( $( [$mod:ident] )? $name:ident, $body:tt );* $(;)? ) => {
-        $(
-            handshake_test!( $( [$mod] )? $name, $handshake, $body);
-        )*
-    };
-}
 
 pub const EXPECTED_INPUT: [Input; 4] = [
     Input::Ping,
@@ -57,10 +16,11 @@ pub const EXPECTED_OUTPUT: [Output; 4] = [
     Output::Psync,
 ];
 
-handshake_test! {
-    { handshake },
+test_helper! {
+    IncomingHandshakeTest, { handshake: IncomingHandshake, IncomingHandshake::new()},
+    [false]
     new_handshake_is_not_finished,  {
-        assert!(!handshake.is_finished());
+        handshake.is_finished()
     };
     [ok]
     can_start_with_ping, {
