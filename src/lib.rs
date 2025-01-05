@@ -62,6 +62,8 @@ pub mod test_helper {
 
         (@test_body mod: [ok] body: $body:tt) => { assert!($body.is_ok()); };
         (@test_body mod: [err] body: $body:tt) => { assert!($body.is_err()); };
+        (@test_body mod: [some] body: $body:tt) => { assert!($body.is_some()); };
+        (@test_body mod: [none] body: $body:tt) => { assert_eq!($body, None); };
         (@test_body mod: [true] body: $body:tt) => { assert!($body); };
         (@test_body mod: [false] body: $body:tt) => { assert!(!$body); };
         (@test_body mod: [eq $expected:expr] body: $body:tt) => { assert_eq!($body, $expected); };

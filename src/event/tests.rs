@@ -1,74 +1,38 @@
+use crate::test_helper;
+
 use super::*;
 
-#[test]
-fn create_event_emitter() {
-    let emitter = EventEmitter::new();
-}
-
-#[test]
-fn create_event_subscriber() {
-    let emitter = EventEmitter::new();
-    let subscriber = emitter.subscribe();
-}
-
-struct Test {
-    emitter: EventEmitter,
-    subscriber: EventSubscriber,
-}
-
-impl Test {
-    fn setup() -> Self {
-        let emitter = EventEmitter::new();
-        Self {
-            subscriber: emitter.subscribe(),
-            emitter,
-        }
+test_helper! {
+    EventTest { emitter: EventEmitter, EventEmitter::new() }
+    create_subscriber() {
+        let _subscriber = emitter.subscribe();
     }
-}
-
-#[test]
-fn emit_event() {
-    let emitter = EventEmitter::new();
+    emit_event() {
     emitter.emmit(Kind::Set {
         key: "key".to_string(),
         value: "value".to_string(),
         expiry: None,
     });
-}
-
-#[test]
-fn subscriber_recives_emitted_event() {
-    let Test {
-        emitter,
-        subscriber,
-    } = Test::setup();
+    };
+    subscriber_recives_emitted_event() {
+    let subscriber = emitter.subscribe();
     let (key, value) = ("abc", "xyz");
     emitter.emmit(Kind::Set {
         key: key.into(),
         value: value.into(),
         expiry: None,
     });
-    let event = subscriber.recive();
-}
-
-#[test]
-#[ignore = "sleep"]
-fn subscriber_blocks_when_no_event_is_avalible() {
-    let Test {
-        emitter,
-        subscriber,
-    } = Test::setup();
+    let _event = subscriber.recive();
+};
+    #[ignore = "sleep"]
+    subscriber_blocks_when_no_event_is_avalible() {
+    let subscriber = emitter.subscribe();
     let handle = std::thread::spawn(move || subscriber.recive());
     std::thread::sleep(std::time::Duration::from_millis(200));
     assert!(!handle.is_finished());
-}
-
-#[test]
-fn subscriber_recives_event_from_cloned_emitter() {
-    let Test {
-        emitter,
-        subscriber,
-    } = Test::setup();
+};
+    subscriber_recives_event_from_cloned_emitter() {
+    let subscriber = emitter.subscribe();
     let clone = emitter.clone();
     let (key, value) = ("abc", "xyz");
     clone.emmit(Kind::Set {
@@ -76,15 +40,11 @@ fn subscriber_recives_event_from_cloned_emitter() {
         value: value.into(),
         expiry: None,
     });
-    let event = subscriber.recive();
-}
+    let _event = subscriber.recive();
+};
 
-#[test]
-fn iter_events() {
-    let Test {
-        emitter,
-        subscriber,
-    } = Test::setup();
+    iter_events() {
+    let subscriber = emitter.subscribe();
     let events = [
         Kind::Set {
             key: "123".into(),
@@ -101,4 +61,5 @@ fn iter_events() {
     drop(emitter);
     let recived_events = subscriber.into_iter().collect::<Vec<_>>();
     assert_eq!(recived_events, events);
+};
 }
