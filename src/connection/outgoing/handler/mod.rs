@@ -1,6 +1,6 @@
 use crate::{
-    connection::{Input, Output},
     repository::Repository,
+    resp::{Input, Output},
 };
 
 #[cfg(test)]

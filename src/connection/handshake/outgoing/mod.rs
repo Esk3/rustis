@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 
-use crate::connection::{Input, Output, ReplConf};
+use crate::resp::{Input, Output, ReplConf};
 
 #[cfg(test)]
 pub mod tests;

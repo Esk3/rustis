@@ -1,7 +1,4 @@
-use crate::{
-    connection::{incoming::client, ReplConf},
-    event::EventEmitter,
-};
+use crate::{connection::incoming::client, event::EventEmitter, resp::ReplConf};
 
 use super::*;
 

@@ -1,4 +1,4 @@
-use super::{super::Value, Identifier};
+use super::{super::Value, identifier::Identifier};
 
 #[cfg(test)]
 pub(super) mod tests;

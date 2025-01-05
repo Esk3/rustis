@@ -11,15 +11,13 @@ impl Connection for DummyConnection {
         Err(anyhow!("tried to connect to dummy connection").into())
     }
 
-    fn read_message(
-        &mut self,
-    ) -> crate::connection::ConnectionResult<crate::connection::ConnectionMessage> {
+    fn read_message(&mut self) -> crate::connection::ConnectionResult<crate::resp::Message> {
         Err(anyhow!("tried to read from dummy connection").into())
     }
 
     fn write_message(
         &mut self,
-        _command: crate::connection::ConnectionMessage,
+        _command: resp::Message,
     ) -> crate::connection::ConnectionResult<usize> {
         Err(anyhow!("tried to write to dummy connection").into())
     }
@@ -27,15 +25,15 @@ impl Connection for DummyConnection {
 
 #[derive(Debug)]
 pub struct MockConnection {
-    input: Vec<ConnectionMessage>,
-    expected_output: Option<Vec<ConnectionMessage>>,
+    input: Vec<resp::Message>,
+    expected_output: Option<Vec<resp::Message>>,
 }
 
 impl MockConnection {
     pub fn new<I, O>(input: I, expected_output: O) -> Self
     where
-        I: IntoIterator<Item = ConnectionMessage>,
-        O: IntoIterator<Item = ConnectionMessage>,
+        I: IntoIterator<Item = resp::Message>,
+        O: IntoIterator<Item = resp::Message>,
         <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
         <O as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
     {
@@ -47,7 +45,7 @@ impl MockConnection {
 
     pub fn new_input<I>(input: I) -> Self
     where
-        I: IntoIterator<Item = ConnectionMessage>,
+        I: IntoIterator<Item = resp::Message>,
         <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
     {
         Self {
@@ -65,7 +63,7 @@ impl MockConnection {
 }
 
 impl Connection for MockConnection {
-    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
+    fn write_message(&mut self, command: resp::Message) -> ConnectionResult<usize> {
         let Some(ref mut expected) = self.expected_output else {
             return Ok(1);
         };
@@ -78,7 +76,7 @@ impl Connection for MockConnection {
         todo!()
     }
 
-    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage> {
+    fn read_message(&mut self) -> ConnectionResult<resp::Message> {
         self.input.pop().ok_or(ConnectionError::EndOfInput)
     }
 }

@@ -98,7 +98,7 @@ fn get_identifier_from_test_is_same_as_get_identifier() {
 
 #[test]
 fn serialized_value_get_deserialized_to_same_value() {
-    let values = serialize::tests::example_of_all_values();
+    let values = super::super::serialize::tests::example_of_all_values();
     let deserialized_values = values
         .iter()
         .map(serialize_value)

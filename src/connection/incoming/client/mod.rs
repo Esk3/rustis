@@ -1,7 +1,7 @@
 use crate::{
-    connection::{Input, Output, ReplConf},
     event::{self, EventEmitter},
     repository::Repository,
+    resp::{Input, Output, ReplConf},
     Service,
 };
 

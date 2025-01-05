@@ -1,3 +1,10 @@
+pub mod deserialize;
+pub mod identifier;
+pub mod serialize;
+
+pub use deserialize::deserialize_value;
+pub use serialize::serialize_value;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     SimpleString(String),

@@ -2,9 +2,8 @@ use std::net::SocketAddr;
 
 use tracing::instrument;
 
-use super::{
-    handshake::outgoing::OutgoingHandshake, Connection, ConnectionMessage, Input, Output, ReplConf,
-};
+use super::{handshake::outgoing::OutgoingHandshake, Connection};
+use crate::resp::{Input, Message, Output, ReplConf};
 
 mod handler;
 

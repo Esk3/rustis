@@ -1,9 +1,7 @@
 use crate::{
-    connection::{
-        handshake::incoming::IncomingHandshake, Connection, ConnectionMessage, Input, Output,
-        ReplConf,
-    },
+    connection::{handshake::incoming::IncomingHandshake, Connection},
     event::Kind,
+    resp::{Input, Message, Output, ReplConf},
 };
 
 #[cfg(test)]
@@ -16,16 +14,14 @@ impl Follower {
         Self
     }
 
-    pub fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<ConnectionMessage>> {
+    pub fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<Message>> {
         let res = match event {
-            Kind::Set { key, value, expiry } => {
-                Some(ConnectionMessage::Input(crate::connection::Input::Set {
-                    key,
-                    value,
-                    expiry,
-                    get: false,
-                }))
-            }
+            Kind::Set { key, value, expiry } => Some(Message::Input(crate::resp::Input::Set {
+                key,
+                value,
+                expiry,
+                get: false,
+            })),
         };
         Ok(res)
     }

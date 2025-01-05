@@ -1,4 +1,4 @@
-use crate::resp::protocol::{deserialize::GetHeader, GetIdentifier};
+use crate::resp::value::{deserialize::GetHeader, identifier::GetIdentifier};
 
 use super::*;
 

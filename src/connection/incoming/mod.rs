@@ -4,9 +4,10 @@ use follower::Follower;
 use tracing::{debug, info, instrument};
 
 use crate::{
-    connection::{Connection, ConnectionError, ConnectionMessage},
+    connection::{Connection, ConnectionError},
     event::EventEmitter,
     repository::Repository,
+    resp::Message,
 };
 
 mod client;
@@ -58,7 +59,7 @@ where
                 Err(ConnectionError::Any(_)) => todo!(),
             };
             debug!("handling request: {request:?}");
-            let ConnectionMessage::Input(request) = request else {
+            let Message::Input(request) = request else {
                 panic!();
             };
             let request = client::Request::now(request, 0);

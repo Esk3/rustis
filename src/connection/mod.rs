@@ -6,8 +6,9 @@ use std::{
 use thiserror::Error;
 
 use crate::resp::{
-    parser::{Encode, Parse, RespEncoder, RespParser},
-    protocol::{deserialize_value, serialize_value},
+    self,
+    message::{deserialize::deserialize_message, serialize::serialize_message},
+    value::{deserialize_value, serialize_value},
 };
 
 pub mod handshake;
@@ -22,8 +23,8 @@ pub trait Connection {
     fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
     where
         Self: Sized;
-    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage>;
-    fn write_message(&mut self, message: ConnectionMessage) -> ConnectionResult<usize>;
+    fn read_message(&mut self) -> ConnectionResult<resp::Message>;
+    fn write_message(&mut self, message: resp::Message) -> ConnectionResult<usize>;
 }
 
 pub struct RedisTcpConnection {
@@ -40,7 +41,7 @@ impl Connection for RedisTcpConnection {
         todo!()
     }
 
-    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage> {
+    fn read_message(&mut self) -> ConnectionResult<resp::Message> {
         let bytes_read = self.stream.read(&mut self.buf[self.i..]).unwrap();
         self.i += bytes_read;
         tracing::debug!(
@@ -51,13 +52,13 @@ impl Connection for RedisTcpConnection {
         tracing::debug!("got value {value:?}");
         self.buf.rotate_left(bytes_consumed);
         self.i -= bytes_consumed;
-        let message = RespParser::parse(value).unwrap();
+        let message = resp::message::deserialize::deserialize_message(value).unwrap();
         tracing::debug!("got message {message:?}");
         Ok(message)
     }
 
-    fn write_message(&mut self, message: ConnectionMessage) -> ConnectionResult<usize> {
-        let value = RespEncoder::encode(message).unwrap();
+    fn write_message(&mut self, message: resp::Message) -> ConnectionResult<usize> {
+        let value = resp::message::serialize::serialize_message(message).unwrap();
         tracing::debug!("got value: {value:?}");
         let bytes = serialize_value(&value);
         tracing::debug!(
@@ -89,92 +90,3 @@ pub enum ConnectionError {
 }
 
 pub type ConnectionResult<T> = Result<T, ConnectionError>;
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ConnectionMessage {
-    Input(Input),
-    Output(Output),
-}
-
-impl ConnectionMessage {
-    pub fn into_input(self) -> Result<Input, Self> {
-        if let Self::Input(input) = self {
-            Ok(input)
-        } else {
-            Err(self)
-        }
-    }
-    pub fn into_output(self) -> Result<Output, Self> {
-        if let Self::Output(output) = self {
-            Ok(output)
-        } else {
-            Err(self)
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Input {
-    Ping,
-
-    Get(String),
-    Set {
-        key: String,
-        value: String,
-        expiry: Option<std::time::SystemTime>,
-        get: bool,
-    },
-
-    Multi,
-    CommitMulti,
-
-    ReplConf(ReplConf),
-    Psync,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Output {
-    Pong,
-    Get(Option<String>),
-    Set,
-
-    Multi,
-    MultiError,
-    Queued,
-
-    ReplConf(ReplConf),
-    Psync,
-    Null,
-    Ok,
-    Array(Vec<Self>),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ReplConf {
-    ListingPort(u16),
-    Capa(String),
-    GetAck(i32),
-    Ack(i32),
-    Ok,
-}
-
-impl From<Output> for ConnectionMessage {
-    fn from(value: Output) -> Self {
-        Self::Output(value)
-    }
-}
-impl From<Input> for ConnectionMessage {
-    fn from(value: Input) -> Self {
-        Self::Input(value)
-    }
-}
-impl From<ReplConf> for Input {
-    fn from(value: ReplConf) -> Self {
-        Self::ReplConf(value)
-    }
-}
-impl From<ReplConf> for Output {
-    fn from(value: ReplConf) -> Self {
-        Self::ReplConf(value)
-    }
-}

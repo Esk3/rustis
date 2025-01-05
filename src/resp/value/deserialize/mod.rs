@@ -1,7 +1,7 @@
 use crate::resp::Value;
 use anyhow::anyhow;
 
-use super::{GetIdentifier, Identifier};
+use super::identifier::{GetIdentifier, Identifier};
 
 #[cfg(test)]
 mod tests;

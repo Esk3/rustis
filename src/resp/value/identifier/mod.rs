@@ -1,11 +1,9 @@
-pub mod deserialize;
-pub mod serialize;
 #[cfg(test)]
 mod tests;
 
+pub use super::deserialize::deserialize_value;
+pub use super::serialize::serialize_value;
 use anyhow::{anyhow, bail};
-pub use deserialize::deserialize_value;
-pub use serialize::serialize_value;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Identifier {
@@ -70,12 +68,12 @@ impl Identifier {
         }
     }
 
-    fn get_byte_length(&self) -> usize {
+    pub fn get_byte_length(&self) -> usize {
         1
     }
 }
 
-trait GetIdentifier {
+pub trait GetIdentifier {
     fn get_identifier(&self) -> anyhow::Result<Identifier>;
 }
 

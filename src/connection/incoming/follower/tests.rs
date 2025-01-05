@@ -20,7 +20,7 @@ test_helper! {
             value: value.into(),
             expiry: None,
         };
-        let _: anyhow::Result<Option<ConnectionMessage>> = follower.handle_event(kind);
+        let _: anyhow::Result<Option<Message>> = follower.handle_event(kind);
     };
     set_event_returns_set_message() {
         let (key, value) = ("abc", "xyz");
@@ -32,7 +32,7 @@ test_helper! {
         let response = follower.handle_event(kind).unwrap().unwrap();
         assert_eq!(
             response,
-            ConnectionMessage::Input(crate::connection::Input::Set {
+            Message::Input(crate::resp::Input::Set {
                 key: key.into(),
                 value: value.into(),
                 expiry: None,

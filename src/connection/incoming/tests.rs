@@ -1,6 +1,7 @@
 use crate::{
-    connection::{ConnectionResult, Input, Output, ReplConf},
+    connection::ConnectionResult,
     event,
+    resp::{self, Input, Output, ReplConf},
 };
 
 use super::super::MockConnection;
@@ -24,8 +25,8 @@ macro_rules! setup {
         let connection = DummyConnection;
         $(
             let connection = MockConnection::new(
-                $input.into_iter().map(std::convert::Into::into).collect::<Vec<ConnectionMessage>>(),
-            $output.into_iter().map(std::convert::Into::into).collect::<Vec<ConnectionMessage>>()
+                $input.into_iter().map(std::convert::Into::into).collect::<Vec<resp::Message>>(),
+            $output.into_iter().map(std::convert::Into::into).collect::<Vec<resp::Message>>()
             );
         )?
         let repo = Repository::new();
@@ -56,16 +57,13 @@ fn create_incoming_connection() {
 
 #[test]
 fn handle_connection_reads_input() {
-    let connection = setup!([ConnectionMessage::Input(Input::Ping)].into_iter());
+    let connection = setup!([Message::Input(Input::Ping)].into_iter());
     connection.run_handler().unwrap();
 }
 
 #[test]
 fn handler_reads_two_inputs() {
-    let connection = setup!([
-        ConnectionMessage::Input(Input::Ping),
-        ConnectionMessage::Input(Input::Ping)
-    ]);
+    let connection = setup!([Message::Input(Input::Ping), Message::Input(Input::Ping)]);
     connection.run_handler().unwrap();
 }
 #[test]
@@ -84,21 +82,21 @@ fn connection_writes_connection_handlers_response() {
     let repo = Repository::new();
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
-    let output = [ConnectionMessage::Output(
+    let output = [Message::Output(
         handler
             .handle_request(client::Request::now(Input::Ping, 0))
             .unwrap()
             .into_output()
             .unwrap(),
     )];
-    let connection = setup!([ConnectionMessage::Input(Input::Ping)], output);
+    let connection = setup!([Message::Input(Input::Ping)], output);
     connection.run_handler().unwrap();
 }
 
 #[test]
 fn handle_client_connection_returns_ok_on_replconf() {
     let mut connection = setup!(
-        [Input::ReplConf(crate::connection::ReplConf::ListingPort(1)).into()],
+        [Input::ReplConf(crate::resp::ReplConf::ListingPort(1)).into()],
         []
     );
     connection.handle_client_connection().unwrap();
@@ -159,11 +157,11 @@ impl Connection for DummyConnection {
         todo!()
     }
 
-    fn read_message(&mut self) -> ConnectionResult<ConnectionMessage> {
+    fn read_message(&mut self) -> ConnectionResult<Message> {
         todo!()
     }
 
-    fn write_message(&mut self, command: ConnectionMessage) -> ConnectionResult<usize> {
+    fn write_message(&mut self, command: Message) -> ConnectionResult<usize> {
         todo!()
     }
 }
