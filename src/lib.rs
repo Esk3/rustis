@@ -15,10 +15,20 @@ pub trait Service<Req> {
 pub mod test_helper {
     #[macro_export]
     macro_rules! test_helper {
-        ($StructName:ident { $( $field_name:ident: $field_type:ty, $field_value:expr ),* }
-         $( $( #[$header:meta] )* $( [$mod:ident$( $expected:expr )?] )? $test_name:ident() $test_body:tt );* $(;)? ) => {
+        (
+            $StructName:ident { $( $field_name:ident: $field_type:ty, $field_value:expr );* }
+            $( $( #[$header:meta] )*
+            $( [$mod:ident$( $expected:expr )?] )?
+            $( ( $( $arg:expr ),* ) )*
+            $test_name:ident( $( $param:ident ),* ) $test_body:tt $(;)? )*
+         ) => {
             test_helper!(@create_struct $StructName { $( $field_name: $field_type ),* } { $( $field_name: $field_value ),* } );
-            test_helper!(@after_struct $StructName, { $( mut $field_name, )* }, $( $( #[$header] )* $( [$mod $($expected)? ] )? $test_name, $test_body );*);
+            test_helper!( @after_struct
+                $StructName, { $( mut $field_name ),* },
+                $( $( #[$header] )*
+                $( [$mod $($expected)? ] )?
+                ( $( $( ( $arg ) ),* )* ) $test_name( $( $param ),* ), $test_body );*
+                );
         };
         ( @create_struct $StructName:ident $declaration:tt $init:tt ) => {
             struct $StructName $declaration
@@ -28,18 +38,24 @@ pub mod test_helper {
                 }
             }
         };
-        ( @after_struct $StructName:ident, $fields:tt, $( $( #[$header:meta] )* $( [$mod:ident $($expected:expr)?] )? $test_name:ident, $test_body:tt );* ) => {
+        ( @after_struct $StructName:ident, $fields:tt,
+            $( $( #[$header:meta] )*
+            $( [$mod:ident $($expected:expr)?] )?
+            ( $( $arg:expr ),* )
+            $test_name:ident( $( $param:ident ),* ), $test_body:tt );*
+        ) => {
             $(
-                test_helper!(@call_test $( #[$header] )* $( [$mod $($expected)?] )? $test_name, $StructName, $fields; $test_body);
+                test_helper!(@call_test $( #[$header] )* $( [$mod $($expected)?] )? ( $( $arg ),* ) $test_name, ( $( $param ),* ), $StructName, $fields; $test_body);
             )*
         };
 
-        (@call_test $( #[$header:meta] )* $( [$mod:ident $( $expected:expr )?] )? $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
+        (@call_test $( #[$header:meta] )* $( [$mod:ident $( $expected:expr )?] )? ( $( $arg:expr ),* ) $test_name:ident, ( $( $param:ident ),* ), $StructName:ident, $fields:tt; $body:tt) => {
             #[test]
             $( #[$header] )*
             fn $test_name() {
                 #[allow(unused_variables, unused_mut)]
                 let $StructName $fields = $StructName::setup();
+                let ( $( $param ),* ) = ( $( $arg ),* );
                 test_helper!(@test_body $( mod: [$mod $( $expected )?] )? body: $body );
             }
         };
@@ -91,6 +107,11 @@ pub mod test_helper {
     #[should_panic(expected="")]
     is_panic() {
         panic!();
+    };
+    #[should_panic(expected="")]
+    ("next", "acb")
+    params(param, param2) {
+        panic!("{param}, {param2}");
     };
     }
 }
