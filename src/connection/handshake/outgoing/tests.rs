@@ -11,25 +11,25 @@ pub const EXPECTED_ORDER: [Option<Output>; 5] = [
 ];
 
 test_helper! {
-    OutgoingHandshakeTest, { handshake: OutgoingHandshake, OutgoingHandshake::new() },
+    OutgoingHandshakeTest { handshake: OutgoingHandshake, OutgoingHandshake::new() }
     [false]
-    new_handshake_is_not_finished,  {
+    new_handshake_is_not_finished() {
         handshake.is_finished()
     };
     [err]
-    incorrect_try_advance_errors, {
+    incorrect_try_advance_errors() {
         let response = Output::Get(None);
         handshake.try_advance(&Some(response))
     };
     [true]
-    handshake_is_finished_after_five_sucessfull_advances, {
+    handshake_is_finished_after_five_sucessfull_advances() {
         for message in EXPECTED_ORDER {
             assert!(!handshake.is_finished());
             handshake.try_advance(&message).unwrap();
         }
         handshake.is_finished()
     };
-    handshake_try_advance_returns_correct_messages_on_sucessful_advance, {
+    handshake_try_advance_returns_correct_messages_on_sucessful_advance() {
         let expected_advance_return_value_order = [
             Input::Ping,
             ReplConf::ListingPort(1).into(),
@@ -43,7 +43,7 @@ test_helper! {
         }
     };
     [true]
-    handshake_resets_on_trying_to_advance_on_wrong_message, {
+    handshake_resets_on_trying_to_advance_on_wrong_message() {
         let messages = EXPECTED_ORDER.into_iter()
             .take(4)
             .chain(std::iter::once(Some(Output::Get(None))))
@@ -56,14 +56,14 @@ test_helper! {
         handshake.is_finished()
     };
     [err]
-    handshake_returns_err_on_advancing_after_finish, {
+    handshake_returns_err_on_advancing_after_finish() {
         for msg in EXPECTED_ORDER {
             handshake.try_advance(&msg).unwrap();
         }
         assert!(handshake.is_finished());
         handshake.try_advance(&None)
     };
-    expected_usage, {
+    expected_usage() {
         let mut dummy_conn = crate::connection::DummyConnection;
         let mut dummy_responses = EXPECTED_ORDER.into_iter().skip(1).map(|msg| msg.unwrap());
         let mut response = None;

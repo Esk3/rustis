@@ -15,86 +15,82 @@ pub trait Service<Req> {
 pub mod test_helper {
     #[macro_export]
     macro_rules! test_helper {
-        ($StructName:ident, { $( $field_name:ident: $field_type:ty, $field_value:expr ),* }, $( $([$mod:ident$( $expected:expr )?])? $test_name:ident, $test_body:tt );* $(;)? ) => {
-            struct $StructName{
-                $(
-                    $field_name: $field_type,
-                )*
-            }
+        ($StructName:ident { $( $field_name:ident: $field_type:ty, $field_value:expr ),* }
+         $( $( #[$header:meta] )* $( [$mod:ident$( $expected:expr )?] )? $test_name:ident() $test_body:tt );* $(;)? ) => {
+            test_helper!(@create_struct $StructName { $( $field_name: $field_type ),* } { $( $field_name: $field_value ),* } );
+            test_helper!(@after_struct $StructName, { $( mut $field_name, )* }, $( $( #[$header] )* $( [$mod $($expected)? ] )? $test_name, $test_body );*);
+        };
+        ( @create_struct $StructName:ident $declaration:tt $init:tt ) => {
+            struct $StructName $declaration
             impl $StructName{
                 fn setup() -> Self {
-                    Self {
-                        $(
-                            $field_name: $field_value
-                        )*
-                    }
+                    Self $init
                 }
             }
-            test_helper!(@after_struct $StructName, { $( mut $field_name, )* }, $( $( [$mod $($expected)? ] )? $test_name, $test_body );*);
         };
-        (@after_struct $StructName:ident, $fields:tt, $( $( [$mod:ident $($expected:expr)?] )? $test_name:ident, $test_body:tt );* ) => {
+        ( @after_struct $StructName:ident, $fields:tt, $( $( #[$header:meta] )* $( [$mod:ident $($expected:expr)?] )? $test_name:ident, $test_body:tt );* ) => {
             $(
-                test_helper!(@call_test $( [$mod $($expected)?] )? $test_name, $StructName, $fields; $test_body);
+                test_helper!(@call_test $( #[$header] )* $( [$mod $($expected)?] )? $test_name, $StructName, $fields; $test_body);
             )*
         };
 
-        (@call_test $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
+        (@call_test $( #[$header:meta] )* $( [$mod:ident $( $expected:expr )?] )? $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
             #[test]
+            $( #[$header] )*
             fn $test_name() {
                 #[allow(unused_variables, unused_mut)]
                 let $StructName $fields = $StructName::setup();
-                $body
+                test_helper!(@test_body $( mod: [$mod $( $expected )?] )? body: $body );
             }
         };
 
-        (@call_test [ok] $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
-            test_helper!(@call_test $test_name, $StructName, $fields; { assert!($body.is_ok()); } );
-        };
-        (@call_test [err] $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
-            test_helper!(@call_test $test_name, $StructName, $fields; { assert!($body.is_err()); } );
-        };
-        (@call_test [true] $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
-            test_helper!(@call_test $test_name, $StructName, $fields; { assert!($body); } );
-        };
-        (@call_test [false] $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
-            test_helper!(@call_test $test_name, $StructName, $fields; { assert!(!$body); } );
-        };
-        (@call_test [eq $expected:expr] $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
-            test_helper!(@call_test $test_name, $StructName, $fields; { assert_eq!($body, $expected); } );
-        };
-        (@call_test [ne $expected:expr] $test_name:ident, $StructName:ident, $fields:tt; $body:tt) => {
-            test_helper!(@call_test $test_name, $StructName, $fields; { assert_ne!($body, $expected); } );
-        };
+        (@test_body mod: [ok] body: $body:tt) => { assert!($body.is_ok()); };
+        (@test_body mod: [err] body: $body:tt) => { assert!($body.is_err()); };
+        (@test_body mod: [true] body: $body:tt) => { assert!($body); };
+        (@test_body mod: [false] body: $body:tt) => { assert!(!$body); };
+        (@test_body mod: [eq $expected:expr] body: $body:tt) => { assert_eq!($body, $expected); };
+        (@test_body mod: [ne $expected:expr] body: $body:tt) => { assert_ne!($body, $expected); };
+        (@test_body body: $body:tt) => { $body };
     }
     pub use test_helper;
 
-    test_helper! {Abc, { num: usize, 0},
-    test_name, {
+    test_helper! {Abc { num: usize, 0}
+    test_name() {
         num += 1;
         assert_eq!(num, 1);
     };
-    resets, {
+    resets() {
         assert_eq!(num, 0);
     };
     [ok]
-    is_ok, { Ok::<(),()>(()) };
+    is_ok() { Ok::<(),()>(()) };
     [err]
-    is_err, { Err::<(),()>(()) };
+    is_err() { Err::<(),()>(()) };
     [true]
-    is_true, {
+    is_true() {
         true
     };
     [false]
-    is_false, {
+    is_false() {
         false
     };
     [eq 2]
-    is_eq, {
+    is_eq() {
         num + 2
     };
     [ne 2]
-    is_ne, {
+    is_ne() {
         num
+    };
+    #[ignore="abc"]
+    [ok]
+    is_ignore() {
+        panic!();
+        Ok::<(),()>(())
+    };
+    #[should_panic(expected="")]
+    is_panic() {
+        panic!();
     };
     }
 }

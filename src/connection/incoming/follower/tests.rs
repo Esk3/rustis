@@ -1,9 +1,61 @@
-use crate::{
-    connection::{handshake::incoming::IncomingHandshake, MockConnection},
-    event,
-};
+use crate::{connection::MockConnection, event, test_helper};
 
 use super::*;
+
+test_helper! {
+    FollowerTest { follower: Follower, Follower::new()}
+    handle_event() {
+        let (key, value) = ("abc", "xyz");
+        let kind = event::Kind::Set {
+            key: key.into(),
+            value: value.into(),
+            expiry: None,
+        };
+        let _ = follower.handle_event(kind);
+    };
+    follower_returns_message() {
+        let (key, value) = ("abc", "xyz");
+        let kind = event::Kind::Set {
+            key: key.into(),
+            value: value.into(),
+            expiry: None,
+        };
+        let _: anyhow::Result<Option<ConnectionMessage>> = follower.handle_event(kind);
+    };
+    set_event_returns_set_message() {
+        let (key, value) = ("abc", "xyz");
+        let kind = event::Kind::Set {
+            key: key.into(),
+            value: value.into(),
+            expiry: None,
+        };
+        let response = follower.handle_event(kind).unwrap().unwrap();
+        assert_eq!(
+            response,
+            ConnectionMessage::Input(crate::connection::Input::Set {
+                key: key.into(),
+                value: value.into(),
+                expiry: None,
+                get: false
+            })
+        );
+    };
+    follower_uses_incoming_handshake() {
+        let input = crate::connection::handshake::incoming::tests::EXPECTED_INPUT;
+        let output = crate::connection::handshake::incoming::tests::EXPECTED_OUTPUT;
+        let mut connection = MockConnection::new(
+            input
+            .into_iter()
+            .map(std::convert::Into::into)
+            .collect::<Vec<_>>(),
+            output
+            .into_iter()
+            .map(std::convert::Into::into)
+            .collect::<Vec<_>>(),
+        );
+        follower.handshake(&mut connection).unwrap();
+    };
+}
 
 fn setup() -> Follower {
     Follower::new()
@@ -16,78 +68,10 @@ macro_rules! setup {
 }
 
 #[test]
-fn create_follower() {
-    let _: Follower = Follower::new();
-}
-
-#[test]
-fn follower_handles_event() {
-    let mut follower = setup();
-    let (key, value) = ("abc", "xyz");
-    let kind = event::Kind::Set {
-        key: key.into(),
-        value: value.into(),
-        expiry: None,
-    };
-    let _ = follower.handle_event(kind);
-}
-
-#[test]
-fn follower_returns_message() {
-    let mut follower = setup();
-    let (key, value) = ("abc", "xyz");
-    let kind = event::Kind::Set {
-        key: key.into(),
-        value: value.into(),
-        expiry: None,
-    };
-    let _: anyhow::Result<Option<ConnectionMessage>> = follower.handle_event(kind);
-}
-
-#[test]
-fn set_event_returns_set_message() {
-    let mut follower = setup();
-    let (key, value) = ("abc", "xyz");
-    let kind = event::Kind::Set {
-        key: key.into(),
-        value: value.into(),
-        expiry: None,
-    };
-    let response = follower.handle_event(kind).unwrap().unwrap();
-    assert_eq!(
-        response,
-        ConnectionMessage::Input(crate::connection::Input::Set {
-            key: key.into(),
-            value: value.into(),
-            expiry: None,
-            get: false
-        })
-    );
-}
-
-#[test]
 #[should_panic(expected = "EndOfInput")]
 fn follower_recives_handshake() {
     let mut follower = setup();
     follower.handshake(&mut MockConnection::empty()).unwrap();
-}
-
-#[test]
-fn follower_uses_incoming_handshake() {
-    setup!(follower);
-    let input = crate::connection::handshake::incoming::tests::EXPECTED_INPUT;
-    let output = crate::connection::handshake::incoming::tests::EXPECTED_OUTPUT;
-    let mut connection = MockConnection::new(
-        input
-            .into_iter()
-            .map(std::convert::Into::into)
-            .collect::<Vec<_>>(),
-        output
-            .into_iter()
-            .map(std::convert::Into::into)
-            .collect::<Vec<_>>(),
-    );
-    follower.handshake(&mut connection).unwrap();
 }
 
 #[test]

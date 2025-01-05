@@ -17,24 +17,24 @@ pub const EXPECTED_OUTPUT: [Output; 4] = [
 ];
 
 test_helper! {
-    IncomingHandshakeTest, { handshake: IncomingHandshake, IncomingHandshake::new()},
+    IncomingHandshakeTest { handshake: IncomingHandshake, IncomingHandshake::new()}
     [false]
-    new_handshake_is_not_finished,  {
+    new_handshake_is_not_finished() {
         handshake.is_finished()
     };
     [ok]
-    can_start_with_ping, {
+    can_start_with_ping() {
         handshake.try_advance(&Input::Ping)
     };
     [ok]
-    can_start_with_repl_conf_listing_port, {
+    can_start_with_repl_conf_listing_port() {
         handshake.try_advance(&Input::ReplConf(ReplConf::ListingPort(1)))
     };
     [err]
-    invalid_start_input_is_err, {
+    invalid_start_input_is_err() {
         handshake.try_advance(&Input::Multi)
     };
-    expected_use, {
+    expected_use() {
         let dummy_input = [
             Input::Ping,
             Input::ReplConf(ReplConf::ListingPort(1)),
