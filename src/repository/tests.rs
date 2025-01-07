@@ -16,7 +16,7 @@ test_helper! {
 
     [none]
     getting_empty_repository_returns_none() {
-        repo.get("key", std::time::SystemTime::now()).unwrap()
+        repo.get("key", std::time::SystemTime::UNIX_EPOCH).unwrap()
     };
 
     [some]
@@ -24,7 +24,7 @@ test_helper! {
         let key = "key";
         repo.set(key.to_string(), "value".to_string(), None)
             .unwrap();
-        repo.get(key, std::time::SystemTime::now()).unwrap()
+        repo.get(key, std::time::SystemTime::UNIX_EPOCH).unwrap()
     };
 
     [eq Some("value".to_string())]
@@ -32,7 +32,7 @@ test_helper! {
         let key = "key";
         let value = "value";
         repo.set(key.to_string(), value.to_string(), None).unwrap();
-        repo.get(key, std::time::SystemTime::now()).unwrap()
+        repo.get(key, std::time::SystemTime::UNIX_EPOCH).unwrap()
     };
 
     [none]
@@ -40,24 +40,24 @@ test_helper! {
         let key = "key";
         let value = "value";
         repo.set(key.to_string(), value.to_string(), None).unwrap();
-        let some_value = repo.get(key, std::time::SystemTime::now()).unwrap();
+        let some_value = repo.get(key, std::time::SystemTime::UNIX_EPOCH).unwrap();
         assert_eq!(some_value, Some(value.to_string()));
 
-        repo.get("other_key", std::time::SystemTime::now()).unwrap()
+        repo.get("other_key", std::time::SystemTime::UNIX_EPOCH).unwrap()
     };
 
     set_value_with_expiry() {
         repo.set(
             "key".to_string(),
             "value".to_string(),
-            Some(std::time::SystemTime::now() + std::time::Duration::from_secs(10)),
+            Some(std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(10)),
         )
             .unwrap();
         };
 
     get_value_with_expiry_is_some_before_timestamp() {
         let (key, value) = ("abc", "xyz");
-        let timestamp = std::time::SystemTime::now();
+        let timestamp = std::time::SystemTime::UNIX_EPOCH;
         repo.set(
             key.into(),
             value.into(),
@@ -70,7 +70,7 @@ test_helper! {
     [none]
     get_value_with_expiry_is_none_after_timestamp() {
         let (key, value) = ("abc", "xyz");
-        let timestamp = std::time::SystemTime::now();
+        let timestamp = std::time::SystemTime::UNIX_EPOCH;
         repo.set(key.into(), value.into(), Some(timestamp)).unwrap();
         repo
             .get(key, timestamp + std::time::Duration::from_secs(1))
@@ -79,7 +79,7 @@ test_helper! {
     [none]
     get_value_with_expiry_is_always_none_after_one_get_after_timestamp() {
         let (key, value) = ("abc", "xyz");
-        let timestamp = std::time::SystemTime::now();
+        let timestamp = std::time::SystemTime::UNIX_EPOCH;
         repo.set(key.into(), value.into(), Some(timestamp)).unwrap();
         let none_value = repo
             .get(key, timestamp + std::time::Duration::from_secs(1))

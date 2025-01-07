@@ -1,4 +1,9 @@
-use crate::{connection::MockConnection, event, test_helper};
+use crate::{
+    connection::MockConnection,
+    event,
+    resp::{Input, Output},
+    test_helper,
+};
 
 use super::*;
 
@@ -68,7 +73,7 @@ macro_rules! setup {
 }
 
 #[test]
-#[should_panic(expected = "EndOfInput")]
+#[should_panic(expected = "end of input")]
 fn follower_recives_handshake() {
     let mut follower = setup();
     follower.handshake(&mut MockConnection::empty()).unwrap();

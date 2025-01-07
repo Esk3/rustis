@@ -39,7 +39,7 @@ test_helper! {
         let in_out = EXPECTED_ORDER.into_iter().zip(expected_advance_return_value_order.into_iter());
         for (i, (msg, expected)) in in_out.enumerate() {
             let actual = handshake.try_advance(&msg).unwrap();
-            assert_eq!(actual, expected, "i: {i}, msg: {msg:?}");
+            assert_eq!(actual, Some(expected), "i: {i}, msg: {msg:?}");
         }
     };
     [true]
@@ -67,13 +67,13 @@ test_helper! {
         let mut dummy_conn = crate::connection::DummyConnection;
         let mut dummy_responses = EXPECTED_ORDER.into_iter().skip(1).map(|msg| msg.unwrap());
         let mut response = None;
-        while !handshake.is_finished() {
-            let message = handshake.try_advance(&response).unwrap();
-            let dummy_err = dummy_conn.write_message(message.into()).unwrap_err();
+        while let Some(next) = handshake.try_advance(&response).unwrap() {
+            let dummy_err = dummy_conn.write_message(next.into()).unwrap_err();
             assert_eq!(dummy_err.to_string(), "tried to write to dummy connection");
             let dummy_err = dummy_conn.read_message().unwrap_err();
             assert_eq!(dummy_err.to_string(), "tried to read from dummy connection");
             response = dummy_responses.next();
         }
+        assert!(handshake.is_finished());
     };
 }

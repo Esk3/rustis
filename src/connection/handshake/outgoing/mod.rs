@@ -21,14 +21,16 @@ impl OutgoingHandshake {
         self.advances >= 5
     }
 
-    pub fn try_advance(&mut self, response: &Option<Output>) -> anyhow::Result<Input> {
+    pub fn try_advance(&mut self, response: &Option<Output>) -> anyhow::Result<Option<Input>> {
         let result = match (self.advances, response) {
-            (0, None) => Ok(Input::Ping),
-            (1, Some(Output::Pong)) => Ok(Input::ReplConf(ReplConf::ListingPort(1))),
-            (2, Some(Output::ReplConf(ReplConf::Ok))) => Ok(ReplConf::Capa(String::new()).into()),
-            (3, Some(Output::ReplConf(ReplConf::Ok))) => Ok(Input::Psync),
-            (4, Some(Output::Psync)) => Ok(Input::Ping),
-            _ => Err(anyhow!("todo res")),
+            (0, None) => Ok(Some(Input::Ping)),
+            (1, Some(Output::Pong)) => Ok(Some(Input::ReplConf(ReplConf::ListingPort(1)))),
+            (2, Some(Output::ReplConf(ReplConf::Ok))) => {
+                Ok(Some(ReplConf::Capa(String::new()).into()))
+            }
+            (3, Some(Output::ReplConf(ReplConf::Ok))) => Ok(Some(Input::Psync)),
+            (4, Some(Output::Psync)) => Ok(None),
+            _ => Err(anyhow!("unepexted handshake message {response:?}")),
         };
         if result.is_ok() {
             self.advances += 1;

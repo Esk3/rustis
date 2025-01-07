@@ -6,6 +6,9 @@ pub fn example_of_all_values() -> Vec<Value> {
     let no_arr = vec![
         Value::SimpleString("ASimpleString".into()),
         Value::BulkString("MyBulkString".into()),
+        Value::BulkByteString(b"my Amzing bulk bytestring".to_vec()),
+        Value::NullString,
+        Value::NullArray,
     ];
     let mut vec = Vec::new();
     vec.extend(no_arr.clone());
@@ -28,6 +31,16 @@ fn serialize_bulk_string_value_test() {
 }
 
 #[test]
+fn serialize_bulk_byte_string_value_test() {
+    let s = [b"some string".to_vec(), b"some other string".to_vec()];
+    for s in s {
+        let expected = serialize_bulk_byte_string(&s);
+        let result = serialize_value(&Value::BulkByteString(s));
+        assert_eq!(result, expected);
+    }
+}
+
+#[test]
 fn serialize_array_value_test() {
     let arr = vec![
         Value::SimpleString("abc".into()),
@@ -36,6 +49,18 @@ fn serialize_array_value_test() {
     let arr_bytes = serialize_array(&arr);
     let value_bytes = serialize_value(&Value::Array(arr));
     assert_eq!(arr_bytes, value_bytes);
+}
+
+#[test]
+fn serialize_null_string_value_test() {
+    let value = Value::NullString;
+    assert_eq!(serialize_value(&value), serialize_null_string());
+}
+
+#[test]
+fn serialize_null_array_value_test() {
+    let value = Value::NullArray;
+    assert_eq!(serialize_value(&value), serialize_null_array());
 }
 
 #[test]
@@ -72,6 +97,28 @@ fn serialize_bulk_string_test2() {
 }
 
 #[test]
+fn serialize_bulk_byte_string_test() {
+    let s = b"some cool bytes";
+    let result = serialize_bulk_byte_string(s);
+    assert_eq!(result, b"$15\r\nsome cool bytes\r\n");
+
+    let s = [b"abc".to_vec(), b"with \r\n escape".to_vec()];
+    let expected = [
+        b"$3\r\nabc\r\n".to_vec(),
+        b"$14\r\nwith \r\n escape\r\n".to_vec(),
+    ];
+    for (s, expected) in s.into_iter().zip(expected) {
+        let result = serialize_bulk_byte_string(&s);
+        assert_eq!(
+            result,
+            expected,
+            "s: {:?}, bytes: {s:?}",
+            String::from_utf8(s.clone())
+        );
+    }
+}
+
+#[test]
 fn serialize_empty_array_test() {
     let bytes = serialize_array(&[]);
     let items = bytes.get_header().unwrap().0;
@@ -104,6 +151,18 @@ fn serialize_array_contains_serialized_value_test() {
             String::from_utf8(arr_bytes).unwrap()
         );
     }
+}
+
+#[test]
+fn serialize_null_string_test() {
+    let bytes = serialize_null_string();
+    assert_eq!(bytes, *b"$-1\r\n");
+}
+
+#[test]
+fn serialzie_null_array_test() {
+    let bytes = serialize_null_array();
+    assert_eq!(bytes, *b"*-1\r\n");
 }
 
 #[test]

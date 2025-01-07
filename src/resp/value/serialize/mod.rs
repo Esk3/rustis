@@ -8,10 +8,10 @@ pub fn serialize_value(value: &Value) -> Vec<u8> {
     match value {
         Value::SimpleString(s) => serialize_simple_string(s),
         Value::BulkString(s) => serialize_bulk_string(s),
-        Value::BulkByteString(_) => todo!(),
-        Value::NullString => todo!(),
+        Value::BulkByteString(bytes) => serialize_bulk_byte_string(bytes),
+        Value::NullString => serialize_null_string().to_vec(),
         Value::Array(arr) => serialize_array(arr),
-        Value::NullArray => todo!(),
+        Value::NullArray => serialize_null_array().to_vec(),
     }
 }
 
@@ -33,11 +33,28 @@ pub fn serialize_bulk_string(s: &str) -> Vec<u8> {
     bytes
 }
 
+pub fn serialize_bulk_byte_string(s: &[u8]) -> Vec<u8> {
+    let identifier_header_linefeed_padding = 10;
+    let mut bytes = Vec::with_capacity(s.len() + identifier_header_linefeed_padding);
+    bytes.extend_header(&Identifier::BulkString, s.len().try_into().unwrap());
+    bytes.extend(s);
+    bytes.extend_linefeed();
+    bytes
+}
+
 pub fn serialize_array(arr: &[Value]) -> Vec<u8> {
     let mut bytes = Vec::new();
     bytes.extend_header(&Identifier::Array, arr.len().try_into().unwrap());
     bytes.extend(arr.iter().flat_map(serialize_value));
     bytes
+}
+
+pub const fn serialize_null_string() -> [u8; 5] {
+    *b"$-1\r\n"
+}
+
+pub const fn serialize_null_array() -> [u8; 5] {
+    *b"*-1\r\n"
 }
 
 trait ExtendLinefeed {

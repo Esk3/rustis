@@ -6,6 +6,7 @@ pub enum Role {
     Follower(SocketAddr),
 }
 
+#[derive(Debug)]
 pub struct RedisConfig {
     port: u16,
     leader_addr: Option<SocketAddr>,

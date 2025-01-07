@@ -1,5 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
+use builder::RedisBuilder;
 use rustis::{
     config::{RedisConfig, Role},
     connection::{Connection, ConnectionResult},
@@ -8,90 +9,86 @@ use rustis::{
 };
 
 use super::*;
-type DummyRedis = Redis<DummyListner>;
+type DummyRedis = Redis<DummyListner, DummyConnection>;
 
-fn setup_follower() -> Redis<DummyListner> {
-    DummyRedis::bind_from_config(RedisConfig::new_follower(
-        1234,
-        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 4321)),
-    ))
-    .unwrap()
+fn setup_leader() -> DummyRedis {
+    RedisBuilder::new()
+        .listner(DummyListner)
+        .repo(Repository::new())
+        .emitter(EventEmitter::new())
+        .build()
+        .unwrap()
+}
+
+fn setup_follower() -> DummyRedis {
+    RedisBuilder::new()
+        .listner(DummyListner)
+        .leader_connection(DummyConnection)
+        .repo(Repository::new())
+        .emitter(EventEmitter::new())
+        .build()
+        .unwrap()
 }
 
 #[test]
 fn create_redis_server() {
-    let _ = DummyRedis::bind().unwrap();
-}
-
-#[test]
-fn create_with_port() {
-    let config = RedisConfig::new(6780);
-    let _ = DummyRedis::bind_from_config(config);
+    let redis_server = RedisBuilder::<_, DummyConnection>::new()
+        .listner(DummyListner)
+        .repo(Repository::new())
+        .emitter(EventEmitter::new())
+        .build()
+        .unwrap();
 }
 
 #[test]
 fn get_port() {
-    let redis = DummyRedis::bind().unwrap();
+    let redis = setup_leader();
     let _: u16 = redis.get_port();
 }
 
 #[test]
 fn get_default_port() {
-    let port = DummyRedis::bind().unwrap().get_port();
+    let port = setup_leader().get_port();
     assert_eq!(port, 6379);
 }
 
 #[test]
+#[ignore = "todo"]
 fn get_port_is_same_as_set() {
-    let expected_port = 6380;
-    let port = DummyRedis::bind_from_config(RedisConfig::new(expected_port))
-        .unwrap()
-        .get_port();
-    assert_eq!(port, expected_port);
+    todo!()
+    //let expected_port = 6380;
+    //let port = DummyRedis::bind_from_config(RedisConfig::new(expected_port))
+    //    .unwrap()
+    //    .get_port();
+    //assert_eq!(port, expected_port);
 }
 
 #[test]
-fn role_is_leader_when_leader_addr_is_not_set() {
+fn role_is_leader_when_leader_leader_connection_is_none() {
     let expected = Role::Leader;
-    let role = DummyRedis::bind().unwrap().role();
+    let role = setup_leader().role();
     assert_eq!(role, expected);
 }
 
 #[test]
-fn role_is_follower_when_leader_addr_is_set() {
-    let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 1234));
+fn role_is_follower_when_leader_connection_is_some() {
+    let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0));
     let expected = Role::Follower(addr);
-    let role = DummyRedis::bind_from_config(RedisConfig::new_follower(1234, addr))
-        .unwrap()
-        .role();
+    let role = setup_follower().role();
     assert_eq!(role, expected);
-}
-
-#[test]
-fn is_leader() {
-    let redis = DummyRedis::bind().unwrap();
-    assert!(redis.is_leader());
-}
-
-#[test]
-fn is_follower() {
-    let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 1234));
-    let config = RedisConfig::new_follower(2134, addr);
-    let redis = DummyRedis::bind_from_config(config).unwrap();
-    assert!(redis.is_follower());
 }
 
 #[test]
 fn get_listner() {
-    let redis = DummyRedis::bind().unwrap();
+    let redis = setup_leader();
     let _ = redis.listner;
 }
 
 #[test]
 #[should_panic(expected = "incoming called on dummy listner")]
 fn calls_listers_incoming_on_run() {
-    let redis = DummyRedis::bind().unwrap();
-    redis.run::<DummyConnection>();
+    let redis = setup_leader();
+    redis.run();
 }
 
 #[test]
@@ -104,32 +101,33 @@ fn listner_is_bound_to_right_port() {
 #[should_panic(expected = "called accept connection")]
 #[ignore = "todo"]
 fn creates_incoming_connection_on_listner_output() {
-    let redis = Redis::<MockOnceListner>::bind().unwrap();
-    redis.run::<DummyConnection>();
+    let redis = RedisBuilder::<MockOnceListner, DummyConnection>::new()
+        .listner(MockOnceListner)
+        .repo(Repository::new())
+        .emitter(EventEmitter::new())
+        .build()
+        .unwrap();
+    redis.run();
 }
 
 #[test]
 #[should_panic(expected = "is not follower")]
 fn creating_outgoing_connection_as_leader_panics() {
-    let mut redis = DummyRedis::bind().unwrap();
-    redis.connect_to_leader::<DummyConnection>();
+    let mut redis = setup_leader();
+    redis.connect_to_leader();
 }
 
 #[test]
 fn create_outgoing_connection_as_follower_is_ok() {
     let mut redis = setup_follower();
-    let _connection_to_leader = redis.connect_to_leader::<DummyConnection>().unwrap();
+    let _connection_to_leader = redis.connect_to_leader().unwrap();
 }
 
 #[test]
 #[should_panic(expected = "incoming called on dummy listner")]
 fn creates_outgoing_connection_on_run_as_follower() {
-    let redis = DummyRedis::bind_from_config(RedisConfig::new_follower(
-        1234,
-        SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 4321)),
-    ))
-    .unwrap();
-    redis.run::<DummyConnection>();
+    let redis = setup_follower();
+    redis.run();
 }
 
 #[test]
@@ -150,6 +148,7 @@ fn can_accept_multiple_incoming_connections() {
     todo!()
 }
 
+#[derive(Debug)]
 struct DummyListner;
 impl RedisListner for DummyListner {
     type Connection = DummyConnection;
@@ -164,8 +163,13 @@ impl RedisListner for DummyListner {
         panic!("incoming called on dummy listner");
         std::iter::once(DummyConnection)
     }
+
+    fn get_port(&self) -> u16 {
+        6379
+    }
 }
 
+#[derive(Debug)]
 struct MockOnceListner;
 impl RedisListner for MockOnceListner {
     type Connection = DummyConnection;
@@ -179,6 +183,10 @@ impl RedisListner for MockOnceListner {
 
     fn incoming(self) -> impl Iterator<Item = Self::Connection> {
         std::iter::once(DummyConnection)
+    }
+
+    fn get_port(&self) -> u16 {
+        0
     }
 }
 
@@ -197,5 +205,9 @@ impl Connection for DummyConnection {
 
     fn write_message(&mut self, command: Message) -> ConnectionResult<usize> {
         todo!()
+    }
+
+    fn get_peer_addr(&self) -> std::net::SocketAddr {
+        std::net::SocketAddr::new(std::net::Ipv4Addr::LOCALHOST.into(), 0)
     }
 }

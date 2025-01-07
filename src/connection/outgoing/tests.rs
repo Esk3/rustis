@@ -1,5 +1,8 @@
 use super::*;
-use crate::connection::DummyConnection;
+use crate::{
+    connection::DummyConnection,
+    resp::{self, Input},
+};
 use std::{net::SocketAddrV4, str::FromStr};
 
 use crate::{
@@ -33,19 +36,15 @@ fn create_outgoing_handshake() {
 
 #[test]
 fn handshake_send_replconf_to_connection() {
-    let handshake = crate::connection::handshake::outgoing::tests::EXPECTED_ORDER
+    let sending = crate::connection::handshake::incoming::tests::EXPECTED_INPUT
         .into_iter()
-        .filter_map(|msg| msg.map(std::convert::Into::into))
-        .collect::<Vec<Message>>();
-    let mut connection = setup(
-        [
-            Output::Pong.into(),
-            Output::ReplConf(ReplConf::ListingPort(1)).into(),
-            Output::ReplConf(ReplConf::Capa(String::new())).into(),
-            Output::Psync.into(),
-        ],
-        handshake,
-    );
+        .map(std::convert::Into::into)
+        .collect::<Vec<resp::Message>>();
+    let recive = crate::connection::handshake::incoming::tests::EXPECTED_OUTPUT
+        .into_iter()
+        .map(std::convert::Into::into)
+        .collect::<Vec<resp::Message>>();
+    let mut connection = setup(recive, sending);
     connection.handshake().unwrap();
 }
 
@@ -62,19 +61,15 @@ fn run_sends_handshake() {
 
 #[test]
 fn run_reads_input_after_handshake() {
-    let handshake = crate::connection::handshake::outgoing::tests::EXPECTED_ORDER
+    let sending = crate::connection::handshake::incoming::tests::EXPECTED_INPUT
         .into_iter()
-        .filter_map(|msg| msg.map(std::convert::Into::into))
-        .collect::<Vec<Message>>();
-    let connection = setup(
-        [
-            Output::Pong.into(),
-            Output::ReplConf(ReplConf::ListingPort(1)).into(),
-            Output::ReplConf(ReplConf::Capa(String::new())).into(),
-            Output::Psync.into(),
-            Input::Ping.into(),
-        ],
-        handshake,
-    );
+        .map(std::convert::Into::into)
+        .collect::<Vec<resp::Message>>();
+    let mut recive = crate::connection::handshake::incoming::tests::EXPECTED_OUTPUT
+        .into_iter()
+        .map(std::convert::Into::into)
+        .collect::<Vec<resp::Message>>();
+    recive.extend(std::iter::once(Input::Ping.into()));
+    let connection = setup(recive, sending);
     connection.run().unwrap();
 }

@@ -21,6 +21,10 @@ impl Connection for DummyConnection {
     ) -> crate::connection::ConnectionResult<usize> {
         Err(anyhow!("tried to write to dummy connection").into())
     }
+
+    fn get_peer_addr(&self) -> std::net::SocketAddr {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
@@ -63,21 +67,27 @@ impl MockConnection {
 }
 
 impl Connection for MockConnection {
-    fn write_message(&mut self, command: resp::Message) -> ConnectionResult<usize> {
-        let Some(ref mut expected) = self.expected_output else {
-            return Ok(1);
-        };
-        let expected = expected.pop().unwrap();
-        assert_eq!(command, expected);
-        Ok(1)
-    }
-
     fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self> {
         todo!()
     }
 
     fn read_message(&mut self) -> ConnectionResult<resp::Message> {
         self.input.pop().ok_or(ConnectionError::EndOfInput)
+    }
+
+    fn write_message(&mut self, command: resp::Message) -> ConnectionResult<usize> {
+        let Some(ref mut expected) = self.expected_output else {
+            return Ok(1);
+        };
+        let expected = expected.pop().unwrap_or_else(|| {
+            panic!("mock write failed: no more writes were expected {command:?}")
+        });
+        assert_eq!(command, expected, "mock write does not match expected");
+        Ok(1)
+    }
+
+    fn get_peer_addr(&self) -> std::net::SocketAddr {
+        todo!()
     }
 }
 

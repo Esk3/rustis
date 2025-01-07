@@ -7,33 +7,43 @@ use rustis::{
 };
 use tracing::{error, info, instrument};
 
+pub mod builder;
+
 #[cfg(test)]
 mod tests;
 
-pub struct Redis<L> {
+pub struct Redis<L, C> {
     config: RedisConfig,
     listner: L,
+    leader_connection: Option<C>,
     repo: Repository,
     emitter: EventEmitter,
 }
 
-impl<L> Redis<L>
+impl<L, C> Redis<L, C>
 where
     L: RedisListner,
+    C: Connection,
 {
-    pub fn bind() -> anyhow::Result<Self> {
-        let config = RedisConfig::new(6379);
-        Self::bind_from_config(config)
-    }
-
-    pub fn bind_from_config(config: RedisConfig) -> anyhow::Result<Self> {
-        let listner = L::bind(config.port())?;
-        Ok(Self {
+    #[must_use]
+    pub fn new(
+        listner: L,
+        leader_connection: Option<C>,
+        repo: Repository,
+        emitter: EventEmitter,
+    ) -> Self {
+        let config = if let Some(ref connection) = leader_connection {
+            RedisConfig::new_follower(listner.get_port(), connection.get_peer_addr())
+        } else {
+            RedisConfig::new(listner.get_port())
+        };
+        Self {
             config,
             listner,
-            repo: Repository::new(),
-            emitter: EventEmitter::new(),
-        })
+            leader_connection,
+            repo,
+            emitter,
+        }
     }
 
     #[must_use]
@@ -41,10 +51,7 @@ where
         self.config.port()
     }
 
-    fn connect_to_leader<C>(&mut self) -> anyhow::Result<OutgoingConnection<C>>
-    where
-        C: Connection,
-    {
+    fn connect_to_leader(&mut self) -> anyhow::Result<OutgoingConnection<C>> {
         if !self.is_follower() {
             error!("tried to connect to leader without being a follower");
             panic!("is not follower");
@@ -70,7 +77,7 @@ where
     }
 
     #[instrument(skip(self))]
-    pub fn run<C>(mut self)
+    pub fn run(mut self)
     where
         C: Connection,
         <L as RedisListner>::Connection: std::marker::Send + 'static,
@@ -84,10 +91,19 @@ where
             }
         );
         if self.is_follower() {
-            let connection_to_leader = self.connect_to_leader::<C>();
+            let connection_to_leader = self.connect_to_leader().unwrap();
             info!("connected to leader");
         }
         self.incoming();
+    }
+
+    pub fn spawn(self)
+    where
+        L: Send + 'static,
+        <L as RedisListner>::Connection: Send + 'static,
+        C: Send + 'static,
+    {
+        std::thread::spawn(move || self.run());
     }
 
     pub fn role(&self) -> Role {

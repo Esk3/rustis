@@ -5,7 +5,7 @@ pub mod serialize;
 pub use deserialize::deserialize_value;
 pub use serialize::serialize_value;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     SimpleString(String),
     BulkString(String),
@@ -15,6 +15,26 @@ pub enum Value {
     Array(Vec<Self>),
     NullArray,
 }
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::SimpleString(l0), Self::SimpleString(r0))
+            | (Self::BulkString(l0), Self::BulkString(r0)) => l0 == r0,
+            (Self::SimpleString(l0) | Self::BulkString(l0), Self::BulkByteString(r0)) => {
+                l0.as_bytes() == r0
+            }
+            (Self::BulkByteString(l0), Self::SimpleString(r0) | Self::BulkString(r0)) => {
+                l0 == r0.as_bytes()
+            }
+            (Self::BulkByteString(l0), Self::BulkByteString(r0)) => l0 == r0,
+            (Self::Array(l0), Self::Array(r0)) => l0 == r0,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
+impl Eq for Value {}
 
 impl Value {
     pub fn into_string(self) -> Result<String, Self> {

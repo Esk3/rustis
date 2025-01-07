@@ -1,7 +1,12 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-use redis::Redis;
-use rustis::{connection::RedisTcpConnection, listner::RedisTcpListner};
+use redis::builder::RedisBuilder;
+use rustis::{
+    connection::connections::{stdio::RedisStdInOutConnection, RedisTcpConnection},
+    event::EventEmitter,
+    listner::{RedisListner, RedisTcpListner},
+    repository::Repository,
+};
 
 pub mod redis;
 
@@ -10,11 +15,25 @@ fn main() {
 
     let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6379);
     //let listner = std::net::TcpListener::bind(addr).unwrap();
-    let redis = Redis::<RedisTcpListner>::bind().unwrap();
+    let repo = Repository::new();
+    let emitter = EventEmitter::new();
+    let std_redis = RedisBuilder::<RedisStdInOutConnection, RedisTcpConnection>::new()
+        .listner(RedisStdInOutConnection::new())
+        .repo(repo.clone())
+        .emitter(emitter.clone())
+        .build()
+        .unwrap();
+    let redis = RedisBuilder::<RedisTcpListner, RedisTcpConnection>::new()
+        .listner(RedisTcpListner::bind(6379).unwrap())
+        .repo(repo)
+        .emitter(emitter)
+        .build()
+        .unwrap();
 
     tracing::info!("server listning on: {addr}");
 
-    redis.run::<RedisTcpConnection>();
+    std_redis.spawn();
+    redis.run();
 
     tracing::info!("shutting down");
 }

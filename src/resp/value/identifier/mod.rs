@@ -42,7 +42,10 @@ impl Identifier {
             b'`' => Self::Attribute,
             b'~' => Self::Set,
             b'>' => Self::Pushe,
-            _ => bail!("{byte} is not a valid identifier"),
+            _ => bail!(
+                "byte: {byte} char: {} is not a valid identifier",
+                byte as char
+            ),
         };
         Ok(ident)
     }

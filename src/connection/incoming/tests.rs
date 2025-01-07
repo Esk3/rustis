@@ -84,7 +84,7 @@ fn connection_writes_connection_handlers_response() {
     let mut handler = Client::new(emitter, repo);
     let output = [Message::Output(
         handler
-            .handle_request(client::Request::now(Input::Ping, 0))
+            .handle_request(client::Request::epoch(Input::Ping, 0))
             .unwrap()
             .into_output()
             .unwrap(),
@@ -162,6 +162,10 @@ impl Connection for DummyConnection {
     }
 
     fn write_message(&mut self, command: Message) -> ConnectionResult<usize> {
+        todo!()
+    }
+
+    fn get_peer_addr(&self) -> std::net::SocketAddr {
         todo!()
     }
 }

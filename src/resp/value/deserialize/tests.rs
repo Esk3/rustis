@@ -69,6 +69,25 @@ fn deserialize_bulk_string_value_test() {
 }
 
 #[test]
+fn deserialize_null_bulk_string_value_test() {
+    let (null_str, bytes_consumed) = deserialize_value(b"$-1\r\n").unwrap();
+    assert_eq!(null_str, Value::NullString);
+    assert_eq!(bytes_consumed, 5);
+}
+
+#[test]
+fn deserialize_bulk_string_with_more_negative_number_fails() {
+    let s = |i| {
+        assert!(i < -1, "invalid value to test i: {i}");
+        format!("${i}\r\n").as_bytes().to_vec()
+    };
+    let values = (-11..-2).map(s);
+    for value in values {
+        assert!(deserialize_value(&value).is_err());
+    }
+}
+
+#[test]
 fn deserialize_bulk_string_value_matches_bulk_string_test() {
     let inputs = [
         b"$1\r\na\r\n".to_vec(),
@@ -194,12 +213,38 @@ fn deserialize_nested_array_test() {
     );
     assert_eq!(consumed, bytes.len());
 }
+
+#[test]
+fn deserialize_null_bulk_array_value_test() {
+    let (null_str, bytes_consumed) = deserialize_value(b"*-1\r\n").unwrap();
+    assert_eq!(null_str, Value::NullArray);
+    assert_eq!(bytes_consumed, 5);
+}
+
+#[test]
+fn deserialize_bulk_array_with_more_negative_number_fails() {
+    let s = |i| {
+        assert!(i < -1, "invalid value to test i: {i}");
+        format!("*{i}\r\n").as_bytes().to_vec()
+    };
+    let values = (-11..-2).map(s);
+    for value in values {
+        assert!(deserialize_value(&value).is_err());
+    }
+}
+
 #[test]
 fn is_linefeed_test() {
-    assert_eq!(is_linefeed(1, 2), Ok(false));
-    assert_eq!(is_linefeed(b'\r', b'\n'), Ok(true));
-    assert_eq!(is_linefeed(b'\r', 0), Err(()));
-    assert_eq!(is_linefeed(b'\n', 0), Err(()));
+    assert!(!is_linefeed(1, 2).unwrap());
+    assert!(is_linefeed(b'\r', b'\n').unwrap());
+    assert_eq!(
+        is_linefeed(b'\r', 0).unwrap_err().to_string(),
+        "expected newline found: byte [13] char: [\r]"
+    );
+    assert_eq!(
+        is_linefeed(b'\n', 0).unwrap_err().to_string(),
+        "found newline before cr"
+    );
 }
 
 #[test]
@@ -242,11 +287,11 @@ fn find_linefeed_returns_err_if_single_lf() {
 fn is_at_linefeed_test() {
     let b = b"abc\nd";
     let f = b.is_at_linefeed();
-    assert_eq!(f, is_linefeed(b'a', b'b'));
+    assert_eq!(f.unwrap(), is_linefeed(b'a', b'b').unwrap());
 
     let b = b"\r\nabc";
     let t = b.is_at_linefeed();
-    assert_eq!(t, is_linefeed(b'\r', b'\n'));
+    assert_eq!(t.unwrap(), is_linefeed(b'\r', b'\n').unwrap());
 }
 
 #[test]

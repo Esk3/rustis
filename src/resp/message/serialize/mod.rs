@@ -1,4 +1,4 @@
-use crate::resp::{Input, Message, Output, ReplConf};
+use crate::resp::{Message, Output};
 
 use super::super::Value;
 
@@ -15,6 +15,7 @@ pub fn serialize_message(message: Message) -> anyhow::Result<Value> {
                 }
             }
             Output::Set => Value::SimpleString("Ok".into()),
+            Output::SetGet(_) => todo!(),
             Output::ReplConf(_) => Value::SimpleString("Ok".into()),
             Output::Psync => todo!(),
             Output::Null => Value::NullArray,

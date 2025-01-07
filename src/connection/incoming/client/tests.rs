@@ -1,4 +1,15 @@
-use crate::{connection::incoming::client, event::EventEmitter, resp::ReplConf};
+use handler::Hanlder;
+use layers::{
+    event::EventLayer,
+    multi::MultiLayer,
+    replication::{ReplicationResponse, ReplicationService},
+};
+
+use crate::{
+    connection::incoming::client,
+    event::{self, EventEmitter},
+    resp::ReplConf,
+};
 
 use super::*;
 
@@ -8,7 +19,7 @@ macro_rules! request_response {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     $(
-        let response = handler.handle_request(client::Request::now($req,0)).unwrap();
+        let response = handler.handle_request(client::Request::epoch($req,0)).unwrap();
         assert_eq!(response, client::Response::SendOutput($res));
     )+
     };
@@ -16,7 +27,7 @@ macro_rules! request_response {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, $repo.clone());
     $(
-        let response = handler.handle_request(client::Request::now($req, 0)).unwrap();
+        let response = handler.handle_request(client::Request::epoch($req, 0)).unwrap();
         assert_eq!(response, client::Response::SendOutput($res));
     )+
     };
@@ -35,7 +46,7 @@ fn client_handler_handles_request() {
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     let _response = handler
-        .handle_request(Request::now(Input::Ping, 0))
+        .handle_request(Request::epoch(Input::Ping, 0))
         .unwrap();
 }
 
@@ -83,7 +94,7 @@ fn set_and_get_stores_values() {
     Output::Set,
     Output::Get(Some(value.into()))
     );
-    let some_value = repo.get(key, std::time::SystemTime::now()).unwrap();
+    let some_value = repo.get(key, std::time::SystemTime::UNIX_EPOCH).unwrap();
     assert_eq!(some_value, Some(value.into()));
 }
 
@@ -134,11 +145,11 @@ fn repl_conf_returns_become_follower_command() {
     let repo = Repository::new();
     let emitter = EventEmitter::new();
     let mut replication_layer = ReplicationService {
-        inner: MultiService::new(emitter, Hanlder::new(repo)),
+        inner: MultiLayer::new(emitter, Hanlder::new(repo)),
     };
     let replconf = ReplConf::ListingPort(1);
     let replication_response: ReplicationResponse<Output> = replication_layer
-        .call(Request::epoc(replconf.clone().into(), 0))
+        .call(Request::epoch(replconf.clone().into(), 0))
         .unwrap();
     assert_eq!(
         replication_response,
@@ -152,7 +163,7 @@ fn handler_returns_replconf_on_replconf() {
     let event_emitter = EventEmitter::new();
     let mut client: Client = Client::new(event_emitter, repo);
     let res = client
-        .handle_request(Request::epoc(ReplConf::ListingPort(1).into(), 0))
+        .handle_request(Request::epoch(ReplConf::ListingPort(1).into(), 0))
         .unwrap();
     match res {
         Response::SendOutput(_) => panic!("expected replconf"),
@@ -214,7 +225,7 @@ fn event_layer_emits_event_from_get_event_on_call() {
     let subscriber = emitter.subscribe();
     let mut event_layer = EventLayer::new(emitter, Hanlder::new(Repository::new()));
     let input = Input::Ping;
-    let request = Request::now(input.clone(), 0);
+    let request = Request::epoch(input.clone(), 0);
     _ = event_layer.call(request);
     let event = subscriber.try_recive();
     let expected = EventLayer::get_event(&input);
@@ -226,7 +237,7 @@ fn event_layer_emits_event_from_get_event_on_call() {
         expiry: None,
         get: false,
     };
-    let req = Request::now(input.clone(), 0);
+    let req = Request::epoch(input.clone(), 0);
     _ = event_layer.call(req);
     let event = subscriber.try_recive();
     let expected = EventLayer::get_event(&input);
@@ -241,7 +252,7 @@ fn event_layer_gets_called() {
     let mut handler = Client::new(emitter, repo);
 
     let input = Input::Ping;
-    _ = handler.handle_request(Request::now(input.clone(), 0));
+    _ = handler.handle_request(Request::epoch(input.clone(), 0));
     assert_eq!(subscriber.try_recive(), EventLayer::get_event(&input));
 
     let input = Input::Set {
@@ -250,7 +261,7 @@ fn event_layer_gets_called() {
         expiry: None,
         get: false,
     };
-    _ = handler.handle_request(Request::now(input.clone(), 0));
+    _ = handler.handle_request(Request::epoch(input.clone(), 0));
     assert_eq!(subscriber.try_recive(), EventLayer::get_event(&input));
 }
 

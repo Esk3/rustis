@@ -3,13 +3,14 @@ use std::net::SocketAddr;
 use tracing::instrument;
 
 use super::{handshake::outgoing::OutgoingHandshake, Connection};
-use crate::resp::{Input, Message, Output, ReplConf};
 
 mod handler;
 
 #[cfg(test)]
 mod tests;
 
+#[derive(Debug)]
+#[allow(clippy::module_name_repetitions)]
 pub struct OutgoingConnection<C> {
     connection: C,
 }
@@ -31,22 +32,23 @@ where
     fn handshake(&mut self) -> anyhow::Result<usize> {
         let mut handshake = OutgoingHandshake::new();
         let mut response = None;
-        while !handshake.is_finished() {
-            let message = handshake.try_advance(&response).unwrap();
-            self.connection.write_message(message.into()).unwrap();
+        while let Some(next) = handshake.try_advance(&response).unwrap() {
+            dbg!(&next);
+            self.connection.write_message(next.into()).unwrap();
             response = Some(self.connection.read_message()?.into_output().unwrap());
         }
         Ok(1)
     }
 
     #[instrument(skip(self))]
-    fn run(mut self) -> anyhow::Result<()> {
+    pub fn run(mut self) -> anyhow::Result<()> {
         self.handshake()?;
         loop {
             let message = match self.connection.read_message() {
                 Ok(msg) => msg,
                 Err(err) => match err {
                     super::ConnectionError::EndOfInput => return Ok(()),
+                    super::ConnectionError::Io(_) => todo!(),
                     super::ConnectionError::Any(_) => todo!(),
                 },
             };

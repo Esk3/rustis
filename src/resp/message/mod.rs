@@ -48,6 +48,7 @@ pub enum Output {
     Pong,
     Get(Option<String>),
     Set,
+    SetGet(Option<String>),
 
     Multi,
     MultiError,
