@@ -1,7 +1,9 @@
 use std::io::{Read, Write};
 
+use anyhow::anyhow;
+
 use crate::{
-    connection::{Connection, ConnectionResult},
+    connection::{self, Connection, ConnectionResult},
     resp::{
         self,
         message::{deserialize::deserialize_message, serialize::serialize_message},
@@ -24,7 +26,7 @@ impl Connection for RedisTcpConnection {
         Ok(Self::from(stream))
     }
 
-    fn read_message(&mut self) -> ConnectionResult<resp::Message> {
+    fn read_message(&mut self) -> ConnectionResult<connection::Message> {
         let bytes_read = self.stream.read(&mut self.buf[self.i..]).unwrap();
         self.i += bytes_read;
         tracing::debug!(
@@ -35,7 +37,14 @@ impl Connection for RedisTcpConnection {
         tracing::debug!("got value {value:?}");
         self.buf.rotate_left(bytes_consumed);
         self.i -= bytes_consumed;
-        let message = deserialize_message(value).unwrap();
+        let message = match deserialize_message(value) {
+            Ok(msg) => msg,
+            Err(err) => {
+                tracing::warn!("failed to deserialize value");
+                return Err(anyhow!("{err}").into());
+            }
+        };
+        let message = connection::Message::new(message, bytes_consumed);
         tracing::debug!("got message {message:?}");
         Ok(message)
     }

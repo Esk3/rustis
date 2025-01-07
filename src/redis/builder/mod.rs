@@ -1,13 +1,10 @@
 use std::fmt::Debug;
 
-use anyhow::Context;
-use rustis::{
-    config::{RedisConfig, Role},
-    connection::{incoming::IncomingConnection, outgoing::OutgoingConnection, Connection},
-    event::EventEmitter,
-    listner::RedisListner,
+use crate::{
+    config::RedisConfig, connection::Connection, event::EventEmitter, listner::RedisListner,
     repository::Repository,
 };
+use anyhow::Context;
 
 #[cfg(test)]
 mod tests;

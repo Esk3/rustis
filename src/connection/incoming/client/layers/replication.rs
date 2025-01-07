@@ -1,6 +1,5 @@
 use crate::{
-    connection::incoming::client::{self, handler::Hanlder},
-    event::{self, EventEmitter},
+    connection::incoming::client,
     resp::{Input, Output, ReplConf},
     Service,
 };

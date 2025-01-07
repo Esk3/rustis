@@ -1,7 +1,7 @@
 use crate::{
-    connection::ConnectionResult,
+    connection::{self, ConnectionResult},
     event,
-    resp::{self, Input, Output, ReplConf},
+    resp::{self, Input, ReplConf},
 };
 
 use super::super::MockConnection;
@@ -153,15 +153,15 @@ fn handle_follower_connection_writes_same_output_as_follower_handler() {
 
 struct DummyConnection;
 impl Connection for DummyConnection {
-    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self> {
+    fn connect(_addr: std::net::SocketAddr) -> ConnectionResult<Self> {
         todo!()
     }
 
-    fn read_message(&mut self) -> ConnectionResult<Message> {
+    fn read_message(&mut self) -> ConnectionResult<connection::Message> {
         todo!()
     }
 
-    fn write_message(&mut self, command: Message) -> ConnectionResult<usize> {
+    fn write_message(&mut self, _command: Message) -> ConnectionResult<usize> {
         todo!()
     }
 

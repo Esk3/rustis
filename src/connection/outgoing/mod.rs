@@ -1,6 +1,9 @@
 use std::net::SocketAddr;
 
+use handler::Handler;
 use tracing::instrument;
+
+use crate::{connection, repository::Repository};
 
 use super::{handshake::outgoing::OutgoingHandshake, Connection};
 
@@ -13,20 +16,19 @@ mod tests;
 #[allow(clippy::module_name_repetitions)]
 pub struct OutgoingConnection<C> {
     connection: C,
+    repo: Repository,
 }
 
 impl<C> OutgoingConnection<C>
 where
     C: Connection,
 {
-    pub fn new(connection: C) -> Self {
-        Self { connection }
+    pub fn new(connection: C, repo: Repository) -> Self {
+        Self { connection, repo }
     }
 
-    pub fn connect(addr: SocketAddr) -> anyhow::Result<Self> {
-        Ok(Self {
-            connection: C::connect(addr)?,
-        })
+    pub fn connect(addr: SocketAddr, repo: Repository) -> anyhow::Result<Self> {
+        Ok(Self::new(C::connect(addr)?, repo))
     }
 
     fn handshake(&mut self) -> anyhow::Result<usize> {
@@ -35,14 +37,23 @@ where
         while let Some(next) = handshake.try_advance(&response).unwrap() {
             dbg!(&next);
             self.connection.write_message(next.into()).unwrap();
-            response = Some(self.connection.read_message()?.into_output().unwrap());
+            response = Some(
+                self.connection
+                    .read_message()?
+                    .message
+                    .into_output()
+                    .unwrap(),
+            );
         }
         Ok(1)
     }
 
     #[instrument(skip(self))]
     pub fn run(mut self) -> anyhow::Result<()> {
+        tracing::info!("handing connection to leader");
         self.handshake()?;
+        tracing::info!("handshake with leader sucesfully completed");
+        let mut handler = Handler::new(self.repo);
         loop {
             let message = match self.connection.read_message() {
                 Ok(msg) => msg,
@@ -52,6 +63,12 @@ where
                     super::ConnectionError::Any(_) => todo!(),
                 },
             };
+            tracing::debug!("got message from leader {message:?}");
+            let response = handler.handle_request(message.try_into()?)?;
+            tracing::debug!("message response: {response:?}");
+            if let Some(resposne) = response {
+                self.connection.write_message(resposne.into())?;
+            }
         }
     }
 }

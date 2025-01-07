@@ -29,15 +29,3 @@ impl IncomingHandshake {
         res
     }
 }
-
-struct TypeStateIncoming<S: HandshakeState>(std::marker::PhantomData<S>);
-
-impl TypeStateIncoming<Start> {
-    pub fn new() -> Self {
-        Self(std::marker::PhantomData)
-    }
-}
-trait HandshakeState {}
-
-struct Start;
-impl HandshakeState for Start {}

@@ -1,15 +1,8 @@
-use std::{
-    fmt::Debug,
-    io::{Read, Write},
-};
+use std::fmt::Debug;
 
 use thiserror::Error;
 
-use crate::resp::{
-    self,
-    message::{deserialize::deserialize_message, serialize::serialize_message},
-    value::{deserialize_value, serialize_value},
-};
+use crate::resp::{self};
 
 pub mod connections;
 pub mod handshake;
@@ -26,7 +19,7 @@ pub trait Connection {
     fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
     where
         Self: Sized;
-    fn read_message(&mut self) -> ConnectionResult<resp::Message>;
+    fn read_message(&mut self) -> ConnectionResult<Message>;
     fn write_message(&mut self, message: resp::Message) -> ConnectionResult<usize>;
     fn get_peer_addr(&self) -> std::net::SocketAddr;
 }
@@ -41,3 +34,18 @@ pub enum ConnectionError {
 }
 
 pub type ConnectionResult<T> = Result<T, ConnectionError>;
+
+#[derive(Debug)]
+pub struct Message {
+    pub message: resp::Message,
+    pub bytes_read: usize,
+}
+
+impl Message {
+    fn new(message: resp::Message, bytes_consumed: usize) -> Self {
+        Self {
+            message,
+            bytes_read: bytes_consumed,
+        }
+    }
+}

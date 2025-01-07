@@ -2,6 +2,7 @@ pub mod deserialize;
 pub mod identifier;
 pub mod serialize;
 
+use anyhow::anyhow;
 pub use deserialize::deserialize_value;
 pub use serialize::serialize_value;
 
@@ -44,6 +45,10 @@ impl Value {
                 Err(self)
             }
         }
+    }
+    pub fn expect_string(self) -> anyhow::Result<String> {
+        self.into_string()
+            .map_err(|err| anyhow!("expected string got {err:?}"))
     }
     pub fn into_array(self) -> Result<Vec<Self>, Self> {
         if let Self::Array(arr) = self {

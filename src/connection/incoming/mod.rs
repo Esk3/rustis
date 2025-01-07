@@ -7,7 +7,7 @@ use crate::{
     connection::{Connection, ConnectionError},
     event::EventEmitter,
     repository::Repository,
-    resp::Message,
+    resp::{Message, Output},
 };
 
 mod client;
@@ -58,15 +58,13 @@ where
                 Err(ConnectionError::EndOfInput) => bail!("out of input"),
                 Err(ConnectionError::Io(_)) => todo!(),
                 Err(ConnectionError::Any(err)) => {
-                    tracing::warn!("err reading message {err:?}");
+                    tracing::warn!("err reading message: {err:?}");
+                    self.connection.write_message(Output::Pong.into()).unwrap();
                     continue;
                 }
             };
             debug!("handling request: {request:?}");
-            let Message::Input(request) = request else {
-                panic!();
-            };
-            let request = client::Request::now(request, 0);
+            let request = client::Request::now(request.message.expect_input()?, request.bytes_read);
             let response = client_handler.handle_request(request).unwrap();
             debug!("got response: {response:?}");
             match response {

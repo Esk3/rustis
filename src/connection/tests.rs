@@ -11,7 +11,7 @@ impl Connection for DummyConnection {
         Err(anyhow!("tried to connect to dummy connection").into())
     }
 
-    fn read_message(&mut self) -> crate::connection::ConnectionResult<crate::resp::Message> {
+    fn read_message(&mut self) -> crate::connection::ConnectionResult<crate::connection::Message> {
         Err(anyhow!("tried to read from dummy connection").into())
     }
 
@@ -29,7 +29,7 @@ impl Connection for DummyConnection {
 
 #[derive(Debug)]
 pub struct MockConnection {
-    input: Vec<resp::Message>,
+    input: Vec<crate::connection::Message>,
     expected_output: Option<Vec<resp::Message>>,
 }
 
@@ -42,7 +42,11 @@ impl MockConnection {
         <O as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
     {
         Self {
-            input: input.into_iter().rev().collect(),
+            input: input
+                .into_iter()
+                .rev()
+                .map(|msg| crate::connection::Message::new(msg, 1))
+                .collect(),
             expected_output: Some(expected_output.into_iter().rev().collect()),
         }
     }
@@ -53,7 +57,11 @@ impl MockConnection {
         <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
     {
         Self {
-            input: input.into_iter().rev().collect(),
+            input: input
+                .into_iter()
+                .rev()
+                .map(|msg| crate::connection::Message::new(msg, 1))
+                .collect(),
             expected_output: None,
         }
     }
@@ -71,7 +79,7 @@ impl Connection for MockConnection {
         todo!()
     }
 
-    fn read_message(&mut self) -> ConnectionResult<resp::Message> {
+    fn read_message(&mut self) -> ConnectionResult<crate::connection::Message> {
         self.input.pop().ok_or(ConnectionError::EndOfInput)
     }
 

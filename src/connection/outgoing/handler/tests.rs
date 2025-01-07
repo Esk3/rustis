@@ -7,6 +7,20 @@ fn setup() -> Handler {
     Handler::new(repo)
 }
 
+fn test_handler<I, O>(input: I, output: O) -> Repository
+where
+    I: IntoIterator<Item = Input>,
+    O: IntoIterator<Item = Option<Output>>,
+{
+    let repo = Repository::new();
+    let mut handler = Handler::new(repo.clone());
+    for (req, expected) in input.into_iter().zip(output) {
+        let res = handler.handle_request(Request::new(req, 1)).unwrap();
+        assert_eq!(res, expected)
+    }
+    repo
+}
+
 #[test]
 fn create_handler() {
     let repo = Repository::new();
@@ -16,28 +30,27 @@ fn create_handler() {
 #[test]
 fn handle_request() {
     let mut handler = setup();
-    _ = handler.handle_request(Input::Ping);
+    _ = handler.handle_request(Request::new(Input::Ping, 0));
 }
 
 #[test]
 fn handler_returns_none_on_ping() {
-    let mut handler = setup();
-    let response = handler.handle_request(Input::Ping).unwrap();
-    assert_eq!(response, None);
+    let input = [Input::Ping];
+    let output = [None];
+    test_handler(input, output);
 }
 
 #[test]
 fn handler_returns_none_on_set() {
-    let mut handler = setup();
-    let response = handler
-        .handle_request(Input::Set {
-            key: String::new(),
-            value: String::new(),
-            expiry: None,
-            get: false,
-        })
-        .unwrap();
-    assert_eq!(response, None);
+    let set = Input::Set {
+        key: String::new(),
+        value: String::new(),
+        expiry: None,
+        get: false,
+    };
+    let input = [set];
+    let output = [None];
+    test_handler(input, output);
 }
 
 #[test]
@@ -76,7 +89,9 @@ fn get_bytes_processed_matches_bytes_added() {
 #[test]
 fn handle_updates_bytes_processed_when_handling_request() {
     let mut handler = setup();
-    handler.handle_request(Input::Ping).unwrap();
+    handler
+        .handle_request(Request::new(Input::Ping, 1))
+        .unwrap();
     let bytes_handled = handler.get_bytes_processed();
     assert_ne!(bytes_handled, 0);
 }
@@ -88,17 +103,34 @@ fn handler_updates_bytes_processed_at_end_of_handle_request() {
 }
 
 #[test]
+fn handler_repl_conf_get_ack_is_zero_when_no_inputs_made() {
+    let input = [ReplConf::GetAck(0).into()];
+    let output = [Some(ReplConf::GetAck(0).into())];
+    test_handler(input, output);
+}
+
+#[test]
+fn handler_repl_conf_get_ack_is_more_than_zero_with_inputs_made() {
+    let input = [Input::Ping, ReplConf::GetAck(0).into()];
+    let output = [None, Some(ReplConf::GetAck(1).into())];
+    test_handler(input, output);
+}
+
+#[test]
 fn handler_writes_to_repo_on_set() {
     let repo = Repository::new();
     let (key, value) = ("abc", "xyz");
     let mut handler = Handler::new(repo.clone());
     handler
-        .handle_request(Input::Set {
-            key: key.into(),
-            value: value.into(),
-            expiry: None,
-            get: false,
-        })
+        .handle_request(Request::new(
+            Input::Set {
+                key: key.into(),
+                value: value.into(),
+                expiry: None,
+                get: false,
+            },
+            0,
+        ))
         .unwrap();
     let some_value = repo.get(key, std::time::SystemTime::UNIX_EPOCH).unwrap();
     assert_eq!(some_value, Some(value.into()));

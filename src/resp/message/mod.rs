@@ -1,3 +1,5 @@
+use anyhow::anyhow;
+
 pub mod deserialize;
 pub mod serialize;
 
@@ -21,6 +23,11 @@ impl Message {
         } else {
             Err(self)
         }
+    }
+
+    pub fn expect_input(self) -> anyhow::Result<Input> {
+        self.into_input()
+            .map_err(|err| anyhow!("expected input got output: {err:?}"))
     }
 }
 

@@ -32,7 +32,7 @@ impl Follower {
     {
         let mut handshake = IncomingHandshake::new();
         while !handshake.is_finished() {
-            let input = connection.read_message()?.into_input().unwrap();
+            let input = connection.read_message()?.message.into_input().unwrap();
             let response = handshake.try_advance(&input).unwrap();
             connection.write_message(response.into()).unwrap();
         }

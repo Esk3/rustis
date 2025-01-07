@@ -1,27 +1,56 @@
 use crate::{
+    connection,
     repository::Repository,
-    resp::{Input, Output},
+    resp::{Input, Output, ReplConf},
 };
 
 #[cfg(test)]
 mod tests;
 
+pub struct Request {
+    input: Input,
+    bytes: usize,
+}
+
+impl Request {
+    pub fn new(input: Input, bytes: usize) -> Self {
+        Self { input, bytes }
+    }
+}
+
+impl TryFrom<connection::Message> for Request {
+    type Error = anyhow::Error;
+
+    fn try_from(
+        connection::Message {
+            message,
+            bytes_read,
+        }: connection::Message,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            input: message.expect_input()?,
+            bytes: bytes_read,
+        })
+    }
+}
+
 pub struct Handler {
     repo: Repository,
-    bytes_processe: usize,
+    bytes_processed: usize,
 }
 
 impl Handler {
     pub fn new(repo: Repository) -> Self {
         Self {
             repo,
-            bytes_processe: 0,
+            bytes_processed: 0,
         }
     }
 
-    fn handle_request(&mut self, request: Input) -> anyhow::Result<Option<Output>> {
+    pub fn handle_request(&mut self, request: Request) -> anyhow::Result<Option<Output>> {
+        let bytes_processed = self.bytes_processed;
         self.add_processed_bytes(1);
-        match request {
+        match request.input {
             Input::Ping => (),
             Input::Get(_) => todo!(),
             Input::Set {
@@ -34,17 +63,21 @@ impl Handler {
             }
             Input::Multi => todo!(),
             Input::CommitMulti => todo!(),
-            Input::ReplConf(_) => todo!(),
+            Input::ReplConf(_) => {
+                return Ok(Some(
+                    ReplConf::GetAck(bytes_processed.try_into().unwrap()).into(),
+                ))
+            }
             Input::Psync => todo!(),
         }
         Ok(None)
     }
 
-    fn get_bytes_processed(&self) -> usize {
-        self.bytes_processe
+    pub fn get_bytes_processed(&self) -> usize {
+        self.bytes_processed
     }
 
-    fn add_processed_bytes(&mut self, bytes: usize) {
-        self.bytes_processe += bytes;
+    pub fn add_processed_bytes(&mut self, bytes: usize) {
+        self.bytes_processed += bytes;
     }
 }

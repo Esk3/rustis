@@ -5,10 +5,7 @@ use crate::{
 };
 use std::{net::SocketAddrV4, str::FromStr};
 
-use crate::{
-    connection::{Connection, MockConnection},
-    resp::{Message, Output, ReplConf},
-};
+use crate::{connection::MockConnection, resp::Message};
 
 fn setup<I, O>(input: I, expected_output: O) -> OutgoingConnection<MockConnection>
 where
@@ -18,15 +15,17 @@ where
     <O as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
 {
     let connection = MockConnection::new(input, expected_output);
-    OutgoingConnection::new(connection)
+    OutgoingConnection::new(connection, Repository::new())
 }
 
 #[test]
 #[should_panic(expected = "tried to connect to dummy connection")]
 fn create_outgoing_connection() {
-    let _connection: OutgoingConnection<DummyConnection> =
-        OutgoingConnection::connect(SocketAddrV4::from_str("127.0.0.1:6739").unwrap().into())
-            .unwrap();
+    let _connection: OutgoingConnection<DummyConnection> = OutgoingConnection::connect(
+        SocketAddrV4::from_str("127.0.0.1:6739").unwrap().into(),
+        Repository::new(),
+    )
+    .unwrap();
 }
 
 #[test]

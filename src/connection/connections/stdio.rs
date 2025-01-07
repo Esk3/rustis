@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 
 use crate::{
-    connection::{Connection, ConnectionResult},
+    connection::{self, Connection, ConnectionResult},
     listner::RedisListner,
     resp::{
         self,
@@ -38,7 +38,7 @@ impl Connection for RedisStdInOutConnection {
         Ok(Self::new())
     }
 
-    fn read_message(&mut self) -> ConnectionResult<resp::Message> {
+    fn read_message(&mut self) -> ConnectionResult<connection::Message> {
         let bytes_read = self.stdin.read(&mut self.buf[self.i..])?;
         self.i += bytes_read;
         tracing::debug!(
@@ -50,6 +50,7 @@ impl Connection for RedisStdInOutConnection {
         self.buf.rotate_left(bytes_consumed);
         self.i -= bytes_consumed;
         let message = deserialize_message(value)?;
+        let message = connection::Message::new(message, bytes_consumed);
         tracing::debug!("got message {message:?}");
         Ok(message)
     }
@@ -79,7 +80,7 @@ impl RedisListner for RedisStdInOutConnection {
         0
     }
 
-    fn bind(port: u16) -> anyhow::Result<Self>
+    fn bind(_port: u16) -> anyhow::Result<Self>
     where
         Self: Sized,
     {

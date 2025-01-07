@@ -1,4 +1,4 @@
-use rustis::{
+use crate::{
     config::{RedisConfig, Role},
     connection::{incoming::IncomingConnection, outgoing::OutgoingConnection, Connection},
     event::EventEmitter,
@@ -60,6 +60,7 @@ where
             self.config
                 .leader_addr()
                 .expect("should be set if follower"),
+            self.repo.clone(),
         )
     }
 

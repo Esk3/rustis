@@ -1,12 +1,12 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
-use builder::RedisBuilder;
-use rustis::{
-    config::{RedisConfig, Role},
-    connection::{Connection, ConnectionResult},
+use crate::{
+    config::Role,
+    connection::{self, Connection, ConnectionResult},
     listner::RedisListner,
     resp::Message,
 };
+use builder::RedisBuilder;
 
 use super::*;
 type DummyRedis = Redis<DummyListner, DummyConnection>;
@@ -199,7 +199,7 @@ impl Connection for DummyConnection {
         Ok(Self)
     }
 
-    fn read_message(&mut self) -> ConnectionResult<Message> {
+    fn read_message(&mut self) -> ConnectionResult<connection::Message> {
         todo!()
     }
 

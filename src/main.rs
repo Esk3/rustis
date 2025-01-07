@@ -1,14 +1,12 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-use redis::builder::RedisBuilder;
+use rustis::redis::builder::RedisBuilder;
 use rustis::{
     connection::connections::{stdio::RedisStdInOutConnection, RedisTcpConnection},
     event::EventEmitter,
     listner::{RedisListner, RedisTcpListner},
     repository::Repository,
 };
-
-pub mod redis;
 
 fn main() {
     tracing_subscriber::fmt::init();
