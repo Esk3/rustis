@@ -15,7 +15,7 @@ use super::*;
 
 macro_rules! request_response {
     ($($req:expr),+; $($res:expr),+) => {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     $(
@@ -35,14 +35,14 @@ macro_rules! request_response {
 
 #[test]
 fn create_client_handler() {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let event_emitter = EventEmitter::new();
     let _: Client = Client::new(event_emitter, repo);
 }
 
 #[test]
 fn client_handler_handles_request() {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let emitter = EventEmitter::new();
     let mut handler = Client::new(emitter, repo);
     let _response = handler
@@ -81,7 +81,7 @@ fn set_returns_set_response() {
 
 #[test]
 fn set_and_get_stores_values() {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let (key, value) = ("abc", "xyz");
     request_response!(repo ; Input::Get(key.into()), Input::Set {
         key: key.into(),
@@ -142,7 +142,7 @@ fn repository_is_not_updated_until_multi_is_commited() {
 
 #[test]
 fn repl_conf_returns_become_follower_command() {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let emitter = EventEmitter::new();
     let mut replication_layer = ReplicationService {
         inner: MultiLayer::new(emitter, Hanlder::new(repo)),
@@ -159,7 +159,7 @@ fn repl_conf_returns_become_follower_command() {
 
 #[test]
 fn handler_returns_replconf_on_replconf() {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let event_emitter = EventEmitter::new();
     let mut client: Client = Client::new(event_emitter, repo);
     let res = client
@@ -223,7 +223,7 @@ fn event_layer_returns_set_for_set() {
 fn event_layer_emits_event_from_get_event_on_call() {
     let emitter = EventEmitter::new();
     let subscriber = emitter.subscribe();
-    let mut event_layer = EventLayer::new(emitter, Hanlder::new(Repository::new()));
+    let mut event_layer = EventLayer::new(emitter, Hanlder::new(Repository::default()));
     let input = Input::Ping;
     let request = Request::epoch(input.clone(), 0);
     _ = event_layer.call(request);
@@ -248,7 +248,7 @@ fn event_layer_emits_event_from_get_event_on_call() {
 fn event_layer_gets_called() {
     let emitter = EventEmitter::new();
     let subscriber = emitter.subscribe();
-    let repo = Repository::new();
+    let repo = Repository::default();
     let mut handler = Client::new(emitter, repo);
 
     let input = Input::Ping;

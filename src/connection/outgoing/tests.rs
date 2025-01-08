@@ -15,7 +15,7 @@ where
     <O as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
 {
     let connection = MockConnection::new(input, expected_output);
-    OutgoingConnection::new(connection, Repository::new())
+    OutgoingConnection::new(connection, Repository::default())
 }
 
 #[test]
@@ -23,7 +23,7 @@ where
 fn create_outgoing_connection() {
     let _connection: OutgoingConnection<DummyConnection> = OutgoingConnection::connect(
         SocketAddrV4::from_str("127.0.0.1:6739").unwrap().into(),
-        Repository::new(),
+        Repository::default(),
     )
     .unwrap();
 }

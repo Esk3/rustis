@@ -3,7 +3,7 @@ use crate::{repository::Repository, resp::Input};
 use super::*;
 
 fn setup() -> Handler {
-    let repo = Repository::new();
+    let repo = Repository::default();
     Handler::new(repo)
 }
 
@@ -12,7 +12,7 @@ where
     I: IntoIterator<Item = Input>,
     O: IntoIterator<Item = Option<Output>>,
 {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let mut handler = Handler::new(repo.clone());
     for (req, expected) in input.into_iter().zip(output) {
         let res = handler.handle_request(Request::new(req, 1)).unwrap();
@@ -23,7 +23,7 @@ where
 
 #[test]
 fn create_handler() {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let _: Handler = Handler::new(repo);
 }
 
@@ -118,7 +118,7 @@ fn handler_repl_conf_get_ack_is_more_than_zero_with_inputs_made() {
 
 #[test]
 fn handler_writes_to_repo_on_set() {
-    let repo = Repository::new();
+    let repo = Repository::default();
     let (key, value) = ("abc", "xyz");
     let mut handler = Handler::new(repo.clone());
     handler

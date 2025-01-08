@@ -1,9 +1,9 @@
 use crate::test_helper;
 
-use super::*;
+use super::super::*;
 
 test_helper! {
-    RepoTester {repo: Repository, Repository::new()}
+    RepoTester {repo: Repository, Repository::default()}
     new_repository_is_empty() {
         assert!(repo.is_empty());
     };

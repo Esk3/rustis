@@ -7,7 +7,7 @@ use crate::{
     connection::{Connection, ConnectionError},
     event::EventEmitter,
     repository::Repository,
-    resp::{Message, Output},
+    resp::Output,
 };
 
 mod client;

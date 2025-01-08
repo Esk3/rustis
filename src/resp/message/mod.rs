@@ -48,6 +48,10 @@ pub enum Input {
 
     ReplConf(ReplConf),
     Psync,
+
+    XAdd,
+    XRead,
+    XRange,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

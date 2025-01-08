@@ -32,6 +32,9 @@ impl EventLayer {
             Input::CommitMulti => todo!(),
             Input::ReplConf(_) => todo!(),
             Input::Psync => todo!(),
+            Input::XAdd => todo!(),
+            Input::XRead => todo!(),
+            Input::XRange => todo!(),
         }
     }
 }

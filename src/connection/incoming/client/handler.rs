@@ -46,6 +46,9 @@ impl Service<super::Request> for Hanlder {
                 }
             }
             Input::Multi | Input::CommitMulti | Input::ReplConf(_) | Input::Psync => unreachable!(),
+            Input::XAdd => todo!(),
+            Input::XRead => todo!(),
+            Input::XRange => todo!(),
         };
         Ok(res)
     }

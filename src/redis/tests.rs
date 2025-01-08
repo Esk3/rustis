@@ -14,7 +14,7 @@ type DummyRedis = Redis<DummyListner, DummyConnection>;
 fn setup_leader() -> DummyRedis {
     RedisBuilder::new()
         .listner(DummyListner)
-        .repo(Repository::new())
+        .repo(Repository::default())
         .emitter(EventEmitter::new())
         .build()
         .unwrap()
@@ -24,7 +24,7 @@ fn setup_follower() -> DummyRedis {
     RedisBuilder::new()
         .listner(DummyListner)
         .leader_connection(DummyConnection)
-        .repo(Repository::new())
+        .repo(Repository::default())
         .emitter(EventEmitter::new())
         .build()
         .unwrap()
@@ -34,7 +34,7 @@ fn setup_follower() -> DummyRedis {
 fn create_redis_server() {
     let redis_server = RedisBuilder::<_, DummyConnection>::new()
         .listner(DummyListner)
-        .repo(Repository::new())
+        .repo(Repository::default())
         .emitter(EventEmitter::new())
         .build()
         .unwrap();
@@ -103,7 +103,7 @@ fn listner_is_bound_to_right_port() {
 fn creates_incoming_connection_on_listner_output() {
     let redis = RedisBuilder::<MockOnceListner, DummyConnection>::new()
         .listner(MockOnceListner)
-        .repo(Repository::new())
+        .repo(Repository::default())
         .emitter(EventEmitter::new())
         .build()
         .unwrap();

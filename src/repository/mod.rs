@@ -1,26 +1,31 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
-
-#[cfg(test)]
-mod tests;
-
-pub type Repository = LockingMemoryRepository;
+pub mod kv_repo;
+pub mod stream_repo;
 
 #[derive(Debug, Clone)]
-pub struct LockingMemoryRepository {
-    kv_store: Arc<Mutex<HashMap<String, String>>>,
-    kv_store_expiry: Arc<Mutex<HashMap<String, std::time::SystemTime>>>,
+pub struct Repository {
+    kv_repo: kv_repo::LockingMemoryRepository,
+    stream_repo: stream_repo::LockingStreamRepository,
 }
 
-impl LockingMemoryRepository {
+impl Repository {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(
+        kv_repo: kv_repo::LockingMemoryRepository,
+        stream_repo: stream_repo::LockingStreamRepository,
+    ) -> Self {
         Self {
-            kv_store: Arc::new(Mutex::new(HashMap::new())),
-            kv_store_expiry: Arc::new(Mutex::new(HashMap::new())),
+            kv_repo,
+            stream_repo,
         }
+    }
+    #[must_use]
+    pub fn kv_repo(&self) -> &kv_repo::LockingMemoryRepository {
+        &self.kv_repo
+    }
+
+    #[must_use]
+    pub fn stream_repo(&self) -> &stream_repo::LockingStreamRepository {
+        &self.stream_repo
     }
 
     pub fn get(
@@ -28,18 +33,12 @@ impl LockingMemoryRepository {
         key: &str,
         timestamp: std::time::SystemTime,
     ) -> anyhow::Result<Option<String>> {
-        let mut expiry_lock = self.kv_store_expiry.lock().unwrap();
-        let mut store_lock = self.kv_store.lock().unwrap();
-        let key_has_expiry_time_and_is_expired = expiry_lock
-            .get(key)
-            .is_some_and(|expiry| *expiry < timestamp);
-        if key_has_expiry_time_and_is_expired {
-            expiry_lock.remove(key);
-            store_lock.remove(key);
-            Ok(None)
-        } else {
-            Ok(store_lock.get(key).cloned())
-        }
+        self.kv_repo.get(key, timestamp)
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.kv_repo.is_empty()
     }
 
     pub fn set(
@@ -48,24 +47,15 @@ impl LockingMemoryRepository {
         value: String,
         expiry: Option<std::time::SystemTime>,
     ) -> anyhow::Result<Option<String>> {
-        let mut lock = self.kv_store_expiry.lock().unwrap();
-        if let Some(expiry) = expiry {
-            lock.insert(key.clone(), expiry);
-        } else {
-            lock.remove(&key);
-        }
-        Ok(self.kv_store.lock().unwrap().insert(key, value))
+        self.kv_repo.set(key, value, expiry)
     }
+}
 
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        let is_empty = self.kv_store.lock().unwrap().is_empty();
-        if is_empty {
-            assert!(
-                self.kv_store_expiry.lock().unwrap().is_empty(),
-                "expiry should be empty if key value store is empty"
-            );
+impl Default for Repository {
+    fn default() -> Self {
+        Self {
+            kv_repo: kv_repo::LockingMemoryRepository::new(),
+            stream_repo: stream_repo::LockingStreamRepository::new(),
         }
-        is_empty
     }
 }

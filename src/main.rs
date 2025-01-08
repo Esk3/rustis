@@ -13,7 +13,7 @@ fn main() {
 
     let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6379);
     //let listner = std::net::TcpListener::bind(addr).unwrap();
-    let repo = Repository::new();
+    let repo = Repository::default();
     let emitter = EventEmitter::new();
     let std_redis = RedisBuilder::<RedisStdInOutConnection, RedisTcpConnection>::new()
         .listner(RedisStdInOutConnection::new())
