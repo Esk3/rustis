@@ -4,16 +4,16 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use radix::Radix;
+use stream::Stream;
 
-pub mod radix;
+pub mod stream;
 
 #[cfg(test)]
 mod tests;
 
 #[derive(Debug, Clone)]
 pub struct LockingStreamRepository {
-    streams: Arc<Mutex<HashMap<String, Radix>>>,
+    streams: Arc<Mutex<HashMap<String, Stream>>>,
     listners: Arc<Mutex<HashMap<String, std::sync::mpsc::Sender<Event>>>>,
 }
 
@@ -35,7 +35,7 @@ impl LockingStreamRepository {
         let mut lock = self.streams.lock().unwrap();
         let key = lock
             .entry(stream_key.to_string())
-            .or_insert(Radix::new())
+            .or_insert(Stream::new())
             .add_default_key("ConstDefaultKey", value);
         self.listners
             .lock()

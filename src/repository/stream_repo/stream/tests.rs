@@ -4,13 +4,13 @@ use super::*;
 
 #[test]
 fn new_radix_is_empty() {
-    let radix = Radix::new();
+    let radix = Stream::new();
     assert!(radix.is_empty());
 }
 
 #[test]
 fn radix_is_not_empty_after_add() {
-    let mut radix = Radix::new();
+    let mut radix = Stream::new();
     radix.add_default_key("key".to_string(), "value");
     assert!(!(radix.is_empty()));
 }
@@ -18,8 +18,8 @@ fn radix_is_not_empty_after_add() {
 const DATA: [&str; 3] = ["ValueOne", "TwoItems", "LastItem"];
 const DEFAULT: &str = "ConstDefaultValue";
 
-fn radix_data() -> Radix {
-    let mut radix = Radix::new();
+fn radix_data() -> Stream {
+    let mut radix = Stream::new();
     for value in DATA {
         radix.add_default_key(DEFAULT, value);
     }
@@ -28,7 +28,7 @@ fn radix_data() -> Radix {
 
 #[test]
 fn key_returned_from_add_default_is_always_unique() {
-    let mut radix = Radix::new();
+    let mut radix = Stream::new();
     let mut set = HashSet::new();
     let default = "the_default";
     for value in ["first", "second", "third"] {
@@ -39,7 +39,7 @@ fn key_returned_from_add_default_is_always_unique() {
 
 #[test]
 fn read_returns_value() {
-    let mut radix = Radix::new();
+    let mut radix = Stream::new();
     let default = "the_default";
     for value in ["first", "second", "third"] {
         let key = radix.add_default_key(default, value);
@@ -50,7 +50,7 @@ fn read_returns_value() {
 
 #[test]
 fn read_returns_later_values_but_not_earlier_values() {
-    let mut radix = Radix::new();
+    let mut radix = Stream::new();
     let default = "the_default";
     let values = ["first", "second", "third"];
     let mut keys = Vec::with_capacity(values.len());
@@ -68,7 +68,7 @@ fn read_returns_later_values_but_not_earlier_values() {
 
 #[test]
 fn read_returns_later_values_when_key_is_not_matched() {
-    let mut radix = Radix::new();
+    let mut radix = Stream::new();
     let default = "the_default";
     let values = ["first", "second", "third"];
     let mut keys = Vec::with_capacity(values.len());
@@ -83,7 +83,7 @@ fn read_returns_later_values_when_key_is_not_matched() {
 
 #[test]
 fn read_last_on_empty_returns_none() {
-    let radix = Radix::new();
+    let radix = Stream::new();
     let none_value = radix.read_last();
     assert_eq!(none_value, None);
 }
@@ -97,7 +97,7 @@ fn read_last_returns_last_value() {
 
 #[test]
 fn range_returns_nothing_on_empty() {
-    let radix = Radix::new();
+    let radix = Stream::new();
     let empty = radix.range(0.to_string(), u64::MAX.to_string());
     assert_eq!(empty, Vec::<String>::new());
 }
