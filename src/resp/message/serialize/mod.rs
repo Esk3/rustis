@@ -28,6 +28,7 @@ pub fn serialize_message(message: Message) -> anyhow::Result<Value> {
             Output::Multi => todo!(),
             Output::Queued => Value::SimpleString("Queued".into()),
             Output::MultiError => todo!(),
+            Output::SimpleString(s) => Value::SimpleString(s),
         },
     };
     Ok(value)

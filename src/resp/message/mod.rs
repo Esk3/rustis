@@ -49,9 +49,17 @@ pub enum Input {
     ReplConf(ReplConf),
     Psync,
 
-    XAdd,
+    XAdd {
+        stream_key: String,
+        entry_id: Option<String>,
+        value: String,
+    },
     XRead,
-    XRange,
+    XRange {
+        stream_key: String,
+        start: String,
+        end: String,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -69,6 +77,7 @@ pub enum Output {
     Psync,
     Null,
     Ok,
+    SimpleString(String),
     Array(Vec<Self>),
 }
 

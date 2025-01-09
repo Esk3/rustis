@@ -8,6 +8,8 @@ pub mod get;
 pub mod len;
 pub mod set;
 mod try_deserialize_result;
+pub mod xadd;
+pub mod xrange;
 pub use try_deserialize_result::TryDeserializeResult;
 
 #[cfg(test)]
@@ -35,4 +37,6 @@ fn try_deserialize_variable_length(arr: Vec<Value>) -> TryDeserializeResult {
     TryDeserializeResult::new(arr)
         .try_next(set::try_deserialize)
         .try_next(get::try_deserialize)
+        .try_next(xadd::try_deserialize)
+        .try_next(xrange::try_deserialize)
 }

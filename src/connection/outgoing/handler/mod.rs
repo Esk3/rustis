@@ -69,9 +69,13 @@ impl Handler {
                 ))
             }
             Input::Psync => todo!(),
-            Input::XAdd => todo!(),
+            Input::XAdd { .. } => todo!(),
             Input::XRead => todo!(),
-            Input::XRange => todo!(),
+            Input::XRange {
+                stream_key,
+                start,
+                end,
+            } => todo!(),
         }
         Ok(None)
     }

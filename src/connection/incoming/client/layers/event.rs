@@ -32,9 +32,17 @@ impl EventLayer {
             Input::CommitMulti => todo!(),
             Input::ReplConf(_) => todo!(),
             Input::Psync => todo!(),
-            Input::XAdd => todo!(),
+            Input::XAdd {
+                stream_key,
+                entry_id,
+                value,
+            } => None,
             Input::XRead => todo!(),
-            Input::XRange => todo!(),
+            Input::XRange {
+                stream_key,
+                start,
+                end,
+            } => None,
         }
     }
 }

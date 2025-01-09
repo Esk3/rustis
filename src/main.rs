@@ -12,7 +12,6 @@ fn main() {
     tracing_subscriber::fmt::init();
 
     let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 6379);
-    //let listner = std::net::TcpListener::bind(addr).unwrap();
     let repo = Repository::default();
     let emitter = EventEmitter::new();
     let std_redis = RedisBuilder::<RedisStdInOutConnection, RedisTcpConnection>::new()
@@ -21,6 +20,7 @@ fn main() {
         .emitter(emitter.clone())
         .build()
         .unwrap();
+
     let redis = RedisBuilder::<RedisTcpListner, RedisTcpConnection>::new()
         .listner(RedisTcpListner::bind(6379).unwrap())
         .repo(repo)

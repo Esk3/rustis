@@ -46,9 +46,31 @@ impl Service<super::Request> for Hanlder {
                 }
             }
             Input::Multi | Input::CommitMulti | Input::ReplConf(_) | Input::Psync => unreachable!(),
-            Input::XAdd => todo!(),
+            Input::XAdd {
+                stream_key,
+                entry_id,
+                value,
+            } => {
+                let key = self
+                    .repo
+                    .stream_repo()
+                    .xadd(stream_key, None, value)
+                    .unwrap();
+                Output::SimpleString(key)
+            }
             Input::XRead => todo!(),
-            Input::XRange => todo!(),
+            Input::XRange {
+                stream_key,
+                start,
+                end,
+            } => {
+                let values = self
+                    .repo
+                    .stream_repo()
+                    .xrange(stream_key, start, end)
+                    .unwrap();
+                Output::Array(values.into_iter().map(Output::SimpleString).collect())
+            }
         };
         Ok(res)
     }
