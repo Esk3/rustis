@@ -43,6 +43,7 @@ impl EventLayer {
                 start,
                 end,
             } => None,
+            Input::Client => None,
         }
     }
 }

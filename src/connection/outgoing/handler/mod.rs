@@ -76,6 +76,7 @@ impl Handler {
                 start,
                 end,
             } => todo!(),
+            Input::Client => todo!(),
         }
         Ok(None)
     }

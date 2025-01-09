@@ -31,7 +31,7 @@ impl Connection for RedisTcpConnection {
         self.i += bytes_read;
         tracing::debug!(
             "buffer: {:?}",
-            String::from_utf8(self.buf[..self.i].to_vec()).unwrap()
+            String::from_utf8(self.buf[..self.i].to_vec())
         );
         let (value, bytes_consumed) = deserialize_value(&self.buf[..self.i]).unwrap();
         tracing::debug!("got value {value:?}");

@@ -1,3 +1,5 @@
+use crate::repository::stream_repo::stream::EntryId;
+
 use super::*;
 
 #[test]
@@ -22,8 +24,8 @@ fn deserialize_test() {
                 panic!();
             };
             assert_eq!(stream_key, "streamName");
-            assert_eq!(start, "0");
-            assert_eq!(end, "2");
+            assert_eq!(start, EntryId::new(0, 0));
+            assert_eq!(end, EntryId::new(2, 0));
         }
         TryDeserializeResult::Err(_) => todo!(),
         TryDeserializeResult::Ignore(_) => todo!(),

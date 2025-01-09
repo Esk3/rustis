@@ -56,7 +56,7 @@ impl Service<super::Request> for Hanlder {
                     .stream_repo()
                     .xadd(stream_key, None, value)
                     .unwrap();
-                Output::SimpleString(key)
+                Output::SimpleString(key.to_string())
             }
             Input::XRead => todo!(),
             Input::XRange {
@@ -71,6 +71,7 @@ impl Service<super::Request> for Hanlder {
                     .unwrap();
                 Output::Array(values.into_iter().map(Output::SimpleString).collect())
             }
+            Input::Client => Output::Ok,
         };
         Ok(res)
     }

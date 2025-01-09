@@ -14,12 +14,12 @@ pub fn serialize_message(message: Message) -> anyhow::Result<Value> {
                     Value::NullArray
                 }
             }
-            Output::Set => Value::SimpleString("Ok".into()),
+            Output::Set => Value::SimpleString("OK".into()),
             Output::SetGet(_) => todo!(),
-            Output::ReplConf(_) => Value::SimpleString("Ok".into()),
+            Output::ReplConf(_) => Value::SimpleString("OK".into()),
             Output::Psync => todo!(),
             Output::Null => Value::NullArray,
-            Output::Ok => Value::SimpleString("Ok".into()),
+            Output::Ok => Value::SimpleString("OK".into()),
             Output::Array(arr) => Value::Array(
                 arr.into_iter()
                     .map(|value| serialize_message(Message::Output(value)).unwrap())

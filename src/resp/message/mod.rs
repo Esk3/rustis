@@ -1,5 +1,7 @@
 use anyhow::anyhow;
 
+use crate::repository::stream_repo::stream::EntryId;
+
 pub mod deserialize;
 pub mod serialize;
 
@@ -57,9 +59,11 @@ pub enum Input {
     XRead,
     XRange {
         stream_key: String,
-        start: String,
-        end: String,
+        start: EntryId,
+        end: EntryId,
     },
+
+    Client,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

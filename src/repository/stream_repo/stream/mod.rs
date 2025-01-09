@@ -1,81 +1,92 @@
-use std::collections::HashMap;
-
 #[cfg(test)]
 mod tests;
 
+pub mod entry_id;
+
+pub use entry_id::*;
+
+use crate::radix::Radix;
+
+#[derive(Debug, Clone)]
+struct Entry {
+    id: EntryId,
+    value: String,
+}
+
+impl Entry {
+    fn new(id: EntryId, value: impl ToString) -> Self {
+        Self {
+            id,
+            value: value.to_string(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Stream {
-    indexes: HashMap<String, usize>,
-    values: Vec<String>,
-    i: usize,
+    indexes: Radix<usize>,
+    entries: Vec<Entry>,
+    next: EntryId,
 }
 
 impl Stream {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            indexes: HashMap::new(),
-            values: Vec::new(),
-            i: 0,
+            indexes: Radix::new(),
+            entries: Vec::new(),
+            next: EntryId::min(),
         }
     }
+
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.indexes.is_empty()
     }
-    pub fn add_default_key(&mut self, key: impl ToString, value: impl ToString) -> String {
-        self.i += 1;
-        self.indexes.insert(self.i.to_string(), self.values.len());
-        self.values.push(value.to_string());
-        format!("{}", self.i)
+
+    pub fn add_default_key(&mut self, key: impl DefaultEntryId, value: impl ToString) -> EntryId {
+        let key = key.into_or_default(&self.next);
+        if key == self.next {
+            self.next.id += 1;
+        }
+        if key > self.next {
+            self.next = key.clone();
+            self.next.id += 1;
+        }
+        self.indexes.add(key.as_radix_key(), self.entries.len());
+        self.entries.push(Entry::new(key.clone(), value));
+        key
     }
 
-    pub fn read(&self, key: impl ToString, count: usize) -> Vec<String> {
-        let start = self.get_index_or_closests_later(&key.to_string());
-        self.values[start..].to_vec()
+    pub fn read(&self, key: &EntryId, count: usize) -> Vec<String> {
+        let start = match self.entries.binary_search_by_key(key, |e| e.id.clone()) {
+            Ok(i) => i,
+            Err(i) => i,
+        };
+        self.entries[start..]
+            .into_iter()
+            .map(|e| e.value.clone())
+            .collect()
     }
 
     #[must_use]
     pub fn read_last(&self) -> Option<String> {
-        self.values.last().cloned()
+        self.entries.last().map(|e| e.value.clone())
     }
 
-    pub fn range(&self, start: impl ToString, end: impl ToString) -> Vec<String> {
-        dbg!(start.to_string(), end.to_string());
-        let start = self.get_index_or_closests_later(&start.to_string());
-        dbg!(start,);
-        let end = self.get_index_or_closest_earlier(&end.to_string());
-        dbg!(end);
-        dbg!(&self.indexes);
-        self.values[start..end].to_vec()
-    }
-
-    fn get_index_or_closests_later(&self, key: &str) -> usize {
-        if let Some(i) = self.indexes.get(key) {
-            return *i;
-        }
-        let mut best = None::<usize>;
-        let key = key.parse::<u64>().unwrap();
-        for n in self.indexes.keys() {
-            let n = n.parse::<u64>().unwrap();
-            if key < n {
-                best = Some(best.map_or(n as usize, |best| best.min(n as usize)));
-            }
-        }
-        best.map_or(usize::MAX.min(self.values.len()), |n| n.saturating_sub(1))
-    }
-    fn get_index_or_closest_earlier(&self, key: &str) -> usize {
-        if let Some(i) = self.indexes.get(key) {
-            return *i + 1;
-        }
-        let mut best = None::<usize>;
-        let key = key.parse::<u64>().unwrap();
-        for n in self.indexes.keys() {
-            let n = n.parse::<u64>().unwrap();
-            if key > n {
-                best = best.map(|best| best.max(n as usize));
-            }
-        }
-        best.unwrap_or(usize::MAX.min(self.values.len()))
+    #[must_use]
+    pub fn range(&self, start: &EntryId, end: &EntryId) -> Vec<String> {
+        let start = match self.entries.binary_search_by_key(start, |e| e.id.clone()) {
+            Ok(i) => i,
+            Err(i) => i,
+        };
+        let end = match self.entries.binary_search_by_key(end, |e| e.id.clone()) {
+            Ok(i) => i + 1,
+            Err(i) => i,
+        };
+        self.entries[start..end]
+            .iter()
+            .map(|e| e.value.to_string())
+            .collect()
     }
 }

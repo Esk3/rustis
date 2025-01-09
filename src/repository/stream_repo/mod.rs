@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use stream::Stream;
+use stream::{EntryId, Stream};
 
 pub mod stream;
 
@@ -31,12 +31,12 @@ impl LockingStreamRepository {
         stream_key: impl ToString,
         entry_id: Option<StreamId>,
         value: impl ToString,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<EntryId> {
         let mut lock = self.streams.lock().unwrap();
         let key = lock
             .entry(stream_key.to_string())
             .or_insert(Stream::new())
-            .add_default_key("ConstDefaultKey", value);
+            .add_default_key(EntryId::min(), value);
         self.listners
             .lock()
             .unwrap()
@@ -48,14 +48,14 @@ impl LockingStreamRepository {
     pub fn xread(
         &self,
         stream_key: impl ToString,
-        entry_id: impl ToString,
+        entry_id: EntryId,
         count: usize,
     ) -> anyhow::Result<Vec<String>> {
         let lock = self.streams.lock().unwrap();
         let Some(stream) = lock.get(&stream_key.to_string()) else {
             bail!("stream not found")
         };
-        Ok(stream.read(entry_id.to_string(), count))
+        Ok(stream.read(&entry_id, count))
     }
 
     pub fn xread_last(&self, stream_key: impl ToString) -> anyhow::Result<String> {
@@ -73,14 +73,14 @@ impl LockingStreamRepository {
     pub fn xrange(
         &self,
         stream_key: impl ToString,
-        start: impl ToString,
-        end: impl ToString,
+        start: EntryId,
+        end: EntryId,
     ) -> anyhow::Result<Vec<String>> {
         let lock = self.streams.lock().unwrap();
         let Some(stream) = lock.get(&stream_key.to_string()) else {
             bail!("stream not found")
         };
-        Ok(stream.range(start, end))
+        Ok(stream.range(&start, &end))
     }
 
     pub fn blocking_query<F, T>(

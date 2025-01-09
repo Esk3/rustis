@@ -21,6 +21,8 @@ pub fn try_deserialize(arr: Vec<Value>) -> TryDeserializeResult {
     let Some(Ok(end)) = iter.next().map(Value::expect_string) else {
         todo!()
     };
+    let start = todo!();
+    let end = todo!();
     TryDeserializeResult::Ok(
         Input::XRange {
             stream_key,

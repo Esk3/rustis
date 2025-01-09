@@ -38,7 +38,6 @@ impl<V> Radix<V> {
                 {
                     match next {
                         Radix::Node { edge, children } => {
-                            dbg!(&edge,);
                             let key = key.strip_common_prefix(&edge);
                             next.add(key, value)
                         }
@@ -94,7 +93,7 @@ impl<V> Radix<V> {
         }
     }
 
-    fn get(&self, key: &[u8]) -> Option<&V> {
+    pub fn get(&self, key: &[u8]) -> Option<&V> {
         match self {
             Radix::Node { edge, children } => {
                 let child = children
@@ -103,6 +102,22 @@ impl<V> Radix<V> {
                 match child {
                     Radix::Node { edge, children } => child.get(key.strip_common_prefix(&edge)),
                     Radix::Leaf { edge, value } if edge == key => Some(value),
+                    Radix::Leaf { .. } => None,
+                }
+            }
+            Radix::Leaf { edge, value } => todo!(),
+        }
+    }
+
+    fn get_next_node(&self, key: &[u8]) -> Option<&Self> {
+        match self {
+            Radix::Node { edge, children } => {
+                let child = children
+                    .iter()
+                    .find(|child| child.edge().common_prefix(key).is_some())?;
+                match child {
+                    Radix::Node { edge, children } => Some(child),
+                    Radix::Leaf { edge, value } if edge == key => todo!(),
                     Radix::Leaf { .. } => None,
                 }
             }

@@ -16,7 +16,7 @@ fn xadd_creates_stream_if_key_does_not_exsist() {
 #[test]
 fn xread_fails_if_stream_does_not_exsist() {
     let repo = LockingStreamRepository::new();
-    assert!(repo.xread("notFound", "0", 1).is_err());
+    assert!(repo.xread("notFound", EntryId::min(), 1).is_err());
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn xread_returns_newly_added_value_if_done_on_a_new_stream() {
     let found_value = repo.xread(stream_key, key, 1).unwrap();
     assert_eq!(found_value, [value]);
 
-    let found_value = repo.xread(stream_key, 0, 1).unwrap();
+    let found_value = repo.xread(stream_key, EntryId::min(), 1).unwrap();
     assert_eq!(found_value, [value]);
 }
 
@@ -40,7 +40,7 @@ fn xread_returns_empty_list_if_keys_not_found() {
     let value = "abc";
     let _ = repo.xadd(stream_key, None, value).unwrap();
 
-    let empty_list = repo.xread(stream_key, u64::MAX, 1).unwrap();
+    let empty_list = repo.xread(stream_key, EntryId::max(), 1).unwrap();
     assert!(empty_list.is_empty());
 }
 
@@ -69,7 +69,7 @@ fn xread_last() {
 #[should_panic(expected = "stream not found")]
 fn xrange_on_empty_repo_fails() {
     let repo = LockingStreamRepository::new();
-    repo.xrange("any", "any", "any").unwrap();
+    repo.xrange("any", EntryId::min(), EntryId::max()).unwrap();
 }
 
 #[test]
@@ -82,7 +82,9 @@ fn xrange() {
     let found_value = repo.xrange(stream_key, key.clone(), key).unwrap();
     assert_eq!(found_value, [value]);
 
-    let found_value = repo.xrange(stream_key, 1, 1).unwrap();
+    let found_value = repo
+        .xrange(stream_key, EntryId::new(1, 0), EntryId::new(1, 0))
+        .unwrap();
     assert_eq!(found_value, [value]);
 }
 // special - and + returns are min and max
@@ -98,7 +100,7 @@ fn blocking_query_does_not_block_when_it_finds_data() {
         .blocking_query(
             std::time::Duration::from_secs(1),
             |repo: &LockingStreamRepository| {
-                repo.xrange(stream_key, 0, u64::MAX)
+                repo.xrange(stream_key, EntryId::min(), EntryId::max())
                     .map(|v| if v.is_empty() { None } else { Some(v) })
             },
         )
@@ -118,7 +120,7 @@ fn blocking_query_blocks_on_no_data_and_returns_none() {
     let start = std::time::Instant::now();
     let block_duration = std::time::Duration::from_millis(10);
     let none = repo.blocking_query(block_duration, |repo: &LockingStreamRepository| {
-        repo.xrange(stream_key, 2, u64::MAX)
+        repo.xrange(stream_key, EntryId::new(2, 0), EntryId::max())
             .map(|v| if v.is_empty() { None } else { Some(v) })
     });
     let elapsed = start.elapsed();
@@ -133,7 +135,9 @@ fn values_are_vissable_in_all_clones_of_repo() {
     let stream_key = "amazignKey";
     let value = "amazingValue";
     repo.xadd(stream_key, None, value).unwrap();
-    let result = clone.xrange(stream_key, 1, 1).unwrap();
+    let result = clone
+        .xrange(stream_key, EntryId::new(1, 0), EntryId::new(1, 0))
+        .unwrap();
     assert_eq!(result, [value]);
 }
 
@@ -148,7 +152,7 @@ fn blocking_returns_data_recived_during_block() {
     let repo2 = repo.clone();
     let handle = std::thread::spawn(move || {
         repo2.blocking_query(block_duration, |repo: &LockingStreamRepository| {
-            repo.xrange(stream_key, 2, u64::MAX)
+            repo.xrange(stream_key, EntryId::new(2, 0), EntryId::max())
                 .map(|v| if v.is_empty() { None } else { Some(v) })
         })
     });
