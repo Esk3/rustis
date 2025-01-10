@@ -5,7 +5,9 @@ use crate::resp::{Message, Output};
 use super::super::Value;
 
 pub mod client;
+pub mod config;
 pub mod get;
+pub mod info;
 pub mod len;
 pub mod set;
 mod try_deserialize_result;
@@ -41,4 +43,6 @@ fn try_deserialize_variable_length(arr: Vec<Value>) -> TryDeserializeResult {
         .try_next(xadd::try_deserialize)
         .try_next(xrange::try_deserialize)
         .try_next(client::try_deserialize)
+        .try_next(config::try_deserialize)
+        .try_next(info::try_deserialize)
 }

@@ -5,6 +5,7 @@ use crate::{
     Service,
 };
 
+mod commands;
 pub mod handler;
 pub mod layers;
 

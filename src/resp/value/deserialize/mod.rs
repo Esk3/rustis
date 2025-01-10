@@ -24,10 +24,11 @@ pub fn deserialize_value(bytes: &[u8]) -> anyhow::Result<(Value, usize)> {
                 return Ok((Value::NullString, header_length));
             };
             let (bytes, length) = deserialize_bulk_string(&bytes[header_length..], length).unwrap();
-            (
-                Value::BulkString(String::from_utf8(bytes).unwrap()),
-                length + header_length,
-            )
+            let value = match String::from_utf8(bytes) {
+                Ok(s) => Value::BulkString(s),
+                Err(err) => Value::BulkByteString(err.into_bytes()),
+            };
+            (value, length + header_length)
         }
         Identifier::Array => {
             let (array_size, header_length) = bytes.get_header()?;

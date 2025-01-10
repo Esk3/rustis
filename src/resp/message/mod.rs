@@ -64,6 +64,8 @@ pub enum Input {
     },
 
     Client,
+    Config(Vec<String>),
+    Info,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

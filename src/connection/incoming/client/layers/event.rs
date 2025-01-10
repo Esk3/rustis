@@ -44,6 +44,8 @@ impl EventLayer {
                 end,
             } => None,
             Input::Client => None,
+            Input::Config(_) => None,
+            Input::Info => None,
         }
     }
 }

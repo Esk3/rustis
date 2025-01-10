@@ -1,6 +1,6 @@
 use crate::{
     repository::Repository,
-    resp::{Input, Output},
+    resp::{self, Input, Output},
     Service,
 };
 pub struct Hanlder {
@@ -72,6 +72,16 @@ impl Service<super::Request> for Hanlder {
                 Output::Array(values.into_iter().map(Output::SimpleString).collect())
             }
             Input::Client => Output::Ok,
+            Input::Config(_) => Output::Array(vec![
+                Output::SimpleString("slave-read-only".into()),
+                Output::SimpleString("yes".into()),
+            ]),
+            Input::Info => Output::Array(vec![
+                Output::SimpleString("role:master".into()),
+                Output::SimpleString(
+                    "master_replid:a4abfedae71101d030054370c48f98c53b815c30".into(),
+                ),
+            ]),
         };
         Ok(res)
     }

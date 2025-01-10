@@ -77,6 +77,8 @@ impl Handler {
                 end,
             } => todo!(),
             Input::Client => todo!(),
+            Input::Config(_) => todo!(),
+            Input::Info => todo!(),
         }
         Ok(None)
     }
