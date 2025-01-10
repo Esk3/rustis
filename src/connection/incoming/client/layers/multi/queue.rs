@@ -1,27 +1,31 @@
-use crate::{connection::incoming::client, resp::Input};
+use crate::connection::incoming::client;
 
 pub struct Queue(Option<Vec<client::Request>>);
 
 impl Queue {
+    #[must_use]
     pub fn new() -> Self {
         Self(None)
     }
+    #[must_use]
     pub fn is_active(&self) -> bool {
         self.0.is_some()
     }
-    pub fn store(&mut self, message: client::Request) -> StoreResult {
+    pub fn store(&mut self, request: client::Request) -> StoreResult {
         match &mut self.0 {
-            None if matches!(message.input, Input::Multi) => {
+            None if request.value.first().unwrap().eq_ignore_ascii_case("Multi") => {
                 self.0 = Some(Vec::new());
                 StoreResult::Ok
             }
-            Some(_) if matches!(message.input, Input::Multi) => StoreResult::InvalidStore(message),
-            None => StoreResult::InvalidStore(message),
-            Some(_) if matches!(message.input, Input::CommitMulti) => {
+            Some(_) if request.value.first().unwrap().eq_ignore_ascii_case("Multi") => {
+                StoreResult::InvalidStore(request)
+            }
+            None => StoreResult::InvalidStore(request),
+            Some(_) if request.value.first().unwrap().eq_ignore_ascii_case("Exec") => {
                 StoreResult::QueueFinished(self.0.take().unwrap())
             }
             Some(list) => {
-                list.push(message);
+                list.push(request);
                 StoreResult::Ok
             }
         }

@@ -17,27 +17,20 @@ pub enum Value {
     NullArray,
 }
 
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::SimpleString(l0), Self::SimpleString(r0))
-            | (Self::BulkString(l0), Self::BulkString(r0)) => l0 == r0,
-            (Self::SimpleString(l0) | Self::BulkString(l0), Self::BulkByteString(r0)) => {
-                l0.as_bytes() == r0
-            }
-            (Self::BulkByteString(l0), Self::SimpleString(r0) | Self::BulkString(r0)) => {
-                l0 == r0.as_bytes()
-            }
-            (Self::BulkByteString(l0), Self::BulkByteString(r0)) => l0 == r0,
-            (Self::Array(l0), Self::Array(r0)) => l0 == r0,
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
-}
-
-impl Eq for Value {}
-
 impl Value {
+    pub fn simple_string(s: impl ToString) -> Self {
+        Self::SimpleString(s.to_string())
+    }
+    pub fn bulk_string(s: impl ToString) -> Self {
+        Self::BulkString(s.to_string())
+    }
+    pub fn bulk_strings(s: impl ToString, pat: &str) -> Vec<Self> {
+        s.to_string().split(pat).map(Self::bulk_string).collect()
+    }
+    #[must_use]
+    pub fn ok() -> Self {
+        Self::simple_string("OK")
+    }
     pub fn into_string(self) -> Result<String, Self> {
         match self {
             Value::SimpleString(s) | Value::BulkString(s) => Ok(s),
@@ -78,6 +71,42 @@ impl Value {
         }
     }
 }
+
+pub trait IntoRespArray {
+    fn into_array(self) -> Value;
+}
+
+impl IntoRespArray for Vec<Value> {
+    fn into_array(self) -> Value {
+        Value::Array(self)
+    }
+}
+
+impl FromIterator<Value> for Value {
+    fn from_iter<T: IntoIterator<Item = Value>>(iter: T) -> Self {
+        iter.into_iter().collect::<Vec<Self>>().into_array()
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::SimpleString(l0), Self::SimpleString(r0))
+            | (Self::BulkString(l0), Self::BulkString(r0)) => l0 == r0,
+            (Self::SimpleString(l0) | Self::BulkString(l0), Self::BulkByteString(r0)) => {
+                l0.as_bytes() == r0
+            }
+            (Self::BulkByteString(l0), Self::SimpleString(r0) | Self::BulkString(r0)) => {
+                l0 == r0.as_bytes()
+            }
+            (Self::BulkByteString(l0), Self::BulkByteString(r0)) => l0 == r0,
+            (Self::Array(l0), Self::Array(r0)) => l0 == r0,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
+impl Eq for Value {}
 
 impl PartialEq<&str> for Value {
     fn eq(&self, other: &&str) -> bool {

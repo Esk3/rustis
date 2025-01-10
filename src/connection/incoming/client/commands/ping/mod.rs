@@ -12,12 +12,9 @@ impl Command<super::super::Request, super::super::Response, Repository> for Ping
 
     fn handle(
         &self,
-        _input: super::super::Request,
-        repo: &Repository,
+        _: super::super::Request,
+        _: &Repository,
     ) -> anyhow::Result<super::super::Response> {
-        Ok(super::super::Response {
-            kind: super::super::ResponseKind::Value(resp::Value::SimpleString("PONG".into())),
-            event: None,
-        })
+        Ok(resp::Value::simple_string("PONG").into())
     }
 }
