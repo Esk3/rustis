@@ -11,14 +11,11 @@ impl Connection for DummyConnection {
         Err(anyhow!("tried to connect to dummy connection").into())
     }
 
-    fn read_message(&mut self) -> crate::connection::ConnectionResult<crate::connection::Message> {
+    fn read_value(&mut self) -> crate::connection::ConnectionResult<crate::connection::Value> {
         Err(anyhow!("tried to read from dummy connection").into())
     }
 
-    fn write_message(
-        &mut self,
-        _command: resp::Message,
-    ) -> crate::connection::ConnectionResult<usize> {
+    fn write_value(&mut self, _command: resp::Value) -> crate::connection::ConnectionResult<usize> {
         Err(anyhow!("tried to write to dummy connection").into())
     }
 
@@ -29,15 +26,15 @@ impl Connection for DummyConnection {
 
 #[derive(Debug)]
 pub struct MockConnection {
-    input: Vec<crate::connection::Message>,
-    expected_output: Option<Vec<resp::Message>>,
+    input: Vec<crate::connection::Value>,
+    expected_output: Option<Vec<resp::Value>>,
 }
 
 impl MockConnection {
     pub fn new<I, O>(input: I, expected_output: O) -> Self
     where
-        I: IntoIterator<Item = resp::Message>,
-        O: IntoIterator<Item = resp::Message>,
+        I: IntoIterator<Item = resp::Value>,
+        O: IntoIterator<Item = resp::Value>,
         <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
         <O as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
     {
@@ -45,7 +42,7 @@ impl MockConnection {
             input: input
                 .into_iter()
                 .rev()
-                .map(|msg| crate::connection::Message::new(msg, 1))
+                .map(|msg| crate::connection::Value::new(msg, 1))
                 .collect(),
             expected_output: Some(expected_output.into_iter().rev().collect()),
         }
@@ -53,14 +50,14 @@ impl MockConnection {
 
     pub fn new_input<I>(input: I) -> Self
     where
-        I: IntoIterator<Item = resp::Message>,
+        I: IntoIterator<Item = resp::Value>,
         <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
     {
         Self {
             input: input
                 .into_iter()
                 .rev()
-                .map(|msg| crate::connection::Message::new(msg, 1))
+                .map(|msg| crate::connection::Value::new(msg, 1))
                 .collect(),
             expected_output: None,
         }
@@ -79,11 +76,11 @@ impl Connection for MockConnection {
         todo!()
     }
 
-    fn read_message(&mut self) -> ConnectionResult<crate::connection::Message> {
+    fn read_value(&mut self) -> ConnectionResult<crate::connection::Value> {
         self.input.pop().ok_or(ConnectionError::EndOfInput)
     }
 
-    fn write_message(&mut self, command: resp::Message) -> ConnectionResult<usize> {
+    fn write_value(&mut self, command: resp::Value) -> ConnectionResult<usize> {
         let Some(ref mut expected) = self.expected_output else {
             return Ok(1);
         };

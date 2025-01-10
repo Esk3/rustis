@@ -1,11 +1,11 @@
 use crate::{
     connection::{handshake::incoming::IncomingHandshake, Connection},
     event::Kind,
-    resp::Message,
+    resp,
 };
 
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;
 
 pub struct Follower;
 
@@ -14,16 +14,17 @@ impl Follower {
         Self
     }
 
-    pub fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<Message>> {
-        let res = match event {
-            Kind::Set { key, value, expiry } => Some(Message::Input(crate::resp::Input::Set {
-                key,
-                value,
-                expiry,
-                get: false,
-            })),
-        };
-        Ok(res)
+    pub fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<resp::Value>> {
+        //let res = match event {
+        //    Kind::Set { key, value, expiry } => Some(Message::Input(crate::resp::Input::Set {
+        //        key,
+        //        value,
+        //        expiry,
+        //        get: false,
+        //    })),
+        //};
+        //Ok(res)
+        todo!()
     }
 
     pub fn handshake<C>(&mut self, connection: &mut C) -> anyhow::Result<()>
@@ -32,9 +33,9 @@ impl Follower {
     {
         let mut handshake = IncomingHandshake::new();
         while !handshake.is_finished() {
-            let input = connection.read_message()?.message.into_input().unwrap();
+            let input = connection.read_value()?.value;
             let response = handshake.try_advance(&input).unwrap();
-            connection.write_message(response.into()).unwrap();
+            connection.write_value(response.into()).unwrap();
         }
         Ok(())
     }

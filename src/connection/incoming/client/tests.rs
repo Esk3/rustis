@@ -1,14 +1,13 @@
-use handler::Hanlder;
-use layers::{
-    event::EventLayer,
-    multi::MultiLayer,
-    replication::{ReplicationResponse, ReplicationService},
-};
+//use handler::Hanlder;
+//use layers::{
+//    event::EventLayer,
+//    multi::MultiLayer,
+//    replication::{ReplicationResponse, ReplicationService},
+//};
 
 use crate::{
     connection::incoming::client,
     event::{self, EventEmitter},
-    resp::ReplConf,
 };
 
 use super::*;
@@ -17,18 +16,18 @@ macro_rules! request_response {
     ($($req:expr),+; $($res:expr),+) => {
     let repo = Repository::default();
     let emitter = EventEmitter::new();
-    let mut handler = Client::new(emitter, repo);
+    let mut handler = Client::new(default_router(),emitter, repo);
     $(
         let response = handler.handle_request(client::Request::epoch($req,0)).unwrap();
-        assert_eq!(response, client::Response::SendOutput($res));
+        assert_eq!(response.kind, client::ResponseKind::Value($res));
     )+
     };
     ($repo:expr ; $($req:expr),+; $($res:expr),+) => {
     let emitter = EventEmitter::new();
-    let mut handler = Client::new(emitter, $repo.clone());
+    let mut handler = Client::new(default_router(),emitter, $repo.clone());
     $(
         let response = handler.handle_request(client::Request::epoch($req, 0)).unwrap();
-        assert_eq!(response, client::Response::SendOutput($res));
+        assert_eq!(response.kind, client::ResponseKind::Value($res));
     )+
     };
 }
@@ -37,16 +36,16 @@ macro_rules! request_response {
 fn create_client_handler() {
     let repo = Repository::default();
     let event_emitter = EventEmitter::new();
-    let _: Client = Client::new(event_emitter, repo);
+    let _: Client = Client::new(default_router(), event_emitter, repo);
 }
 
 #[test]
 fn client_handler_handles_request() {
     let repo = Repository::default();
     let emitter = EventEmitter::new();
-    let mut handler = Client::new(emitter, repo);
+    let mut handler = Client::new(default_router(), emitter, repo);
     let _response = handler
-        .handle_request(Request::epoch(Input::Ping, 0))
+        .handle_request(Request::epoch(resp::Value::SimpleString("PING".into()), 0))
         .unwrap();
 }
 

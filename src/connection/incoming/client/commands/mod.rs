@@ -8,55 +8,44 @@ use crate::{
 pub mod echo;
 pub mod ping;
 
-pub struct Request {
-    value: Vec<resp::Value>,
-    size: usize,
-    timestamp: std::time::SystemTime,
-}
+//pub struct Client {
+//    router: &'static CommandRouter,
+//}
 
-pub enum ResponseKind {
-    Value(resp::Value),
-    RecivedReplConf(resp::Value),
-}
+//impl Client {
+//pub fn new(router: &'static CommandRouter, event: EventEmitter, repo: Repository) -> Self {
+//    Self { router }
+//}
+//pub fn default_router() -> &'static CommandRouter {
+//    let mut router = CommandRouter::new();
+//    router.add(ping::Ping).add(echo::Echo);
+//    Box::leak(Box::new(router))
+//}
+//
+//pub fn handle_request(&self, request: Request) -> anyhow::Result<Response> {
+//    let handler = self
+//        .router
+//        .route(request.value[0].clone().expect_string().unwrap().as_bytes())
+//        .unwrap();
+//    handler.handle(request)
+//}
+//}
 
-pub struct Response {
-    kind: ResponseKind,
-    event: Option<event::Kind>,
-}
-
-pub struct Client {
-    router: &'static CommandRouter,
-}
-
-impl Client {
-    pub fn new(router: &'static CommandRouter, event: EventEmitter, repo: Repository) -> Self {
-        Self { router }
-    }
-    pub fn default_router() -> &'static CommandRouter {
-        let mut router = CommandRouter::new();
-        router.add(ping::Ping).add(echo::Echo);
-        Box::leak(Box::new(router))
-    }
-    pub fn handle_request(&self, request: Request) -> anyhow::Result<Response> {
-        let handler = self
-            .router
-            .route(request.value[0].clone().expect_string().unwrap().as_bytes())
-            .unwrap();
-        handler.handle(request)
-    }
-}
-
-trait Command {
+pub trait Command: Sync {
     fn info(&self) -> CommandInfo;
-    fn handle(&self, input: Request) -> anyhow::Result<Response>;
+    fn handle(&self, request: super::Request) -> anyhow::Result<super::Response>;
 }
 
 pub struct CommandInfo {
     name: String,
 }
 
-struct Helper {
-    state: (),
+impl CommandInfo {
+    pub fn new_name(name: impl ToString) -> Self {
+        Self {
+            name: name.to_string(),
+        }
+    }
 }
 
 pub struct CommandRouter {

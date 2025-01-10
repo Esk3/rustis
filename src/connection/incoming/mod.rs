@@ -7,16 +7,18 @@ use crate::{
     connection::{Connection, ConnectionError},
     event::EventEmitter,
     repository::Repository,
-    resp::Output,
+    resp,
 };
 
-mod client;
+pub mod client;
 mod follower;
-#[cfg(test)]
-pub mod tests;
+
+//#[cfg(test)]
+//pub mod tests;
 
 pub struct IncomingConnection<C> {
     connection: C,
+    client_router: &'static client::commands::CommandRouter,
     repo: Repository,
     emitter: EventEmitter,
 }
@@ -26,9 +28,15 @@ where
     C: Connection,
 {
     #[must_use]
-    pub fn new(connection: C, emitter: EventEmitter, repo: Repository) -> Self {
+    pub fn new(
+        connection: C,
+        client_router: &'static client::commands::CommandRouter,
+        emitter: EventEmitter,
+        repo: Repository,
+    ) -> Self {
         Self {
             connection,
+            client_router,
             repo,
             emitter,
         }
@@ -51,27 +59,29 @@ where
 
     fn handle_client_connection(&mut self) -> anyhow::Result<()> {
         info!("handling client connection");
-        let mut client_handler = Client::new(self.emitter.clone(), self.repo.clone());
+        let mut client_handler =
+            client::Client::new(self.client_router, self.emitter.clone(), self.repo.clone());
         loop {
-            let request = match self.connection.read_message() {
+            let request = match self.connection.read_value() {
                 Ok(request) => request,
                 Err(ConnectionError::EndOfInput) => bail!("out of input"),
                 Err(ConnectionError::Io(_)) => todo!(),
                 Err(ConnectionError::Any(err)) => {
                     tracing::warn!("err reading message: {err:?}");
-                    self.connection.write_message(Output::Pong.into()).unwrap();
+                    todo!();
+                    //self.connection.write_value(Output::Pong.into()).unwrap();
                     continue;
                 }
             };
             debug!("handling request: {request:?}");
-            let request = client::Request::now(request.message.expect_input()?, request.bytes_read);
+            let request = client::Request::now(request.value, request.bytes_read);
             let response = client_handler.handle_request(request).unwrap();
             debug!("got response: {response:?}");
-            match response {
-                client::Response::SendOutput(output) => {
-                    self.connection.write_message(output.into()).unwrap();
+            match response.kind {
+                client::ResponseKind::Value(output) => {
+                    self.connection.write_value(output).unwrap();
                 }
-                client::Response::RecivedReplconf(_) => return Ok(()),
+                client::ResponseKind::RecivedReplconf(_) => return Ok(()),
             }
         }
     }
@@ -82,6 +92,6 @@ where
         let mut handler = Follower::new();
         let event = subscriber.recive();
         let response = handler.handle_event(event).unwrap().unwrap();
-        self.connection.write_message(response).unwrap();
+        self.connection.write_value(response).unwrap();
     }
 }

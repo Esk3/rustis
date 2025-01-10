@@ -19,8 +19,8 @@ pub trait Connection {
     fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
     where
         Self: Sized;
-    fn read_message(&mut self) -> ConnectionResult<Message>;
-    fn write_message(&mut self, message: resp::Message) -> ConnectionResult<usize>;
+    fn read_value(&mut self) -> ConnectionResult<Value>;
+    fn write_value(&mut self, message: resp::Value) -> ConnectionResult<usize>;
     fn get_peer_addr(&self) -> std::net::SocketAddr;
 }
 #[derive(Error, Debug)]
@@ -36,15 +36,15 @@ pub enum ConnectionError {
 pub type ConnectionResult<T> = Result<T, ConnectionError>;
 
 #[derive(Debug)]
-pub struct Message {
-    pub message: resp::Message,
+pub struct Value {
+    pub value: resp::Value,
     pub bytes_read: usize,
 }
 
-impl Message {
-    fn new(message: resp::Message, bytes_consumed: usize) -> Self {
+impl Value {
+    fn new(value: resp::Value, bytes_consumed: usize) -> Self {
         Self {
-            message,
+            value,
             bytes_read: bytes_consumed,
         }
     }

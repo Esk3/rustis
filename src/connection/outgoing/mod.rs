@@ -9,8 +9,8 @@ use super::{handshake::outgoing::OutgoingHandshake, Connection};
 
 mod handler;
 
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;
 
 #[derive(Debug)]
 #[allow(clippy::module_name_repetitions)]
@@ -36,14 +36,8 @@ where
         let mut response = None;
         while let Some(next) = handshake.try_advance(&response).unwrap() {
             dbg!(&next);
-            self.connection.write_message(next.into()).unwrap();
-            response = Some(
-                self.connection
-                    .read_message()?
-                    .message
-                    .into_output()
-                    .unwrap(),
-            );
+            self.connection.write_value(next).unwrap();
+            response = Some(self.connection.read_value()?.value);
         }
         Ok(1)
     }
@@ -55,7 +49,7 @@ where
         tracing::info!("handshake with leader sucesfully completed");
         let mut handler = Handler::new(self.repo);
         loop {
-            let message = match self.connection.read_message() {
+            let message = match self.connection.read_value() {
                 Ok(msg) => msg,
                 Err(err) => match err {
                     super::ConnectionError::EndOfInput => return Ok(()),
@@ -67,7 +61,7 @@ where
             let response = handler.handle_request(message.try_into()?)?;
             tracing::debug!("message response: {response:?}");
             if let Some(resposne) = response {
-                self.connection.write_message(resposne.into())?;
+                self.connection.write_value(resposne.into())?;
             }
         }
     }

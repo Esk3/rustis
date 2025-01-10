@@ -6,6 +6,8 @@ use std::{
 #[cfg(test)]
 mod tests;
 
+pub type KvRepository = LockingMemoryRepository;
+
 #[derive(Debug, Clone)]
 pub struct LockingMemoryRepository {
     kv_store: Arc<Mutex<HashMap<String, String>>>,

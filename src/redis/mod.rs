@@ -1,6 +1,13 @@
 use crate::{
     config::{RedisConfig, Role},
-    connection::{incoming::IncomingConnection, outgoing::OutgoingConnection, Connection},
+    connection::{
+        incoming::{
+            client::{commands::CommandRouter, default_router},
+            IncomingConnection,
+        },
+        outgoing::OutgoingConnection,
+        Connection,
+    },
     event::EventEmitter,
     listner::RedisListner,
     repository::Repository,
@@ -16,6 +23,7 @@ pub struct Redis<L, C> {
     config: RedisConfig,
     listner: L,
     leader_connection: Option<C>,
+    client_router: &'static CommandRouter,
     repo: Repository,
     emitter: EventEmitter,
 }
@@ -41,6 +49,7 @@ where
             config,
             listner,
             leader_connection,
+            client_router: default_router(),
             repo,
             emitter,
         }
@@ -71,8 +80,12 @@ where
         info!("accepting incoming connections");
         for connection in self.listner.incoming() {
             info!("connection accepted");
-            let connection =
-                IncomingConnection::new(connection, self.emitter.clone(), self.repo.clone());
+            let connection = IncomingConnection::new(
+                connection,
+                self.client_router,
+                self.emitter.clone(),
+                self.repo.clone(),
+            );
             connection.spawn_handler();
         }
     }

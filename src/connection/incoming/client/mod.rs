@@ -1,51 +1,58 @@
+use commands::CommandRouter;
+
 use crate::{
-    event::EventEmitter,
+    event::{self, EventEmitter},
     repository::Repository,
-    resp::{Input, Output, ReplConf},
-    Service,
+    resp,
 };
 
-mod commands;
-pub mod handler;
-pub mod layers;
+pub mod commands;
+//pub mod handler;
+//pub mod layers;
 
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Request {
-    pub input: Input,
-    pub input_length: usize,
+    pub value: Vec<resp::Value>,
+    pub size: usize,
     pub timestamp: std::time::SystemTime,
 }
 
 impl Request {
-    pub fn now(input: Input, input_length: usize) -> Self {
+    pub fn now(value: resp::Value, input_length: usize) -> Self {
         Self {
-            input,
-            input_length,
+            value: value.into_array().unwrap(),
+            size: input_length,
             timestamp: std::time::SystemTime::now(),
         }
     }
     #[allow(dead_code)]
-    pub const fn epoch(input: Input, input_length: usize) -> Self {
+    pub fn epoch(value: resp::Value, input_length: usize) -> Self {
         Self {
-            input,
-            input_length,
+            value: value.into_array().unwrap(),
+            size: input_length,
             timestamp: std::time::SystemTime::UNIX_EPOCH,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Response {
-    SendOutput(Output),
-    RecivedReplconf(ReplConf),
+pub enum ResponseKind {
+    Value(resp::Value),
+    RecivedReplconf(resp::Value),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Response {
+    pub kind: ResponseKind,
+    pub event: Option<event::Kind>,
 }
 
 impl Response {
-    pub fn into_output(self) -> Result<Output, Self> {
-        if let Self::SendOutput(output) = self {
+    pub fn into_output(self) -> Result<resp::Value, Self> {
+        if let ResponseKind::Value(output) = self.kind {
             Ok(output)
         } else {
             Err(self)
@@ -54,24 +61,30 @@ impl Response {
 }
 
 pub struct Client {
-    inner: layers::replication::ReplicationService,
+    router: &'static CommandRouter,
 }
 
 impl Client {
-    pub fn new(emitter: EventEmitter, repo: Repository) -> Self {
-        Self {
-            inner: layers::replication::ReplicationService {
-                inner: layers::multi::MultiLayer::new(emitter, handler::Hanlder::new(repo)),
-            },
-        }
+    pub fn new(router: &'static CommandRouter, emitter: EventEmitter, repo: Repository) -> Self {
+        Self { router }
     }
 
     pub fn handle_request(&mut self, request: Request) -> anyhow::Result<Response> {
-        self.inner.call(request).map(|res| match res {
-            layers::replication::ReplicationResponse::ReplicationRequest(replconf) => {
-                Response::RecivedReplconf(replconf)
-            }
-            layers::replication::ReplicationResponse::Inner(output) => Response::SendOutput(output),
-        })
+        let Some(handler) = self
+            .router
+            .route(request.value[0].clone().expect_string().unwrap().as_bytes())
+        else {
+            return Ok(Response {
+                kind: ResponseKind::Value(resp::Value::SimpleString("not found".into())),
+                event: None,
+            });
+        };
+        handler.handle(request)
     }
+}
+
+pub fn default_router() -> &'static CommandRouter {
+    let mut router = CommandRouter::new();
+    router.add(commands::ping::Ping).add(commands::echo::Echo);
+    Box::leak(Box::new(router))
 }

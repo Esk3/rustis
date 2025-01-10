@@ -3,14 +3,14 @@ pub mod stream_repo;
 
 #[derive(Debug, Clone)]
 pub struct Repository {
-    kv_repo: kv_repo::LockingMemoryRepository,
+    kv_repo: kv_repo::KvRepository,
     stream_repo: stream_repo::LockingStreamRepository,
 }
 
 impl Repository {
     #[must_use]
     pub fn new(
-        kv_repo: kv_repo::LockingMemoryRepository,
+        kv_repo: kv_repo::KvRepository,
         stream_repo: stream_repo::LockingStreamRepository,
     ) -> Self {
         Self {
@@ -19,7 +19,7 @@ impl Repository {
         }
     }
     #[must_use]
-    pub fn kv_repo(&self) -> &kv_repo::LockingMemoryRepository {
+    pub fn kv_repo(&self) -> &kv_repo::KvRepository {
         &self.kv_repo
     }
 
@@ -54,7 +54,7 @@ impl Repository {
 impl Default for Repository {
     fn default() -> Self {
         Self {
-            kv_repo: kv_repo::LockingMemoryRepository::new(),
+            kv_repo: kv_repo::KvRepository::new(),
             stream_repo: stream_repo::LockingStreamRepository::new(),
         }
     }

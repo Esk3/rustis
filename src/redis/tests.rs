@@ -4,7 +4,7 @@ use crate::{
     config::Role,
     connection::{self, Connection, ConnectionResult},
     listner::RedisListner,
-    resp::Message,
+    resp,
 };
 use builder::RedisBuilder;
 
@@ -199,11 +199,11 @@ impl Connection for DummyConnection {
         Ok(Self)
     }
 
-    fn read_message(&mut self) -> ConnectionResult<connection::Message> {
+    fn read_value(&mut self) -> ConnectionResult<connection::Value> {
         todo!()
     }
 
-    fn write_message(&mut self, command: Message) -> ConnectionResult<usize> {
+    fn write_value(&mut self, command: resp::Value) -> ConnectionResult<usize> {
         todo!()
     }
 
