@@ -18,7 +18,7 @@ mod follower;
 
 pub struct IncomingConnection<C> {
     connection: C,
-    client_router: &'static client::commands::CommandRouter,
+    client_router: &'static client::ClientRouter,
     repo: Repository,
     emitter: EventEmitter,
 }
@@ -30,7 +30,7 @@ where
     #[must_use]
     pub fn new(
         connection: C,
-        client_router: &'static client::commands::CommandRouter,
+        client_router: &'static client::ClientRouter,
         emitter: EventEmitter,
         repo: Repository,
     ) -> Self {

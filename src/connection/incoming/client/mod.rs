@@ -1,14 +1,17 @@
-use commands::CommandRouter;
+use std::sync::Arc;
+
+use layers::{MultiLayer, RoutingLayer};
 
 use crate::{
+    command::CommandRouter,
     event::{self, EventEmitter},
     repository::Repository,
-    resp,
+    resp, Service,
 };
 
 pub mod commands;
 //pub mod handler;
-//pub mod layers;
+pub mod layers;
 
 //#[cfg(test)]
 //mod tests;
@@ -21,6 +24,7 @@ pub struct Request {
 }
 
 impl Request {
+    #[must_use]
     pub fn now(value: resp::Value, input_length: usize) -> Self {
         Self {
             value: value.into_array().unwrap(),
@@ -29,6 +33,7 @@ impl Request {
         }
     }
     #[allow(dead_code)]
+    #[must_use]
     pub fn epoch(value: resp::Value, input_length: usize) -> Self {
         Self {
             value: value.into_array().unwrap(),
@@ -60,31 +65,53 @@ impl Response {
     }
 }
 
+pub struct ClientRouter(CommandRouter<Request, Response, Repository>);
+
+impl ClientRouter {
+    #[must_use]
+    pub fn new() -> Self {
+        Self(CommandRouter::new())
+    }
+    pub fn add<C>(&mut self, command: C) -> &mut CommandRouter<Request, Response, Repository>
+    where
+        C: crate::command::Command<Request, Response, Repository> + 'static,
+    {
+        self.0.add(command)
+    }
+
+    pub fn route(
+        &self,
+        cmd: &[u8],
+    ) -> Option<&dyn crate::command::Command<Request, Response, Repository>> {
+        self.0.route(cmd)
+    }
+}
+
 pub struct Client {
-    router: &'static CommandRouter,
+    service: MultiLayer<RoutingLayer>,
 }
 
 impl Client {
-    pub fn new(router: &'static CommandRouter, emitter: EventEmitter, repo: Repository) -> Self {
-        Self { router }
+    pub fn new(router: &'static ClientRouter, emitter: EventEmitter, repo: Repository) -> Self {
+        Self {
+            service: MultiLayer {
+                inner: RoutingLayer { repo, router },
+            },
+        }
     }
 
     pub fn handle_request(&mut self, request: Request) -> anyhow::Result<Response> {
-        let Some(handler) = self
-            .router
-            .route(request.value[0].clone().expect_string().unwrap().as_bytes())
-        else {
-            return Ok(Response {
-                kind: ResponseKind::Value(resp::Value::SimpleString("not found".into())),
-                event: None,
-            });
-        };
-        handler.handle(request)
+        self.service.call(request)
     }
 }
 
-pub fn default_router() -> &'static CommandRouter {
-    let mut router = CommandRouter::new();
-    router.add(commands::ping::Ping).add(commands::echo::Echo);
+#[must_use]
+pub fn default_router() -> &'static ClientRouter {
+    let mut router = ClientRouter::new();
+    router
+        .add(commands::ping::Ping)
+        .add(commands::echo::Echo)
+        .add(commands::get::Get)
+        .add(commands::set::Set);
     Box::leak(Box::new(router))
 }

@@ -23,6 +23,7 @@ pub trait Connection {
     fn write_value(&mut self, message: resp::Value) -> ConnectionResult<usize>;
     fn get_peer_addr(&self) -> std::net::SocketAddr;
 }
+
 #[derive(Error, Debug)]
 pub enum ConnectionError {
     #[error("end of input")]
