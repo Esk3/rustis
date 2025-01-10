@@ -9,7 +9,7 @@ impl Command<super::super::Request, super::super::Response, Repository> for Echo
         CommandInfo::new_name("ECHO")
     }
 
-    fn handle(
+    fn call(
         &self,
         input: super::super::Request,
         repo: &Repository,

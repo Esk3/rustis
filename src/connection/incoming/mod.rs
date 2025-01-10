@@ -1,5 +1,4 @@
 use anyhow::bail;
-use client::Client;
 use follower::Follower;
 use tracing::{debug, info, instrument};
 
@@ -18,7 +17,7 @@ mod follower;
 
 pub struct IncomingConnection<C> {
     connection: C,
-    client_router: &'static client::ClientRouter,
+    client_router: &'static client::Router,
     repo: Repository,
     emitter: EventEmitter,
 }
@@ -30,7 +29,7 @@ where
     #[must_use]
     pub fn new(
         connection: C,
-        client_router: &'static client::ClientRouter,
+        client_router: &'static client::Router,
         emitter: EventEmitter,
         repo: Repository,
     ) -> Self {
@@ -78,10 +77,10 @@ where
             let response = client_handler.handle_request(request).unwrap();
             debug!("got response: {response:?}");
             match response.kind {
-                client::ResponseKind::Value(output) => {
+                client::response::ResponseKind::Value(output) => {
                     self.connection.write_value(output).unwrap();
                 }
-                client::ResponseKind::RecivedReplconf(_) => return Ok(()),
+                client::response::ResponseKind::RecivedReplconf(_) => return Ok(()),
             }
         }
     }

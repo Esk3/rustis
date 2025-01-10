@@ -1,10 +1,7 @@
 use crate::{
     config::{RedisConfig, Role},
     connection::{
-        incoming::{
-            client::{default_router, ClientRouter},
-            IncomingConnection,
-        },
+        incoming::{client, IncomingConnection},
         outgoing::OutgoingConnection,
         Connection,
     },
@@ -23,7 +20,7 @@ pub struct Redis<L, C> {
     config: RedisConfig,
     listner: L,
     leader_connection: Option<C>,
-    client_router: &'static ClientRouter,
+    client_router: &'static client::Router,
     repo: Repository,
     emitter: EventEmitter,
 }
@@ -49,7 +46,7 @@ where
             config,
             listner,
             leader_connection,
-            client_router: default_router(),
+            client_router: client::default_router(),
             repo,
             emitter,
         }

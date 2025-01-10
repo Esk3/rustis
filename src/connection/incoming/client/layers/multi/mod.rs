@@ -32,8 +32,8 @@ where
         let mut events = Vec::new();
         for i in map {
             match i.kind {
-                client::ResponseKind::Value(value) => values.push(value),
-                client::ResponseKind::RecivedReplconf(_) => todo!(),
+                client::response::ResponseKind::Value(value) => values.push(value),
+                client::response::ResponseKind::RecivedReplconf(_) => todo!(),
             }
             if let Some(event) = i.event {
                 events.extend(event);

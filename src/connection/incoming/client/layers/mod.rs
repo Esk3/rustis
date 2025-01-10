@@ -1,6 +1,6 @@
 use crate::{repository::Repository, resp, Service};
 
-use super::{ClientRouter, Response, ResponseKind};
+use super::{Response, Router};
 
 //pub mod event;
 pub mod multi;
@@ -14,11 +14,11 @@ pub use replication::ReplicationService;
 
 pub struct RoutingLayer {
     pub repo: Repository,
-    pub router: &'static ClientRouter,
+    pub router: &'static Router,
 }
 
 impl RoutingLayer {
-    pub fn new(repo: Repository, router: &'static ClientRouter) -> Self {
+    pub fn new(repo: Repository, router: &'static Router) -> Self {
         Self { repo, router }
     }
 }
@@ -33,11 +33,8 @@ impl Service<super::Request> for RoutingLayer {
             .router
             .route(request.value[0].clone().expect_string().unwrap().as_bytes())
         else {
-            return Ok(Response {
-                kind: ResponseKind::Value(resp::Value::SimpleString("not found".into())),
-                event: None,
-            });
+            return Ok(Response::value(resp::Value::simple_string("not found")));
         };
-        handler.handle(request, &self.repo)
+        handler.call(request, &self.repo)
     }
 }

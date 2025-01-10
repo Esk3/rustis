@@ -10,7 +10,7 @@ impl Command<super::super::Request, super::super::Response, Repository> for Ping
         CommandInfo::new_name("PING")
     }
 
-    fn handle(
+    fn call(
         &self,
         _: super::super::Request,
         _: &Repository,
