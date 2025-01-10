@@ -2,7 +2,7 @@ use crate::radix::Radix;
 
 pub trait Command<Req, Res, S>: Sync {
     fn info(&self) -> CommandInfo;
-    fn handle(&self, request: Req, state: S) -> anyhow::Result<Res>;
+    fn handle(&self, request: Req, state: &S) -> anyhow::Result<Res>;
 }
 
 pub struct CommandInfo {

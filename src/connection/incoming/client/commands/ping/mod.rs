@@ -13,7 +13,7 @@ impl Command<super::super::Request, super::super::Response, Repository> for Ping
     fn handle(
         &self,
         _input: super::super::Request,
-        repo: Repository,
+        repo: &Repository,
     ) -> anyhow::Result<super::super::Response> {
         Ok(super::super::Response {
             kind: super::super::ResponseKind::Value(resp::Value::SimpleString("PONG".into())),

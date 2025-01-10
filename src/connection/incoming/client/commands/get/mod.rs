@@ -10,7 +10,11 @@ impl Command<super::Request, super::Response, Repository> for Get {
         CommandInfo::new_name("GET")
     }
 
-    fn handle(&self, request: super::Request, repo: Repository) -> anyhow::Result<super::Response> {
+    fn handle(
+        &self,
+        request: super::Request,
+        repo: &Repository,
+    ) -> anyhow::Result<super::Response> {
         let key = "abc";
         let timestamp = std::time::SystemTime::UNIX_EPOCH;
         let value = repo.kv_repo().get(key, timestamp).unwrap();

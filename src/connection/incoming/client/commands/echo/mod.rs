@@ -12,7 +12,7 @@ impl Command<super::super::Request, super::super::Response, Repository> for Echo
     fn handle(
         &self,
         input: super::super::Request,
-        repo: Repository,
+        repo: &Repository,
     ) -> anyhow::Result<super::super::Response> {
         todo!()
     }

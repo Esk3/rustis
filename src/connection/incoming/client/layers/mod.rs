@@ -46,6 +46,6 @@ impl Service<super::Request> for RoutingLayer {
                 event: None,
             });
         };
-        handler.handle(request, self.repo.clone())
+        handler.handle(request, &self.repo)
     }
 }
