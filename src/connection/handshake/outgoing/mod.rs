@@ -1,9 +1,9 @@
 use anyhow::anyhow;
 
-use crate::resp;
+use crate::resp::{self, value::IntoRespArray};
 
-//#[cfg(test)]
-//pub mod tests;
+#[cfg(test)]
+pub mod tests;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct OutgoingHandshake {
@@ -23,24 +23,27 @@ impl OutgoingHandshake {
 
     pub fn try_advance(
         &mut self,
-        response: &Option<resp::Value>,
+        response: &Option<Vec<resp::Value>>,
     ) -> anyhow::Result<Option<resp::Value>> {
-        todo!()
-        //let result = match (self.advances, response) {
-        //    (0, None) => Ok(Some(Input::Ping)),
-        //    (1, Some(Output::Pong)) => Ok(Some(Input::ReplConf(ReplConf::ListingPort(1)))),
-        //    (2, Some(Output::ReplConf(ReplConf::Ok))) => {
-        //        Ok(Some(ReplConf::Capa(String::new()).into()))
-        //    }
-        //    (3, Some(Output::ReplConf(ReplConf::Ok))) => Ok(Some(Input::Psync)),
-        //    (4, Some(Output::Psync)) => Ok(None),
-        //    _ => Err(anyhow!("unepexted handshake message {response:?}")),
-        //};
-        //if result.is_ok() {
-        //    self.advances += 1;
-        //} else {
-        //    self.advances = 0;
-        //}
-        //result
+        let result = match (self.advances, response) {
+            (0, None) => Ok(Some(resp::Value::simple_string("PING"))),
+            (1, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("PONG") => Ok(Some(
+                resp::Value::bulk_strings("REPLCONF; listing-port;1").into_array(),
+            )),
+            (2, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("OK") => Ok(Some(
+                resp::Value::bulk_strings("REPLCONF; CAPA; SYNC").into_array(),
+            )),
+            (3, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("OK") => {
+                Ok(Some(resp::Value::simple_string("PSYNC")))
+            }
+            (4, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("PSYNC") => Ok(None),
+            _ => Err(anyhow!("unepexted handshake message {response:?}")),
+        };
+        if result.is_ok() {
+            self.advances += 1;
+        } else {
+            self.advances = 0;
+        }
+        result
     }
 }

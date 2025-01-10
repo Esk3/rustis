@@ -1,7 +1,5 @@
 use std::io::{Read, Write};
 
-use anyhow::anyhow;
-
 use crate::{
     connection::{self, Connection, ConnectionResult},
     resp::{

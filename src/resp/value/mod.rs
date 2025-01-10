@@ -24,8 +24,15 @@ impl Value {
     pub fn bulk_string(s: impl ToString) -> Self {
         Self::BulkString(s.to_string())
     }
-    pub fn bulk_strings(s: impl ToString, pat: &str) -> Vec<Self> {
-        s.to_string().split(pat).map(Self::bulk_string).collect()
+    pub fn bulk_strings(s: impl ToString) -> Vec<Self> {
+        Self::bulk_string_pat(s, ";")
+    }
+    pub fn bulk_string_pat(s: impl ToString, pat: &str) -> Vec<Self> {
+        s.to_string()
+            .split(pat)
+            .map(str::trim)
+            .map(Self::bulk_string)
+            .collect()
     }
     #[must_use]
     pub fn ok() -> Self {

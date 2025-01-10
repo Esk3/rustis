@@ -37,7 +37,9 @@ where
         while let Some(next) = handshake.try_advance(&response).unwrap() {
             dbg!(&next);
             self.connection.write_value(next).unwrap();
-            response = Some(self.connection.read_value()?.value);
+            let value = self.connection.read_value()?.value;
+            let arr = value.into_array().unwrap();
+            response = Some(arr);
         }
         Ok(1)
     }
