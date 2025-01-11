@@ -1,5 +1,7 @@
 use crate::radix::Radix;
 
+pub mod parser;
+
 pub trait Command<Req, Res, S>: Sync {
     fn info(&self) -> CommandInfo;
     fn call(&self, request: Req, state: &S) -> anyhow::Result<Res>;

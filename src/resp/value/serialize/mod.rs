@@ -12,6 +12,8 @@ pub fn serialize_value(value: &Value) -> Vec<u8> {
         Value::NullString => serialize_null_string().to_vec(),
         Value::Array(arr) => serialize_array(arr),
         Value::NullArray => serialize_null_array().to_vec(),
+        Value::Integer(i) => serialize_int(*i),
+        Value::SimpleError(s) => serialize_simple_string(s),
     }
 }
 
@@ -19,6 +21,15 @@ pub fn serialize_simple_string(s: &str) -> Vec<u8> {
     let (identifier_len, linefeed_len) = (1, 2);
     let mut bytes = Vec::with_capacity(s.len() + identifier_len + linefeed_len);
     bytes.extend_identifier(&Identifier::SimpleString);
+    bytes.extend(s.as_bytes());
+    bytes.extend_linefeed();
+    bytes
+}
+
+pub fn serialize_simple_error(s: &str) -> Vec<u8> {
+    let (identifier_len, linefeed_len) = (1, 2);
+    let mut bytes = Vec::with_capacity(s.len() + identifier_len + linefeed_len);
+    bytes.extend_identifier(&Identifier::SimpleError);
     bytes.extend(s.as_bytes());
     bytes.extend_linefeed();
     bytes
@@ -55,6 +66,16 @@ pub const fn serialize_null_string() -> [u8; 5] {
 
 pub const fn serialize_null_array() -> [u8; 5] {
     *b"*-1\r\n"
+}
+
+pub fn serialize_int(n: i64) -> Vec<u8> {
+    let binding = n.to_string();
+    let digits = binding.as_bytes();
+    let mut result = Vec::with_capacity(1 + 1 + digits.len() + 2);
+    result.extend_identifier(&Identifier::Integer);
+    result.extend(digits);
+    result.extend_linefeed();
+    result
 }
 
 trait ExtendLinefeed {

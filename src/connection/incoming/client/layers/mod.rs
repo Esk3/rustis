@@ -33,7 +33,10 @@ impl Service<super::Request> for RoutingLayer {
             .router
             .route(request.value[0].clone().expect_string().unwrap().as_bytes())
         else {
-            return Ok(Response::value(resp::Value::simple_string("not found")));
+            // (error) ERR unknown command 'SENTINEL', with args beginning with: 'masters'
+            return Ok(Response::value(resp::Value::SimpleError(
+                "ERR unknown command 'SENTINEL', with args beginning with: 'masters'".into(),
+            )));
         };
         handler.call(request, &self.repo)
     }

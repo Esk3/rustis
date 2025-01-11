@@ -16,6 +16,7 @@ mod follower;
 //pub mod tests;
 
 pub struct IncomingConnection<C> {
+    id: usize,
     connection: C,
     client_router: &'static client::Router,
     repo: Repository,
@@ -28,12 +29,14 @@ where
 {
     #[must_use]
     pub fn new(
+        id: usize,
         connection: C,
         client_router: &'static client::Router,
         emitter: EventEmitter,
         repo: Repository,
     ) -> Self {
         Self {
+            id,
             connection,
             client_router,
             repo,
@@ -41,7 +44,7 @@ where
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(name = "incomming_connection_handler", skip(self), fields(connection.id = %self.id))]
     pub fn run_handler(mut self) -> anyhow::Result<()> {
         if self.handle_client_connection().is_ok() {
             self.handle_follower_connection();
@@ -60,7 +63,11 @@ where
         info!("handling client connection");
         let mut client_handler =
             client::Client::new(self.client_router, self.emitter.clone(), self.repo.clone());
+        let mut req_id = 0;
         loop {
+            req_id += 1;
+            let span = tracing::debug_span!("request", reqeust.id = %req_id);
+            let _guard = span.enter();
             let request = match self.connection.read_value() {
                 Ok(request) => request,
                 Err(ConnectionError::EndOfInput) => bail!("out of input"),
@@ -72,10 +79,10 @@ where
                     continue;
                 }
             };
-            debug!("handling request: {request:?}");
+            tracing::trace!("handling request: {request:?}");
             let request = client::Request::now(request.value, request.bytes_read);
             let response = client_handler.handle_request(request).unwrap();
-            debug!("got response: {response:?}");
+            tracing::trace!("got response: {response:?}");
             match response.kind {
                 client::response::ResponseKind::Value(output) => {
                     self.connection.write_value(output).unwrap();

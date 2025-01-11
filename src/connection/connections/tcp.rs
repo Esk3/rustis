@@ -26,24 +26,23 @@ impl Connection for RedisTcpConnection {
     fn read_value(&mut self) -> ConnectionResult<connection::Value> {
         let bytes_read = self.stream.read(&mut self.buf[self.i..]).unwrap();
         self.i += bytes_read;
-        tracing::debug!(
-            "buffer: {:?}",
+        tracing::trace!(
+            "read into buffer: {:?}",
             String::from_utf8(self.buf[..self.i].to_vec())
         );
         let (value, bytes_consumed) = deserialize_value(&self.buf[..self.i]).unwrap();
-        tracing::debug!("got value {value:?}");
+        tracing::debug!("deserialized resp:\r\n{value:?}");
         self.buf.rotate_left(bytes_consumed);
         self.i -= bytes_consumed;
         let message = connection::Value::new(value, bytes_consumed);
-        tracing::debug!("got message {message:?}");
         Ok(message)
     }
 
     fn write_value(&mut self, value: resp::Value) -> ConnectionResult<usize> {
-        tracing::debug!("got value: {value:?}");
+        tracing::debug!("seralizing resp:\r\n{value:?}");
         let bytes = serialize_value(&value);
-        tracing::debug!(
-            "serialized: {} \r\n {:?}",
+        tracing::trace!(
+            "serialized resp: {} \r\n {:?}",
             String::from_utf8(bytes.clone()).unwrap(),
             bytes
         );

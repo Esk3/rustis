@@ -28,6 +28,7 @@ impl Router {
 pub fn default_router() -> &'static Router {
     let mut router = Router::new();
     router
+        .add(super::commands::subscribe::Subscribe)
         .add(super::commands::ping::Ping)
         .add(super::commands::echo::Echo)
         .add(super::commands::get::Get)
@@ -35,6 +36,7 @@ pub fn default_router() -> &'static Router {
         .add(super::commands::xadd::XAdd)
         .add(super::commands::client::Client)
         .add(super::commands::config::Config)
+        .add(super::commands::info::Info)
         .add(super::commands::xrange::XRange);
     Box::leak(Box::new(router))
 }

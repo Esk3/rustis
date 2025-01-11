@@ -9,9 +9,11 @@ pub use serialize::serialize_value;
 #[derive(Debug, Clone)]
 pub enum Value {
     SimpleString(String),
+    SimpleError(String),
     BulkString(String),
     BulkByteString(Vec<u8>),
     NullString,
+    Integer(i64),
 
     Array(Vec<Self>),
     NullArray,
@@ -44,6 +46,8 @@ impl Value {
             Value::NullString | Value::NullArray | Value::BulkByteString(_) | Value::Array(_) => {
                 Err(self)
             }
+            Value::Integer(_) => todo!(),
+            Value::SimpleError(_) => todo!(),
         }
     }
     pub fn expect_string(self) -> anyhow::Result<String> {
@@ -66,6 +70,8 @@ impl Value {
             Value::NullString => todo!(),
             Value::Array(_) => todo!(),
             Value::NullArray => todo!(),
+            Value::Integer(_) => todo!(),
+            Value::SimpleError(_) => todo!(),
         }
     }
     #[must_use]
@@ -75,6 +81,8 @@ impl Value {
             Value::NullString | Value::NullArray | Value::BulkByteString(_) | Value::Array(_) => {
                 false
             }
+            Value::Integer(_) => todo!(),
+            Value::SimpleError(_) => todo!(),
         }
     }
 }
@@ -122,6 +130,8 @@ impl PartialEq<&str> for Value {
             Value::NullString | Value::NullArray | Value::BulkByteString(_) | Value::Array(_) => {
                 false
             }
+            Value::Integer(_) => todo!(),
+            Value::SimpleError(_) => todo!(),
         }
     }
 }
