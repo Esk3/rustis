@@ -7,6 +7,7 @@ pub mod connections;
 pub mod handshake;
 pub mod incoming;
 pub mod outgoing;
+pub mod stream;
 
 #[cfg(test)]
 mod tests;

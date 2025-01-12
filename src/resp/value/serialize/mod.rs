@@ -27,3 +27,13 @@ pub fn serialize_value(value: &Value) -> Vec<u8> {
         Value::Raw(raw) => raw.clone(),
     }
 }
+
+pub trait Serialize {
+    fn serialize(&self) -> Vec<u8>;
+}
+
+impl Serialize for Value {
+    fn serialize(&self) -> Vec<u8> {
+        serialize_value(self)
+    }
+}
