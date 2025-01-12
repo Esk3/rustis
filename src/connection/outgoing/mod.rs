@@ -74,13 +74,10 @@ where
             };
             tracing::debug!("got message from leader {message:?}");
             let response = self.leader.handle_request(()).unwrap();
-            //    if responses.is_empty() {
-            //        tracing::debug!("no response");
-            //    } else {
-            //        tracing::debug!("message response: {responses:?}");
-            //        self.connection.write_values(responses).unwrap();
-            //    }
-            todo!()
+            tracing::debug!("sending response {response:?}");
+            if let Some(response) = response {
+                self.connection.write(&response).unwrap();
+            }
         }
     }
 

@@ -3,7 +3,6 @@ use thiserror::Error;
 
 use crate::resp::{self};
 
-pub mod connections;
 pub mod handshake;
 pub mod incoming;
 pub mod outgoing;
