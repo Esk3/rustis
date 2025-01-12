@@ -71,6 +71,7 @@ impl Identifier {
         }
     }
 
+    #[must_use]
     pub fn get_byte_length(&self) -> usize {
         1
     }
