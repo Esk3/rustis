@@ -1,7 +1,7 @@
 use crate::{
     connection::{handshake::incoming::IncomingHandshake, Connection},
     event::Kind,
-    resp,
+    resp::{self, value::IntoRespArray},
 };
 
 //#[cfg(test)]
@@ -15,16 +15,17 @@ impl Follower {
     }
 
     pub fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<resp::Value>> {
-        //let res = match event {
-        //    Kind::Set { key, value, expiry } => Some(Message::Input(crate::resp::Input::Set {
-        //        key,
-        //        value,
-        //        expiry,
-        //        get: false,
-        //    })),
-        //};
-        //Ok(res)
-        todo!()
+        let res = match event {
+            Kind::Set { key, value, expiry } => Some(
+                vec![
+                    resp::Value::bulk_string("SET"),
+                    resp::Value::bulk_string(key),
+                    resp::Value::bulk_string(value),
+                ]
+                .into_array(),
+            ),
+        };
+        Ok(res)
     }
 
     pub fn handshake<C>(&mut self, connection: &mut C) -> anyhow::Result<()>

@@ -28,6 +28,7 @@ impl Response {
     pub fn value_events(value: resp::Value, event: Vec<event::Kind>) -> Self {
         Self::new(ResponseKind::Value(value), Some(event))
     }
+    #[must_use]
     pub fn ok() -> Self {
         Self::value(resp::Value::ok())
     }

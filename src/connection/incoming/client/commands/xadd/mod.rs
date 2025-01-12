@@ -1,9 +1,6 @@
 use crate::{
     command::Command,
-    repository::{
-        stream_repo::{stream::EntryId, StreamId},
-        Repository,
-    },
+    repository::{stream_repo::StreamId, Repository},
     resp,
 };
 

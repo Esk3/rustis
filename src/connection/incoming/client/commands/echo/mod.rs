@@ -44,6 +44,7 @@ impl TryFrom<super::Request> for Request {
             resp::Value::Integer(_) => todo!(),
             resp::Value::Array(_) => todo!(),
             resp::Value::SimpleError(_) => todo!(),
+            resp::Value::Raw(_) => todo!(),
         };
         Ok(Self { echo })
     }

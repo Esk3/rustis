@@ -10,7 +10,7 @@ pub struct Get;
 
 impl Get {
     fn handle_command(Request { key, timestamp }: Request, repo: &Repository) -> Response {
-        repo.get(&key, timestamp).unwrap().into()
+        repo.kv_repo().get(&key, timestamp).unwrap().into()
     }
 }
 impl Command<super::Request, super::Response, Repository> for Get {

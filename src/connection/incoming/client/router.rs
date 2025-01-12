@@ -16,6 +16,7 @@ impl Router {
         self.0.add(command)
     }
 
+    #[must_use]
     pub fn route(
         &self,
         cmd: &[u8],

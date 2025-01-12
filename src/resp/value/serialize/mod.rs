@@ -24,5 +24,6 @@ pub fn serialize_value(value: &Value) -> Vec<u8> {
         Value::NullArray => null_array::serialize_null_array().to_vec(),
         Value::Integer(i) => integer::serialize_int(*i),
         Value::SimpleError(s) => simple_error::serialize_simple_error(s),
+        Value::Raw(raw) => raw.clone(),
     }
 }

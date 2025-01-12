@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 
 use crate::resp;
 
@@ -8,6 +8,7 @@ pub mod tests;
 pub struct IncomingHandshake {
     count: usize,
 }
+
 impl IncomingHandshake {
     #[must_use]
     pub fn new() -> Self {
@@ -37,15 +38,18 @@ impl IncomingHandshake {
             }
             ("REPLCONF", 0 | 1) => {
                 self.count = 2;
+                // TODO read port
                 "OK"
             }
             ("REPLCONF", 2) => {
                 self.count = 3;
+                // TODO read capabilities
                 "OK"
             }
             ("PSYNC", 3) => {
                 self.count += 1;
-                "PSYNC"
+                // TODO id & offset
+                "FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0"
             }
             _ => bail!("invalid advance {input:?}"),
         };

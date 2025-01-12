@@ -17,6 +17,7 @@ pub enum Value {
 
     Array(Vec<Self>),
     NullArray,
+    Raw(Vec<u8>),
 }
 
 impl Value {
@@ -48,11 +49,19 @@ impl Value {
             }
             Value::Integer(_) => todo!(),
             Value::SimpleError(_) => todo!(),
+            Value::Raw(_) => todo!(),
         }
     }
     pub fn expect_string(self) -> anyhow::Result<String> {
         self.into_string()
             .map_err(|err| anyhow!("expected string got {err:?}"))
+    }
+    #[must_use]
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Value::SimpleString(s) | Value::BulkString(s) => Some(s.as_str()),
+            _ => None,
+        }
     }
     pub fn into_array(self) -> Result<Vec<Self>, Self> {
         if let Self::Array(arr) = self {
@@ -72,6 +81,7 @@ impl Value {
             Value::NullArray => todo!(),
             Value::Integer(_) => todo!(),
             Value::SimpleError(_) => todo!(),
+            Value::Raw(_) => todo!(),
         }
     }
     #[must_use]
@@ -83,6 +93,7 @@ impl Value {
             }
             Value::Integer(_) => todo!(),
             Value::SimpleError(_) => todo!(),
+            Value::Raw(_) => todo!(),
         }
     }
 }
@@ -132,6 +143,7 @@ impl PartialEq<&str> for Value {
             }
             Value::Integer(_) => todo!(),
             Value::SimpleError(_) => todo!(),
+            Value::Raw(_) => todo!(),
         }
     }
 }

@@ -11,6 +11,8 @@ pub mod stream;
 #[cfg(test)]
 mod tests;
 
+pub type StreamRepository = LockingStreamRepository;
+
 #[derive(Debug, Clone)]
 pub struct LockingStreamRepository {
     streams: Arc<Mutex<HashMap<String, Stream>>>,

@@ -2,26 +2,26 @@ use super::*;
 
 #[test]
 fn create_stream_repo() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     assert!(repo.is_empty());
 }
 
 #[test]
 fn xadd_creates_stream_if_key_does_not_exsist() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     repo.xadd("myNewStream", None, "myValue");
     assert!(!repo.is_empty());
 }
 
 #[test]
 fn xread_fails_if_stream_does_not_exsist() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     assert!(repo.xread("notFound", EntryId::min(), 1).is_err());
 }
 
 #[test]
 fn xread_returns_newly_added_value_if_done_on_a_new_stream() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     let stream_key = "streamKey";
     let value = "abc";
     let key = repo.xadd(stream_key, None, value).unwrap();
@@ -35,7 +35,7 @@ fn xread_returns_newly_added_value_if_done_on_a_new_stream() {
 
 #[test]
 fn xread_returns_empty_list_if_keys_not_found() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     let stream_key = "streamKey";
     let value = "abc";
     let _ = repo.xadd(stream_key, None, value).unwrap();
@@ -46,7 +46,7 @@ fn xread_returns_empty_list_if_keys_not_found() {
 
 #[test]
 fn xread_last() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     let stream_key = "streamKey";
     let value = "abc";
     let _ = repo.xadd(stream_key, None, value).unwrap();
@@ -68,13 +68,13 @@ fn xread_last() {
 #[test]
 #[should_panic(expected = "stream not found")]
 fn xrange_on_empty_repo_fails() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     repo.xrange("any", EntryId::min(), EntryId::max()).unwrap();
 }
 
 #[test]
 fn xrange() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     let stream_key = "streamKey";
     let value = "abc";
     let key = repo.xadd(stream_key, None, value).unwrap();
@@ -91,7 +91,7 @@ fn xrange() {
 
 #[test]
 fn blocking_query_does_not_block_when_it_finds_data() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     let stream_key = "streamKey";
     let value = "abc";
     let _ = repo.xadd(stream_key, None, value).unwrap();
@@ -99,7 +99,7 @@ fn blocking_query_does_not_block_when_it_finds_data() {
     let xrange_result = repo
         .blocking_query(
             std::time::Duration::from_secs(1),
-            |repo: &LockingStreamRepository| {
+            |repo: &StreamRepository| {
                 repo.xrange(stream_key, EntryId::min(), EntryId::max())
                     .map(|v| if v.is_empty() { None } else { Some(v) })
             },
@@ -112,14 +112,14 @@ fn blocking_query_does_not_block_when_it_finds_data() {
 #[test]
 #[ignore = "sleep"]
 fn blocking_query_blocks_on_no_data_and_returns_none() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     let stream_key = "streamKey";
     let value = "abc";
     let _ = repo.xadd(stream_key, None, value).unwrap();
 
     let start = std::time::Instant::now();
     let block_duration = std::time::Duration::from_millis(10);
-    let none = repo.blocking_query(block_duration, |repo: &LockingStreamRepository| {
+    let none = repo.blocking_query(block_duration, |repo: &StreamRepository| {
         repo.xrange(stream_key, EntryId::new(2, 0), EntryId::max())
             .map(|v| if v.is_empty() { None } else { Some(v) })
     });
@@ -130,7 +130,7 @@ fn blocking_query_blocks_on_no_data_and_returns_none() {
 
 #[test]
 fn values_are_vissable_in_all_clones_of_repo() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     let clone = repo.clone();
     let stream_key = "amazignKey";
     let value = "amazingValue";
@@ -143,7 +143,7 @@ fn values_are_vissable_in_all_clones_of_repo() {
 
 #[test]
 fn blocking_returns_data_recived_during_block() {
-    let repo = LockingStreamRepository::new();
+    let repo = StreamRepository::new();
     let stream_key = "streamKey";
     let value = "abc";
     let _ = repo.xadd(stream_key, None, value).unwrap();
@@ -151,7 +151,7 @@ fn blocking_returns_data_recived_during_block() {
     let block_duration = std::time::Duration::from_millis(100);
     let repo2 = repo.clone();
     let handle = std::thread::spawn(move || {
-        repo2.blocking_query(block_duration, |repo: &LockingStreamRepository| {
+        repo2.blocking_query(block_duration, |repo: &StreamRepository| {
             repo.xrange(stream_key, EntryId::new(2, 0), EntryId::max())
                 .map(|v| if v.is_empty() { None } else { Some(v) })
         })

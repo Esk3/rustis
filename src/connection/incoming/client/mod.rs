@@ -1,11 +1,4 @@
-use layers::RoutingLayer;
-
-use crate::{
-    command::CommandRouter,
-    event::{self, EventEmitter},
-    repository::Repository,
-    resp, Service,
-};
+use crate::{event::EventEmitter, repository::Repository, Service};
 
 pub mod commands;
 pub mod layers;
@@ -21,15 +14,17 @@ pub use router::{default_router, Router};
 //mod tests;
 
 pub struct Client {
-    service: layers::ReplicationService<layers::MultiLayer<RoutingLayer>>,
+    service: layers::ReplicationService<layers::MultiLayer<layers::Routing>>,
 }
 
 impl Client {
+    #[must_use]
     pub fn new(router: &'static Router, emitter: EventEmitter, repo: Repository) -> Self {
+        let emitter = emitter;
         Self {
-            service: layers::ReplicationService::new(layers::MultiLayer::new(RoutingLayer::new(
-                repo, router,
-            ))),
+            service: layers::ReplicationService::new(layers::MultiLayer::new(
+                layers::Routing::new(repo, router),
+            )),
         }
     }
 

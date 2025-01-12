@@ -1,13 +1,15 @@
 use anyhow::{bail, Context};
 
-use crate::{command::Command, repository::Repository};
+use crate::{command::Command, repository::Repository, resp};
 
 pub struct Set;
 
 impl Set {
     fn handle_request(Request { key, value }: Request, repo: &Repository) -> Response {
-        repo.set(key, value, None).unwrap();
-        Response
+        repo.kv_repo()
+            .set(key.clone(), value.clone(), None)
+            .unwrap();
+        Response { key, value }
     }
 }
 impl Command<super::Request, super::Response, Repository> for Set {
@@ -46,16 +48,28 @@ impl TryFrom<super::Request> for Request {
             crate::resp::Value::Integer(_) => todo!(),
             crate::resp::Value::Array(_) => todo!(),
             crate::resp::Value::NullArray => todo!(),
+            crate::resp::Value::Raw(_) => todo!(),
         };
         //let key = key.expect_string()?;
         let value = value.expect_string()?;
         Ok(Self { key, value })
     }
 }
-struct Response;
+
+struct Response {
+    key: String,
+    value: String,
+}
 
 impl From<Response> for super::Response {
-    fn from(_value: Response) -> Self {
-        Self::ok()
+    fn from(value: Response) -> Self {
+        Self::value_event(
+            resp::Value::ok(),
+            crate::event::Kind::Set {
+                key: value.key,
+                value: value.value,
+                expiry: None,
+            },
+        )
     }
 }

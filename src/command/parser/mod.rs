@@ -14,6 +14,7 @@ pub struct Parser {
 }
 
 impl Parser {
+    #[must_use]
     pub fn new(value: Vec<resp::Value>) -> Self {
         Self {
             value: value.into_iter(),
@@ -41,6 +42,7 @@ impl Parser {
         self.store.insert(key.to_string(), value);
         Ok(self)
     }
+    #[must_use]
     pub fn finish(self) -> HashMap<String, String> {
         self.store
     }

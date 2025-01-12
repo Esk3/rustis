@@ -74,13 +74,10 @@ where
     where
         <L as RedisListner>::Connection: std::marker::Send + 'static,
     {
-        let mut ids = 0;
         info!("accepting incoming connections");
         for connection in self.listner.incoming() {
             info!("connection accepted");
-            ids += 1;
             let connection = IncomingConnection::new(
-                ids,
                 connection,
                 self.client_router,
                 self.emitter.clone(),

@@ -34,11 +34,11 @@ impl<V> Radix<V> {
                 }
                 if let Some(next) = children
                     .iter_mut()
-                    .find(|child| key.common_prefix(&child.edge()).is_some())
+                    .find(|child| key.common_prefix(child.edge()).is_some())
                 {
                     match next {
                         Radix::Node { edge, children } => {
-                            let key = key.strip_common_prefix(&edge);
+                            let key = key.strip_common_prefix(edge);
                             next.add(key, value)
                         }
                         Radix::Leaf { edge: _, value: _ } => {
