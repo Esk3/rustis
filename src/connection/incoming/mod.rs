@@ -119,7 +119,6 @@ where
             tracing::trace!("got response: {response:?}");
             if let Some(event) = response.event {
                 // TODO
-                tracing::error!("event dropped {event:?}. TODO: handle events");
                 for event in event {
                     self.emitter.emmit(event);
                 }

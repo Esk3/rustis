@@ -90,7 +90,7 @@ where
     #[instrument(name = "redis_server", skip(self))]
     pub fn run(mut self)
     where
-        C: Connection,
+        C: Connection + Send + 'static,
         <L as RedisListner>::Connection: std::marker::Send + 'static,
     {
         info!(
@@ -104,6 +104,7 @@ where
         if self.is_follower() {
             let connection_to_leader = self.connect_to_leader().unwrap();
             info!("connected to leader");
+            std::thread::spawn(move || connection_to_leader.run().unwrap());
         }
         self.incoming();
     }

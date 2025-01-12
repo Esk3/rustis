@@ -34,9 +34,9 @@ impl OutgoingHandshake {
                 resp::Value::bulk_strings("REPLCONF; CAPA; SYNC").into_array(),
             )),
             (3, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("OK") => {
-                Ok(Some(resp::Value::simple_string("PSYNC")))
+                Ok(Some(resp::Value::bulk_strings("PSYNC").into_array()))
             }
-            (4, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("PSYNC") => Ok(None),
+            (4, Some(res)) if res.first().is_some() /*.unwrap().eq_ignore_ascii_case("FULLRESYNC") */=> Ok(None),
             _ => Err(anyhow!("unepexted handshake message {response:?}")),
         };
         if result.is_ok() {
