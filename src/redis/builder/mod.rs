@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    config::RedisConfig, connection::Connection, event::EventEmitter, listner::RedisListner,
+    config::RedisConfig, connection::stream::Stream, event::EventEmitter, listner::RedisListner,
     repository::Repository,
 };
 use anyhow::Context;
@@ -18,10 +18,10 @@ pub struct RedisBuilder<L, C> {
     emitter: Option<EventEmitter>,
 }
 
-impl<L, C> RedisBuilder<L, C>
+impl<L, S> RedisBuilder<L, S>
 where
     L: RedisListner,
-    C: Connection,
+    S: Stream<Addr = std::net::SocketAddrV4>,
 {
     #[must_use]
     pub fn new() -> Self {
@@ -34,7 +34,7 @@ where
         }
     }
 
-    pub fn build(self) -> anyhow::Result<super::Redis<L, C>> {
+    pub fn build(self) -> anyhow::Result<super::Redis<L, S>> {
         Ok(super::Redis::new(
             self.listner.context("listner missing")?,
             self.leader_connection,
@@ -92,7 +92,7 @@ where
     }
 
     #[must_use]
-    pub fn leader_connection(self, connection: C) -> Self {
+    pub fn leader_connection(self, connection: S) -> Self {
         if self.leader_connection.is_some() {
             tracing::warn!("leader connection overwritten");
         }

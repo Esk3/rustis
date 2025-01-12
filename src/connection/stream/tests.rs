@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use resp::value::{serialize::Serialize, IntoRespArray};
 
 use super::*;
@@ -24,7 +22,7 @@ fn connection_reads_single_value_from_stream() {
     fn test(expected_value: resp::Value) {
         let s = stream_single(expected_value.clone());
         let mut connection = RedisConnection::new(s);
-        let value = connection.read().unwrap();
+        let value = connection.read().unwrap().value;
         assert_eq!(value, expected_value);
     }
 
@@ -64,7 +62,7 @@ fn connection_reads_multiple_values_from_stream() {
         let s = stream(expected_values.clone());
         let mut connection = RedisConnection::new(s);
         let values = (0..expected_values.len())
-            .map(|_| connection.read().unwrap())
+            .map(|_| connection.read().unwrap().value)
             .collect::<Vec<resp::Value>>();
         assert_eq!(values, expected_values);
     }
@@ -81,7 +79,12 @@ fn read_all_returns_all_values() {
     fn test(values: Vec<resp::Value>) {
         let s = stream(values.clone());
         let mut connection = RedisConnection::new(s);
-        let actual = connection.read_all().unwrap();
+        let actual = connection
+            .read_all()
+            .unwrap()
+            .into_iter()
+            .map(|r| r.value)
+            .collect::<Vec<_>>();
         assert_eq!(actual, values);
     }
 
@@ -99,7 +102,7 @@ fn written_value_can_be_read_from_stream() {
         let mut conn = RedisConnection::new(s);
         conn.write(&value).unwrap();
         conn.stream_mut().set_position(0);
-        let actual = conn.read().unwrap();
+        let actual = conn.read().unwrap().value;
         assert_eq!(actual, value);
     }
     for value in test_values() {
@@ -142,7 +145,12 @@ fn values_written_are_avalible_for_read_all() {
         let mut conn = RedisConnection::new(s);
         _ = conn.write_all(&values).unwrap();
         conn.stream_mut().set_position(0);
-        let read = conn.read_all().unwrap();
+        let read = conn
+            .read_all()
+            .unwrap()
+            .into_iter()
+            .map(|r| r.value)
+            .collect::<Vec<_>>();
         assert_eq!(read, values);
     }
     for value in test_values() {
@@ -155,7 +163,7 @@ fn pipeline_buffer_reads_single_value() {
     fn test(expected_value: resp::Value) {
         let s = stream_single(expected_value.clone());
         let mut connection = PipelineBuffer::new(s);
-        let value = connection.read().unwrap();
+        let value = connection.read().unwrap().value;
         assert_eq!(value, expected_value);
     }
 
@@ -176,7 +184,7 @@ fn pipeline_buffer_writes_single_value() {
         let mut connection = PipelineBuffer::new(s);
         connection.write(&expected_value).unwrap();
         connection.connection.stream.set_position(0);
-        let value = connection.read().unwrap();
+        let value = connection.read().unwrap().value;
         assert_eq!(value, expected_value);
     }
 
@@ -256,7 +264,12 @@ fn pipeline_buffer_writes_to_stream_on_first_write_after_read_buffer_is_empty() 
         assert_ne!(s.position(), expected_position);
         s.set_position(expected_position);
         let mut conn = RedisConnection::new(s);
-        let res = conn.read_all().unwrap();
+        let res = conn
+            .read_all()
+            .unwrap()
+            .into_iter()
+            .map(|v| v.value)
+            .collect::<Vec<_>>();
         assert_eq!(
             res,
             std::iter::repeat(resp::Value::simple_string("dummy"))

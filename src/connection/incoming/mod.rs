@@ -3,12 +3,7 @@ use client::response::ResponseKind;
 use follower::Follower;
 use tracing::instrument;
 
-use crate::{
-    connection::{Connection, ConnectionError},
-    event::EventEmitter,
-    repository::Repository,
-    resp,
-};
+use crate::{connection::ConnectionError, event::EventEmitter, repository::Repository, resp};
 
 pub mod client;
 mod follower;
@@ -23,31 +18,33 @@ mod id {
 
 use id::get_id;
 
+use super::stream::{PipelineBuffer, Stream};
+
 //#[cfg(test)]
 //pub mod tests;
 
-pub struct IncomingConnection<C> {
+pub struct IncomingConnection<S> {
     id: usize,
-    connection: C,
+    connection: PipelineBuffer<S>,
     client_router: &'static client::Router,
     repo: Repository,
     emitter: EventEmitter,
 }
 
-impl<C> IncomingConnection<C>
+impl<S> IncomingConnection<S>
 where
-    C: Connection,
+    S: Stream,
 {
     #[must_use]
     pub fn new(
-        connection: C,
+        stream: S,
         client_router: &'static client::Router,
         emitter: EventEmitter,
         repo: Repository,
     ) -> Self {
         Self {
             id: get_id(),
-            connection,
+            connection: PipelineBuffer::new(stream),
             client_router,
             repo,
             emitter,
@@ -68,7 +65,7 @@ where
 
     pub fn spawn_handler(self)
     where
-        C: std::marker::Send + 'static,
+        S: std::marker::Send + 'static,
     {
         std::thread::spawn(move || self.run_handler().unwrap());
     }
@@ -99,81 +96,55 @@ where
         handler: &mut client::Client,
         request_id: usize,
     ) -> anyhow::Result<ClientRequestResult> {
-        let requests = match self.connection.read_values() {
+        let request = match self.connection.read() {
             Ok(request) => request,
-            Err(ConnectionError::EndOfInput) => bail!("out of input"),
-            Err(ConnectionError::Io(err)) => todo!("io err: {err}"),
-            Err(ConnectionError::Any(err)) => {
-                tracing::warn!("err reading message: {err:?}");
-                todo!();
-                return Err(err);
+            Err(err) => todo!("{err}"),
+            //Err(ConnectionError::EndOfInput) => bail!("out of input"),
+            //Err(ConnectionError::Io(err)) => todo!("io err: {err}"),
+            //Err(ConnectionError::Any(err)) => {
+            //    tracing::warn!("err reading message: {err:?}");
+            //    todo!();
+            //    return Err(err);
+            //}
+        };
+
+        tracing::trace!("handling request: {request:?}");
+        let request = client::Request::now(request.value, request.bytes_read);
+        let response = handler.handle_request(request).unwrap();
+        tracing::trace!("got response: {response:?}");
+        if let Some(event) = response.event {
+            // TODO
+            for event in event {
+                self.emitter.emmit(event);
+            }
+        }
+
+        let response = match response.kind {
+            ResponseKind::Value(response) => response,
+            ResponseKind::RecivedReplconf(repl) => {
+                return Ok(ClientRequestResult::ReplicationMessage(
+                    repl.into_array().unwrap(),
+                ))
             }
         };
 
-        let mut responses = Vec::new();
-
-        for request in requests {
-            tracing::trace!("handling request: {request:?}");
-            let request = client::Request::now(request.value, request.bytes_read);
-            let response = handler.handle_request(request).unwrap();
-            tracing::trace!("got response: {response:?}");
-            if let Some(event) = response.event {
-                // TODO
-                for event in event {
-                    self.emitter.emmit(event);
-                }
-            }
-            responses.push(response.kind);
-        }
-
-        let mut output: Vec<resp::Value> = Vec::with_capacity(responses.len());
-        let mut replicate = Vec::new();
-
-        for response in responses {
-            match response {
-                ResponseKind::Value(response) => output.push(response),
-                ResponseKind::RecivedReplconf(repl) => replicate.push(repl),
-            }
-        }
-
-        self.connection.write_values(output).unwrap();
-
-        if replicate.is_empty() {
-            Ok(ClientRequestResult::Ok)
-        } else {
-            // TODO
-            tracing::warn!(
-                "implementation incomplete some values may be dropped or consumed by client"
-            );
-            Ok(ClientRequestResult::ReplicationMessage(replicate))
-        }
+        self.connection.write(&response).unwrap();
+        Ok(ClientRequestResult::Ok)
     }
 
-    fn handle_follower_connection(mut self, mut inputs: Vec<resp::Value>) {
+    fn handle_follower_connection(mut self, inputs: Vec<resp::Value>) {
         tracing::info!("handling follower connection");
         let subscriber = self.emitter.subscribe();
 
         let mut handshake = crate::connection::handshake::incoming::IncomingHandshake::new();
+        assert_eq!(inputs.len(), 1);
+        let mut input = inputs.first().unwrap().clone();
         dbg!("starting handshake");
         while !handshake.is_finished() {
-            if inputs.is_empty() {
-                dbg!("reading new input");
-                inputs.extend(
-                    self.connection
-                        .read_values()
-                        .unwrap()
-                        .into_iter()
-                        .map(|v| v.value),
-                );
-            }
-            for input in inputs.drain(..) {
-                dbg!("handling input", &input);
-                let response = handshake.try_advance(&input.into_array().unwrap()).unwrap();
-                dbg!("sending response", &response);
-                self.connection.write_values(vec![response]).unwrap();
-            }
-            ////let response = handshake.try_advance(&input.into_array().unwrap()).unwrap();
-            //self.connection.write_values(responses).unwrap();
+            let response = handshake.try_advance(&input.into_array().unwrap()).unwrap();
+            dbg!("sending response", &response);
+            self.connection.write(&response).unwrap();
+            input = self.connection.read().unwrap().value;
         }
         dbg!("handshake finished");
         let hex = "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2";
@@ -183,14 +154,14 @@ where
         raw.extend(b"\r\n");
         raw.extend(data);
         let rdb = resp::Value::Raw(raw);
-        self.connection.write_values(vec![rdb]).unwrap();
+        self.connection.write(&rdb).unwrap();
         dbg!("rdb file sent");
 
         let mut handler = Follower::new();
         loop {
             let event = subscriber.recive();
             let response = handler.handle_event(event).unwrap().unwrap();
-            self.connection.write_values(vec![response]).unwrap();
+            self.connection.write(&response).unwrap();
         }
     }
 }

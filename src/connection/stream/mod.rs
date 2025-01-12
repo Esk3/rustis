@@ -1,4 +1,4 @@
-use std::{fmt::Debug, usize};
+use std::fmt::Debug;
 
 use crate::resp::{
     self,
@@ -17,6 +17,18 @@ pub trait Stream: std::io::Read + std::io::Write {
 }
 
 pub struct TcpStream(std::net::TcpStream);
+
+impl TcpStream {
+    pub fn new(stream: std::net::TcpStream) -> Self {
+        Self(stream)
+    }
+}
+
+impl From<std::net::TcpStream> for TcpStream {
+    fn from(value: std::net::TcpStream) -> Self {
+        Self::new(value)
+    }
+}
 
 impl std::io::Read for TcpStream {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
@@ -52,7 +64,8 @@ impl Stream for TcpStream {
     }
 }
 
-struct RedisConnection<S> {
+#[derive(Debug)]
+pub struct RedisConnection<S> {
     stream: S,
     buf: [u8; 1024],
     i: usize,
@@ -60,9 +73,9 @@ struct RedisConnection<S> {
 
 impl<S> RedisConnection<S>
 where
-    S: Stream + Debug,
+    S: Stream,
 {
-    pub fn read(&mut self) -> anyhow::Result<resp::Value> {
+    pub fn read(&mut self) -> anyhow::Result<ReadResult> {
         if self.i == 0 {
             let bytes_read = self.stream.read(&mut self.buf).unwrap();
             self.i = bytes_read;
@@ -70,10 +83,13 @@ where
         let (value, bytes_consumed) = deserialize_value(&self.buf).unwrap();
         self.buf.rotate_left(bytes_consumed);
         self.i -= bytes_consumed;
-        Ok(value)
+        Ok(ReadResult {
+            value,
+            bytes_read: bytes_consumed,
+        })
     }
 
-    pub fn read_all(&mut self) -> anyhow::Result<Vec<resp::Value>> {
+    pub fn read_all(&mut self) -> anyhow::Result<Vec<ReadResult>> {
         let mut values = Vec::new();
         for i in 0..10 {
             let value = self.read().unwrap();
@@ -116,18 +132,19 @@ where
     }
 }
 
-struct PipelineBuffer<S> {
+#[derive(Debug)]
+pub struct PipelineBuffer<S> {
     connection: RedisConnection<S>,
     read: usize,
-    read_buffer: Vec<resp::Value>,
+    read_buffer: Vec<ReadResult>,
     write_buffer: Vec<u8>,
 }
 
 impl<S> PipelineBuffer<S>
 where
-    S: Stream + Debug,
+    S: Stream,
 {
-    fn new(stream: S) -> Self {
+    pub fn new(stream: S) -> Self {
         Self {
             connection: RedisConnection::new(stream),
             read: 0,
@@ -136,13 +153,13 @@ where
         }
     }
 
-    pub fn read(&mut self) -> anyhow::Result<resp::Value> {
+    pub fn read(&mut self) -> anyhow::Result<ReadResult> {
         if let Some(value) = self.read_buffer.pop() {
-            return Ok(value);
+            Ok(value)
         } else {
             self.read_buffer
                 .extend(self.connection.read_all().unwrap().into_iter().rev());
-            return Ok(self.read_buffer.pop().unwrap());
+            Ok(self.read_buffer.pop().unwrap())
         }
     }
 
@@ -159,4 +176,10 @@ where
             Ok(len)
         }
     }
+}
+
+#[derive(Debug)]
+pub struct ReadResult {
+    pub value: resp::Value,
+    pub bytes_read: usize,
 }

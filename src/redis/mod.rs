@@ -3,7 +3,7 @@ use crate::{
     connection::{
         incoming::{client, IncomingConnection},
         outgoing::OutgoingConnection,
-        Connection,
+        stream::Stream,
     },
     event::EventEmitter,
     listner::RedisListner,
@@ -25,20 +25,20 @@ pub struct Redis<L, C> {
     emitter: EventEmitter,
 }
 
-impl<L, C> Redis<L, C>
+impl<L, S> Redis<L, S>
 where
     L: RedisListner,
-    C: Connection,
+    S: Stream<Addr = std::net::SocketAddrV4>,
 {
     #[must_use]
     pub fn new(
         listner: L,
-        leader_connection: Option<C>,
+        leader_connection: Option<S>,
         repo: Repository,
         emitter: EventEmitter,
     ) -> Self {
         let config = if let Some(ref connection) = leader_connection {
-            RedisConfig::new_follower(listner.get_port(), connection.get_peer_addr())
+            RedisConfig::new_follower(listner.get_port(), connection.peer_addr().into())
         } else {
             RedisConfig::new(listner.get_port())
         };
@@ -57,12 +57,12 @@ where
         self.config.port()
     }
 
-    fn connect_to_leader(&mut self) -> anyhow::Result<OutgoingConnection<C>> {
+    fn connect_to_leader(&mut self) -> anyhow::Result<OutgoingConnection<S>> {
         if !self.is_follower() {
             error!("tried to connect to leader without being a follower");
             panic!("is not follower");
         }
-        OutgoingConnection::<C>::connect(
+        OutgoingConnection::<S>::connect(
             self.config
                 .leader_addr()
                 .expect("should be set if follower"),
@@ -72,7 +72,7 @@ where
 
     fn incoming(self)
     where
-        <L as RedisListner>::Connection: std::marker::Send + 'static,
+        <L as RedisListner>::Stream: std::marker::Send + 'static,
     {
         info!("accepting incoming connections");
         for connection in self.listner.incoming() {
@@ -90,8 +90,8 @@ where
     #[instrument(name = "redis_server", skip(self))]
     pub fn run(mut self)
     where
-        C: Connection + Send + 'static,
-        <L as RedisListner>::Connection: std::marker::Send + 'static,
+        S: Stream + Send + 'static,
+        <L as RedisListner>::Stream: std::marker::Send + 'static,
     {
         info!(
             "starting to run redis server as {}",
@@ -112,8 +112,8 @@ where
     pub fn spawn(self)
     where
         L: Send + 'static,
-        <L as RedisListner>::Connection: Send + 'static,
-        C: Send + 'static,
+        <L as RedisListner>::Stream: Send + 'static,
+        S: Send + 'static,
     {
         std::thread::spawn(move || self.run());
     }

@@ -15,15 +15,6 @@ mod tests;
 #[cfg(test)]
 pub use tests::*;
 
-pub trait Connection {
-    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
-    where
-        Self: Sized;
-    fn read_values(&mut self) -> ConnectionResult<Vec<Value>>;
-    fn write_values(&mut self, values: Vec<resp::Value>) -> ConnectionResult<usize>;
-    fn get_peer_addr(&self) -> std::net::SocketAddr;
-}
-
 #[derive(Error, Debug)]
 pub enum ConnectionError {
     #[error("end of input")]

@@ -1,5 +1,8 @@
 use crate::{
-    connection::{handshake::incoming::IncomingHandshake, Connection},
+    connection::{
+        handshake::incoming::IncomingHandshake,
+        stream::{PipelineBuffer, Stream},
+    },
     event::Kind,
     resp::{self, value::IntoRespArray},
 };
@@ -28,18 +31,15 @@ impl Follower {
         Ok(res)
     }
 
-    pub fn handshake<C>(&mut self, connection: &mut C) -> anyhow::Result<()>
+    pub fn handshake<S>(&mut self, connection: &mut PipelineBuffer<S>) -> anyhow::Result<()>
     where
-        C: Connection,
+        S: Stream,
     {
         let mut handshake = IncomingHandshake::new();
         while !handshake.is_finished() {
-            let inputs = connection.read_values()?.into_iter().map(|m| m.value);
-            let responses = inputs
-                .map(|input| handshake.try_advance(&input.into_array().unwrap()).unwrap())
-                .collect();
-            //let response = handshake.try_advance(&input.into_array().unwrap()).unwrap();
-            connection.write_values(responses).unwrap();
+            let input = connection.read().unwrap().value;
+            let response = handshake.try_advance(&input.into_array().unwrap()).unwrap();
+            connection.write(&response).unwrap();
         }
         Ok(())
     }

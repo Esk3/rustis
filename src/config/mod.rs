@@ -1,15 +1,15 @@
-use std::net::SocketAddr;
+use std::net::SocketAddrV4;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Role {
     Leader,
-    Follower(SocketAddr),
+    Follower(SocketAddrV4),
 }
 
 #[derive(Debug)]
 pub struct RedisConfig {
     port: u16,
-    leader_addr: Option<SocketAddr>,
+    leader_addr: Option<SocketAddrV4>,
 }
 
 impl RedisConfig {
@@ -22,7 +22,7 @@ impl RedisConfig {
     }
 
     #[must_use]
-    pub fn new_follower(port: u16, addr: SocketAddr) -> RedisConfig {
+    pub fn new_follower(port: u16, addr: SocketAddrV4) -> RedisConfig {
         Self {
             port,
             leader_addr: Some(addr),
@@ -35,7 +35,7 @@ impl RedisConfig {
     }
 
     #[must_use]
-    pub fn leader_addr(&self) -> Option<SocketAddr> {
+    pub fn leader_addr(&self) -> Option<SocketAddrV4> {
         self.leader_addr
     }
 }

@@ -1,3 +1,3 @@
 pub mod tcp;
 
-pub use tcp::RedisTcpConnection;
+//pub use tcp::RedisTcpConnection;

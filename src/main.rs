@@ -1,10 +1,9 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
 use clap::Parser;
-use rustis::connection::Connection;
+use rustis::connection::stream::{self, Stream};
 use rustis::redis::builder::RedisBuilder;
 use rustis::{
-    connection::connections::RedisTcpConnection,
     event::EventEmitter,
     listner::{RedisListner, RedisTcpListner},
     repository::Repository,
@@ -19,14 +18,14 @@ fn main() {
     let repo = Repository::default();
     let emitter = EventEmitter::new();
 
-    let builder = RedisBuilder::<RedisTcpListner, RedisTcpConnection>::new()
+    let builder = RedisBuilder::<RedisTcpListner, stream::TcpStream>::new()
         .listner(RedisTcpListner::bind(port).unwrap())
         .repo(repo)
         .emitter(emitter);
 
     let redis = if let Some(leader_port) = args.replicaof {
         builder.leader_connection(
-            RedisTcpConnection::connect(SocketAddrV4::new(Ipv4Addr::LOCALHOST, leader_port).into())
+            stream::TcpStream::connect(SocketAddrV4::new(Ipv4Addr::LOCALHOST, leader_port))
                 .unwrap(),
         )
     } else {

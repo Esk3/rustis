@@ -4,7 +4,10 @@ use tracing::instrument;
 
 use crate::{connection, repository::Repository, resp};
 
-use super::{handshake::outgoing::OutgoingHandshake, Connection};
+use super::{
+    handshake::outgoing::OutgoingHandshake,
+    stream::{PipelineBuffer, Stream},
+};
 
 mod handler;
 
@@ -13,21 +16,24 @@ mod handler;
 
 #[derive(Debug)]
 #[allow(clippy::module_name_repetitions)]
-pub struct OutgoingConnection<C> {
-    connection: C,
+pub struct OutgoingConnection<S> {
+    connection: PipelineBuffer<S>,
     repo: Repository,
 }
 
-impl<C> OutgoingConnection<C>
+impl<S> OutgoingConnection<S>
 where
-    C: Connection,
+    S: Stream<Addr = std::net::SocketAddrV4>,
 {
-    pub fn new(connection: C, repo: Repository) -> Self {
-        Self { connection, repo }
+    pub fn new(connection: S, repo: Repository) -> Self {
+        Self {
+            connection: PipelineBuffer::new(connection),
+            repo,
+        }
     }
 
-    pub fn connect(addr: SocketAddr, repo: Repository) -> anyhow::Result<Self> {
-        Ok(Self::new(C::connect(addr)?, repo))
+    pub fn connect(addr: std::net::SocketAddrV4, repo: Repository) -> anyhow::Result<Self> {
+        Ok(Self::new(S::connect(addr)?, repo))
     }
 
     #[instrument(name = "outgoing_connection", skip(self))]
@@ -36,16 +42,16 @@ where
     }
 }
 
-struct LeaderConnection<C> {
-    connection: C,
+struct LeaderConnection<S> {
+    connection: PipelineBuffer<S>,
     leader: Leader,
 }
 
-impl<C> LeaderConnection<C>
+impl<S> LeaderConnection<S>
 where
-    C: Connection,
+    S: Stream,
 {
-    fn new(connection: C) -> Self {
+    fn new(connection: PipelineBuffer<S>) -> Self {
         Self {
             connection,
             leader: Leader::new(()),
@@ -57,47 +63,38 @@ where
         self.handshake()?;
         tracing::info!("handshake with leader sucesfully completed");
         loop {
-            let message = match self.connection.read_values() {
+            let message = match self.connection.read() {
                 Ok(msg) => msg,
-                Err(err) => match err {
-                    super::ConnectionError::EndOfInput => return Ok(()),
-                    super::ConnectionError::Io(_) => todo!(),
-                    super::ConnectionError::Any(_) => todo!(),
-                },
+                Err(err) => todo!("{err}"),
+                //Err(err) => match err {
+                //    super::ConnectionError::EndOfInput => return Ok(()),
+                //    super::ConnectionError::Io(_) => todo!(),
+                //    super::ConnectionError::Any(_) => todo!(),
+                //},
             };
             tracing::debug!("got message from leader {message:?}");
-            let responses = message
-                .into_iter()
-                .filter_map(|req| self.leader.handle_request(()).unwrap())
-                .collect::<Vec<_>>();
-            if responses.is_empty() {
-                tracing::debug!("no response");
-            } else {
-                tracing::debug!("message response: {responses:?}");
-                self.connection.write_values(responses).unwrap();
-            }
+            let response = self.leader.handle_request(()).unwrap();
+            //    if responses.is_empty() {
+            //        tracing::debug!("no response");
+            //    } else {
+            //        tracing::debug!("message response: {responses:?}");
+            //        self.connection.write_values(responses).unwrap();
+            //    }
+            todo!()
         }
     }
 
     fn handshake(&mut self) -> anyhow::Result<usize> {
         let mut handshake = OutgoingHandshake::new();
-        let mut input = Vec::new();
         let mut response = None;
         while let Some(next) = handshake.try_advance(&response).unwrap() {
             dbg!(&next);
-            self.connection.write_values(vec![next]).unwrap();
-            if input.is_empty() {
-                input.extend(self.connection.read_values().unwrap());
-            }
-            let value = input.remove(0).value;
+            self.connection.write(&next).unwrap();
+            let value = self.connection.read().unwrap().value;
             let arr = value.into_array().unwrap_or_else(|v| vec![v]);
             response = Some(arr);
         }
-        if input.is_empty() {
-            let rdb = self.connection.read_values().unwrap();
-        } else {
-            let rdb = input.remove(0);
-        }
+        todo!("read rdb file");
         Ok(1)
     }
 }
