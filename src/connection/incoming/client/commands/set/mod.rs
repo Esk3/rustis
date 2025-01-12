@@ -38,7 +38,16 @@ impl TryFrom<super::Request> for Request {
         let (Some(key), Some(value)) = (iter.next(), iter.next()) else {
             bail!("usage: SET <key> <value>")
         };
-        let key = key.expect_string()?;
+        let key = match key {
+            crate::resp::Value::SimpleString(s) | crate::resp::Value::BulkString(s) => s,
+            crate::resp::Value::SimpleError(_) => todo!(),
+            crate::resp::Value::BulkByteString(s) => String::from_utf8_lossy(&s).to_string(),
+            crate::resp::Value::NullString => todo!(),
+            crate::resp::Value::Integer(_) => todo!(),
+            crate::resp::Value::Array(_) => todo!(),
+            crate::resp::Value::NullArray => todo!(),
+        };
+        //let key = key.expect_string()?;
         let value = value.expect_string()?;
         Ok(Self { key, value })
     }

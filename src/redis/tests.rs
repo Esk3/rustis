@@ -199,11 +199,11 @@ impl Connection for DummyConnection {
         Ok(Self)
     }
 
-    fn read_value(&mut self) -> ConnectionResult<connection::Value> {
+    fn read_values(&mut self) -> ConnectionResult<Vec<connection::Value>> {
         todo!()
     }
 
-    fn write_value(&mut self, command: resp::Value) -> ConnectionResult<usize> {
+    fn write_values(&mut self, command: Vec<resp::Value>) -> ConnectionResult<usize> {
         todo!()
     }
 

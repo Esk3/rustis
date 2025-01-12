@@ -34,6 +34,7 @@ impl Service<super::Request> for RoutingLayer {
             .route(request.value[0].clone().expect_string().unwrap().as_bytes())
         else {
             // (error) ERR unknown command 'SENTINEL', with args beginning with: 'masters'
+            tracing::warn!("unknown command {:?}", request.value);
             return Ok(Response::value(resp::Value::SimpleError(
                 "ERR unknown command 'SENTINEL', with args beginning with: 'masters'".into(),
             )));

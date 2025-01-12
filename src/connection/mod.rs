@@ -19,8 +19,8 @@ pub trait Connection {
     fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
     where
         Self: Sized;
-    fn read_value(&mut self) -> ConnectionResult<Value>;
-    fn write_value(&mut self, message: resp::Value) -> ConnectionResult<usize>;
+    fn read_values(&mut self) -> ConnectionResult<Vec<Value>>;
+    fn write_values(&mut self, values: Vec<resp::Value>) -> ConnectionResult<usize>;
     fn get_peer_addr(&self) -> std::net::SocketAddr;
 }
 

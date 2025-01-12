@@ -33,9 +33,12 @@ impl Follower {
     {
         let mut handshake = IncomingHandshake::new();
         while !handshake.is_finished() {
-            let input = connection.read_value()?.value;
-            let response = handshake.try_advance(&input.into_array().unwrap()).unwrap();
-            connection.write_value(response).unwrap();
+            let inputs = connection.read_values()?.into_iter().map(|m| m.value);
+            let responses = inputs
+                .map(|input| handshake.try_advance(&input.into_array().unwrap()).unwrap())
+                .collect();
+            //let response = handshake.try_advance(&input.into_array().unwrap()).unwrap();
+            connection.write_values(responses).unwrap();
         }
         Ok(())
     }

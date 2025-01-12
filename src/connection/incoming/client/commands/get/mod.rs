@@ -53,7 +53,7 @@ impl From<Response> for super::Response {
     fn from(value: Response) -> Self {
         match value {
             Response::Value(value) => resp::Value::simple_string(value),
-            Response::Null => resp::Value::NullArray,
+            Response::Null => resp::Value::NullString,
         }
         .into()
     }

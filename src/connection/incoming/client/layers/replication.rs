@@ -1,4 +1,8 @@
-use crate::{connection::incoming::client, resp, Service};
+use crate::{
+    connection::incoming::client,
+    resp::{self, value::IntoRespArray},
+    Service,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ReplicationResponse<T> {
@@ -31,6 +35,9 @@ where
             .unwrap()
             .eq_ignore_ascii_case("ReplConf")
         {
+            return Ok(ReplicationResponse::ReplicationRequest(
+                request.value.into_array(),
+            ));
             todo!()
             //Ok(ReplicationResponse::ReplicationRequest(replconf)),
         } else if request.value.first().unwrap().eq_ignore_ascii_case("PSYNC") {

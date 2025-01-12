@@ -32,39 +32,41 @@ where
     }
 
     fn handshake(&mut self) -> anyhow::Result<usize> {
-        let mut handshake = OutgoingHandshake::new();
-        let mut response = None;
-        while let Some(next) = handshake.try_advance(&response).unwrap() {
-            dbg!(&next);
-            self.connection.write_value(next).unwrap();
-            let value = self.connection.read_value()?.value;
-            let arr = value.into_array().unwrap();
-            response = Some(arr);
-        }
-        Ok(1)
+        todo!()
+        //let mut handshake = OutgoingHandshake::new();
+        //let mut response = None;
+        //while let Some(next) = handshake.try_advance(&response).unwrap() {
+        //    dbg!(&next);
+        //    self.connection.write_values(next).unwrap();
+        //    let value = self.connection.read_values()?.value;
+        //    let arr = value.into_array().unwrap();
+        //    response = Some(arr);
+        //}
+        //Ok(1)
     }
 
     #[instrument(skip(self))]
     pub fn run(mut self) -> anyhow::Result<()> {
-        tracing::info!("handing connection to leader");
-        self.handshake()?;
-        tracing::info!("handshake with leader sucesfully completed");
-        let mut handler = Handler::new(self.repo);
-        loop {
-            let message = match self.connection.read_value() {
-                Ok(msg) => msg,
-                Err(err) => match err {
-                    super::ConnectionError::EndOfInput => return Ok(()),
-                    super::ConnectionError::Io(_) => todo!(),
-                    super::ConnectionError::Any(_) => todo!(),
-                },
-            };
-            tracing::debug!("got message from leader {message:?}");
-            let response = handler.handle_request(message.try_into()?)?;
-            tracing::debug!("message response: {response:?}");
-            if let Some(resposne) = response {
-                self.connection.write_value(resposne.into())?;
-            }
-        }
+        todo!()
+        //tracing::info!("handing connection to leader");
+        //self.handshake()?;
+        //tracing::info!("handshake with leader sucesfully completed");
+        //let mut handler = Handler::new(self.repo);
+        //loop {
+        //    let message = match self.connection.read_values() {
+        //        Ok(msg) => msg,
+        //        Err(err) => match err {
+        //            super::ConnectionError::EndOfInput => return Ok(()),
+        //            super::ConnectionError::Io(_) => todo!(),
+        //            super::ConnectionError::Any(_) => todo!(),
+        //        },
+        //    };
+        //    tracing::debug!("got message from leader {message:?}");
+        //    let response = handler.handle_request(message.try_into()?)?;
+        //    tracing::debug!("message response: {response:?}");
+        //    if let Some(resposne) = response {
+        //        self.connection.write_values(resposne.into())?;
+        //    }
+        //}
     }
 }

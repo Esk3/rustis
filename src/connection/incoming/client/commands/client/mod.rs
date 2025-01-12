@@ -1,4 +1,8 @@
+use std::sync::Mutex;
+
 use crate::{command::Command, repository::Repository, resp};
+
+static ID: Mutex<usize> = Mutex::new(1);
 
 pub struct Client;
 
@@ -6,7 +10,11 @@ impl Client {
     fn handle_request(request: Request) -> Response {
         match request.cmd {
             Cmd::Other => Response::Ok,
-            Cmd::Id => Response::Id(42),
+            Cmd::Id => {
+                let mut lock = ID.lock().unwrap();
+                *lock += 1;
+                Response::Id(*lock)
+            }
         }
     }
 }
@@ -23,10 +31,12 @@ impl Command<super::Request, super::Response, Repository> for Client {
 struct Request {
     cmd: Cmd,
 }
+
 enum Cmd {
     Other,
     Id,
 }
+
 impl TryFrom<super::Request> for Request {
     type Error = anyhow::Error;
 

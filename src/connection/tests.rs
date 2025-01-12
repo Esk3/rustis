@@ -11,11 +11,16 @@ impl Connection for DummyConnection {
         Err(anyhow!("tried to connect to dummy connection").into())
     }
 
-    fn read_value(&mut self) -> crate::connection::ConnectionResult<crate::connection::Value> {
+    fn read_values(
+        &mut self,
+    ) -> crate::connection::ConnectionResult<Vec<crate::connection::Value>> {
         Err(anyhow!("tried to read from dummy connection").into())
     }
 
-    fn write_value(&mut self, _command: resp::Value) -> crate::connection::ConnectionResult<usize> {
+    fn write_values(
+        &mut self,
+        _command: Vec<resp::Value>,
+    ) -> crate::connection::ConnectionResult<usize> {
         Err(anyhow!("tried to write to dummy connection").into())
     }
 
@@ -76,11 +81,16 @@ impl Connection for MockConnection {
         todo!()
     }
 
-    fn read_value(&mut self) -> ConnectionResult<crate::connection::Value> {
-        self.input.pop().ok_or(ConnectionError::EndOfInput)
+    fn read_values(&mut self) -> ConnectionResult<Vec<crate::connection::Value>> {
+        self.input
+            .pop()
+            .ok_or(ConnectionError::EndOfInput)
+            .map(|v| vec![v])
     }
 
-    fn write_value(&mut self, command: resp::Value) -> ConnectionResult<usize> {
+    fn write_values(&mut self, command: Vec<resp::Value>) -> ConnectionResult<usize> {
+        assert_eq!(command.len(), 1);
+        let command = command.into_iter().next().unwrap();
         let Some(ref mut expected) = self.expected_output else {
             return Ok(1);
         };
