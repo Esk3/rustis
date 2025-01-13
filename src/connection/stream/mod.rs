@@ -83,6 +83,7 @@ where
         let (value, bytes_consumed) = deserialize_value(&self.buf).unwrap();
         self.buf.rotate_left(bytes_consumed);
         self.i -= bytes_consumed;
+        tracing::trace!("read value: [{value:?}]");
         Ok(ReadResult {
             value,
             bytes_read: bytes_consumed,
@@ -106,6 +107,7 @@ where
         let bytes = serialize_value(value);
         self.stream.write_all(&bytes).unwrap();
         self.stream.flush().unwrap();
+        tracing::trace!("value written: [{value:?}]");
         Ok(bytes.len())
     }
 
@@ -123,7 +125,7 @@ where
         }
     }
 
-    fn stream_mut(&mut self) -> &mut S {
+    pub fn inner(&mut self) -> &mut S {
         &mut self.stream
     }
 
@@ -135,7 +137,6 @@ where
 #[derive(Debug)]
 pub struct PipelineBuffer<S> {
     connection: RedisConnection<S>,
-    read: usize,
     read_buffer: Vec<ReadResult>,
     write_buffer: Vec<u8>,
 }
@@ -147,7 +148,6 @@ where
     pub fn new(stream: S) -> Self {
         Self {
             connection: RedisConnection::new(stream),
-            read: 0,
             read_buffer: Vec::new(),
             write_buffer: Vec::new(),
         }
@@ -155,10 +155,13 @@ where
 
     pub fn read(&mut self) -> anyhow::Result<ReadResult> {
         if let Some(value) = self.read_buffer.pop() {
+            tracing::trace!("value read from buffer: [{value:?}]");
             Ok(value)
         } else {
             self.read_buffer
                 .extend(self.connection.read_all().unwrap().into_iter().rev());
+            tracing::trace!("values read into buffer: {:?}", self.read_buffer);
+            tracing::trace!("value read from buffer: [{:?}]", self.read_buffer.last());
             Ok(self.read_buffer.pop().unwrap())
         }
     }
@@ -166,15 +169,27 @@ where
     pub fn write(&mut self, value: &resp::Value) -> anyhow::Result<usize> {
         let value = serialize_value(value);
         let len = value.len();
+        tracing::trace!("value written to buffer: [{value:?}]");
         self.write_buffer.extend(value);
         if self.read_buffer.is_empty() {
-            self.connection.stream_mut().write_all(&self.write_buffer);
+            self.connection
+                .inner()
+                .write_all(&self.write_buffer)
+                .unwrap();
+            tracing::trace!("values written from buffer {:?}", self.write_buffer);
             // TODO test clear write buf
             self.write_buffer.clear();
             Ok(len)
         } else {
             Ok(len)
         }
+    }
+
+    pub fn inner(&mut self) -> &mut RedisConnection<S> {
+        &mut self.connection
+    }
+    pub fn into_inner(self) -> RedisConnection<S> {
+        self.connection
     }
 }
 

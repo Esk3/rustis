@@ -1,8 +1,6 @@
-use std::net::SocketAddr;
-
 use tracing::instrument;
 
-use crate::{connection, repository::Repository, resp};
+use crate::{repository::Repository, resp};
 
 use super::{
     handshake::outgoing::OutgoingHandshake,
@@ -91,7 +89,9 @@ where
             let arr = value.into_array().unwrap_or_else(|v| vec![v]);
             response = Some(arr);
         }
-        todo!("read rdb file");
+        let mut rdb_buf = [0; 1024];
+        let bytes_read = self.connection.inner().inner().read(&mut rdb_buf).unwrap();
+        assert_ne!(bytes_read, rdb_buf.len(), "rdb buffer overflow");
         Ok(1)
     }
 }

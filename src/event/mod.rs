@@ -33,11 +33,9 @@ impl LockEventProducer {
 
     pub fn emmit(&self, kind: Kind) {
         tracing::debug!("emitting event: {kind:?}");
-        self.subscribers
-            .lock()
-            .unwrap()
-            .iter()
-            .for_each(|tx| tx.send(kind.clone()).unwrap());
+        self.subscribers.lock().unwrap().iter().for_each(|tx| {
+            tx.send(kind.clone());
+        });
     }
 
     #[must_use]

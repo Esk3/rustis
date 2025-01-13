@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use crate::{
     config::Role,
-    connection::{self, Connection, ConnectionResult},
+    connection::{self, ConnectionResult, DummyConnection},
     listner::RedisListner,
     resp,
 };
@@ -72,7 +72,7 @@ fn role_is_leader_when_leader_leader_connection_is_none() {
 
 #[test]
 fn role_is_follower_when_leader_connection_is_some() {
-    let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0));
+    let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0);
     let expected = Role::Follower(addr);
     let role = setup_follower().role();
     assert_eq!(role, expected);
@@ -151,7 +151,7 @@ fn can_accept_multiple_incoming_connections() {
 #[derive(Debug)]
 struct DummyListner;
 impl RedisListner for DummyListner {
-    type Connection = DummyConnection;
+    type Stream = DummyConnection;
     fn bind(_port: u16) -> anyhow::Result<Self>
     where
         Self: Sized,
@@ -159,7 +159,7 @@ impl RedisListner for DummyListner {
         Ok(Self)
     }
 
-    fn incoming(self) -> impl Iterator<Item = Self::Connection> {
+    fn incoming(self) -> impl Iterator<Item = Self::Stream> {
         panic!("incoming called on dummy listner");
         std::iter::once(DummyConnection)
     }
@@ -172,7 +172,7 @@ impl RedisListner for DummyListner {
 #[derive(Debug)]
 struct MockOnceListner;
 impl RedisListner for MockOnceListner {
-    type Connection = DummyConnection;
+    type Stream = DummyConnection;
 
     fn bind(_port: u16) -> anyhow::Result<Self>
     where
@@ -181,33 +181,11 @@ impl RedisListner for MockOnceListner {
         Ok(Self)
     }
 
-    fn incoming(self) -> impl Iterator<Item = Self::Connection> {
+    fn incoming(self) -> impl Iterator<Item = Self::Stream> {
         std::iter::once(DummyConnection)
     }
 
     fn get_port(&self) -> u16 {
         0
-    }
-}
-
-struct DummyConnection;
-impl Connection for DummyConnection {
-    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self>
-    where
-        Self: Sized,
-    {
-        Ok(Self)
-    }
-
-    fn read_values(&mut self) -> ConnectionResult<Vec<connection::Value>> {
-        todo!()
-    }
-
-    fn write_values(&mut self, command: Vec<resp::Value>) -> ConnectionResult<usize> {
-        todo!()
-    }
-
-    fn get_peer_addr(&self) -> std::net::SocketAddr {
-        std::net::SocketAddr::new(std::net::Ipv4Addr::LOCALHOST.into(), 0)
     }
 }

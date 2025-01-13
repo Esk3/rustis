@@ -1,30 +1,33 @@
 use anyhow::anyhow;
+use stream::Stream;
 
 use super::*;
 
 pub struct DummyConnection;
-impl Connection for DummyConnection {
-    fn connect(addr: std::net::SocketAddr) -> crate::connection::ConnectionResult<Self>
+impl std::io::Read for DummyConnection {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        todo!()
+    }
+}
+impl std::io::Write for DummyConnection {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        todo!()
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        todo!()
+    }
+}
+impl Stream for DummyConnection {
+    type Addr = std::net::SocketAddrV4;
+    fn connect(_: std::net::SocketAddrV4) -> anyhow::Result<Self>
     where
         Self: Sized,
     {
-        Err(anyhow!("tried to connect to dummy connection").into())
+        panic!("tried to connect to dummy connection");
     }
 
-    fn read_values(
-        &mut self,
-    ) -> crate::connection::ConnectionResult<Vec<crate::connection::Value>> {
-        Err(anyhow!("tried to read from dummy connection").into())
-    }
-
-    fn write_values(
-        &mut self,
-        _command: Vec<resp::Value>,
-    ) -> crate::connection::ConnectionResult<usize> {
-        Err(anyhow!("tried to write to dummy connection").into())
-    }
-
-    fn get_peer_addr(&self) -> std::net::SocketAddr {
+    fn peer_addr(&self) -> Self::Addr {
         todo!()
     }
 }
@@ -76,11 +79,32 @@ impl MockConnection {
     }
 }
 
-impl Connection for MockConnection {
-    fn connect(addr: std::net::SocketAddr) -> ConnectionResult<Self> {
+impl std::io::Read for MockConnection {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        todo!()
+    }
+}
+impl std::io::Write for MockConnection {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         todo!()
     }
 
+    fn flush(&mut self) -> std::io::Result<()> {
+        todo!()
+    }
+}
+impl Stream for MockConnection {
+    type Addr = ();
+    fn connect((): ()) -> anyhow::Result<Self> {
+        todo!()
+    }
+
+    fn peer_addr(&self) -> Self::Addr {
+        todo!()
+    }
+}
+
+impl MockConnection {
     fn read_values(&mut self) -> ConnectionResult<Vec<crate::connection::Value>> {
         self.input
             .pop()
@@ -99,10 +123,6 @@ impl Connection for MockConnection {
         });
         assert_eq!(command, expected, "mock write does not match expected");
         Ok(1)
-    }
-
-    fn get_peer_addr(&self) -> std::net::SocketAddr {
-        todo!()
     }
 }
 

@@ -36,7 +36,18 @@ impl OutgoingHandshake {
             (3, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("OK") => {
                 Ok(Some(resp::Value::bulk_strings("PSYNC").into_array()))
             }
-            (4, Some(res)) if res.first().is_some() /*.unwrap().eq_ignore_ascii_case("FULLRESYNC") */=> Ok(None),
+            (4, Some(res))
+                if res
+                    .first()
+                    .unwrap()
+                    .clone()
+                    .expect_string()
+                    .unwrap()
+                    .to_uppercase()
+                    .starts_with("FULLRESYNC") =>
+            {
+                Ok(None)
+            }
             _ => Err(anyhow!("unepexted handshake message {response:?}")),
         };
         if result.is_ok() {

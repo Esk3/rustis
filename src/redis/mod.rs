@@ -38,7 +38,7 @@ where
         emitter: EventEmitter,
     ) -> Self {
         let config = if let Some(ref connection) = leader_connection {
-            RedisConfig::new_follower(listner.get_port(), connection.peer_addr().into())
+            RedisConfig::new_follower(listner.get_port(), connection.peer_addr())
         } else {
             RedisConfig::new(listner.get_port())
         };

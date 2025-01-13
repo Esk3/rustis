@@ -21,15 +21,18 @@ pub enum Value {
 }
 
 impl Value {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn simple_string(s: impl ToString) -> Self {
         Self::SimpleString(s.to_string())
     }
+    #[allow(clippy::needless_pass_by_value)]
     pub fn bulk_string(s: impl ToString) -> Self {
         Self::BulkString(s.to_string())
     }
     pub fn bulk_strings(s: impl ToString) -> Vec<Self> {
         Self::bulk_string_pat(s, ";")
     }
+    #[allow(clippy::needless_pass_by_value)]
     pub fn bulk_string_pat(s: impl ToString, pat: &str) -> Vec<Self> {
         s.to_string()
             .split(pat)

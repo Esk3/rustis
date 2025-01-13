@@ -1,4 +1,4 @@
-use crate::connection::Connection;
+use crate::connection::stream::RedisConnection;
 
 use super::*;
 
@@ -84,13 +84,13 @@ fn handshake_returns_err_on_advancing_after_finish() {
 #[test]
 fn expected_usage() {
     let mut handshake = OutgoingHandshake::new();
-    let mut dummy_conn = crate::connection::DummyConnection;
+    let mut dummy_conn = RedisConnection::new(crate::connection::DummyConnection);
     let mut dummy_responses = expected_order().into_iter().skip(1).map(|msg| msg.unwrap());
     let mut response = None;
     while let Some(next) = handshake.try_advance(&response).unwrap() {
-        let dummy_err = dummy_conn.write_values(vec![next]).unwrap_err();
+        let dummy_err = dummy_conn.write(&next).unwrap_err();
         assert_eq!(dummy_err.to_string(), "tried to write to dummy connection");
-        let dummy_err = dummy_conn.read_values().unwrap_err();
+        let dummy_err = dummy_conn.read().unwrap_err();
         assert_eq!(dummy_err.to_string(), "tried to read from dummy connection");
         response = dummy_responses.next();
     }

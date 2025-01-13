@@ -29,6 +29,7 @@ impl Client {
     }
 
     pub fn handle_request(&mut self, request: Request) -> anyhow::Result<Response> {
+        tracing::debug!("handling request: {request:?}");
         let res = self.service.call(request)?;
         let res = match res {
             layers::replication::ReplicationResponse::ReplicationRequest(value) => {
@@ -36,6 +37,7 @@ impl Client {
             }
             layers::replication::ReplicationResponse::Inner(response) => response,
         };
+        tracing::debug!("{res:?}");
         Ok(res)
     }
 }

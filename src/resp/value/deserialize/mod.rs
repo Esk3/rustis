@@ -66,3 +66,69 @@ pub fn deserialize_value(bytes: &[u8]) -> anyhow::Result<(Value, usize)> {
     };
     Ok(value)
 }
+
+//struct DeserializeResult<T> {
+//    value: T,
+//    bytes: usize,
+//}
+//
+//impl<T> DeserializeResult<T> {
+//    fn map_value<F, V>(self, f: F) -> DeserializeResult<V>
+//    where
+//        F: Fn(T) -> V,
+//    {
+//        DeserializeResult {
+//            value: f(self.value),
+//            bytes: self.bytes,
+//        }
+//    }
+//    fn add(self, bytes: usize) -> Self {
+//        Self {
+//            bytes: self.bytes + bytes,
+//            ..self
+//        }
+//    }
+//    fn then<F, V>(self, f: F) -> anyhow::Result<DeserializeResult<V>>
+//    where
+//        F: Fn() -> anyhow::Result<DeserializeResult<V>>,
+//    {
+//        f().map(|res| res.add(self.bytes))
+//    }
+//}
+//
+//impl DeserializeResult<()> {
+//    fn empty() -> Self {
+//        Self {
+//            value: (),
+//            bytes: 0,
+//        }
+//    }
+//}
+//
+//struct Deserializer<'a, T> {
+//    bytes: &'a [u8],
+//    result: DeserializeResult<T>,
+//}
+//
+//impl<'a> Deserializer<'a, ()> {
+//    fn new(bytes: &'a [u8]) -> Self {
+//        Self {
+//            bytes,
+//            result: DeserializeResult::empty(),
+//        }
+//    }
+//}
+//
+//impl<'a, T> Deserializer<'a, T> {
+//    fn then<F, N>(self, f: F) -> anyhow::Result<Deserializer<'a, N>>
+//    where
+//        F: Fn(&[u8]) -> anyhow::Result<DeserializeResult<N>>,
+//    {
+//        let bytes = &self.bytes[self.result.bytes..];
+//        let result = self.result.then(|| f(bytes))?;
+//        Ok(Deserializer {
+//            result,
+//            bytes: self.bytes,
+//        })
+//    }
+//}

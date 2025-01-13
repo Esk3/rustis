@@ -101,7 +101,7 @@ fn written_value_can_be_read_from_stream() {
         let s = empty_stream();
         let mut conn = RedisConnection::new(s);
         conn.write(&value).unwrap();
-        conn.stream_mut().set_position(0);
+        conn.inner().set_position(0);
         let actual = conn.read().unwrap().value;
         assert_eq!(actual, value);
     }
@@ -116,7 +116,7 @@ fn write_returns_bytes_written_to_stream() {
         let s = empty_stream();
         let mut conn = RedisConnection::new(s);
         let bytes_written = conn.write(&value).unwrap();
-        let expected = conn.stream_mut().position();
+        let expected = conn.inner().position();
         assert_eq!(bytes_written, expected.try_into().unwrap());
     }
     for value in test_values() {
@@ -130,7 +130,7 @@ fn write_all_returns_bytes_wirtten_to_stream() {
         let s = empty_stream();
         let mut conn = RedisConnection::new(s);
         let bytes_written = conn.write_all(&values).unwrap();
-        let expected = conn.stream_mut().position();
+        let expected = conn.inner().position();
         assert_eq!(bytes_written, expected.try_into().unwrap());
     }
     for value in test_values() {
@@ -144,7 +144,7 @@ fn values_written_are_avalible_for_read_all() {
         let s = empty_stream();
         let mut conn = RedisConnection::new(s);
         _ = conn.write_all(&values).unwrap();
-        conn.stream_mut().set_position(0);
+        conn.inner().set_position(0);
         let read = conn
             .read_all()
             .unwrap()
