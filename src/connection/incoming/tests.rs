@@ -1,6 +1,8 @@
+use client_connection::client::default_router;
+
 use crate::{
-    connection::{self, ConnectionResult},
-    event, resp,
+    connection::{self, ConnectionResult, DummyConnection},
+    event, repository, resp,
 };
 
 use super::super::MockConnection;
@@ -10,40 +12,39 @@ fn dummy_setup() -> IncomingConnection<DummyConnection> {
     let connection = DummyConnection;
     let repo = Repository::default();
     let emitter = EventEmitter::new();
-    IncomingConnection::new(connection, emitter, repo)
+    IncomingConnection::new(connection, default_router(), emitter, repo)
 }
 
-macro_rules! setup {
-    () => {
-        setup();
-    };
-    ($connection:ident) => {
-        let $connection = dummy_setup();
-    };
-    ($connection:ident, emitter: $emitter:ident $(, $input:expr, $output:expr)?) => {
-        let connection = DummyConnection;
-        $(
-            let connection = MockConnection::new(
-                $input.into_iter().map(std::convert::Into::into).collect::<Vec<resp::Message>>(),
-            $output.into_iter().map(std::convert::Into::into).collect::<Vec<resp::Message>>()
-            );
-        )?
-        let repo = Repository::default();
-        let $emitter = EventEmitter::new();
-        let $connection = IncomingConnection::new(connection, $emitter.clone(), repo);
-    };
-    ($input:expr) => {{
-        let connection = MockConnection::new_input($input);
+struct Tester {
+    connection: IncomingConnection<MockConnection>,
+    emitter: EventEmitter,
+    repo: Repository,
+}
+
+impl Tester {
+    fn setup<I, O>(input: I, expected_output: O) -> Self
+    where
+        I: IntoIterator<Item = resp::Value>,
+        O: IntoIterator<Item = resp::Value>,
+        <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
+        <O as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
+    {
         let repo = Repository::default();
         let emitter = EventEmitter::new();
-        IncomingConnection::new(connection, emitter, repo)
-    }};
-    ($input:expr, $output:expr) => {{
-        let connection = MockConnection::new($input, $output);
-        let repo = Repository::default();
-        let emitter = EventEmitter::new();
-        IncomingConnection::new(connection, emitter, repo)
-    }};
+        Self {
+            connection: IncomingConnection::new(
+                MockConnection::new(input, expected_output),
+                default_router(),
+                emitter.clone(),
+                repo.clone(),
+            ),
+            emitter,
+            repo,
+        }
+    }
+    fn run(self) -> anyhow::Result<()> {
+        self.connection.run_handler()
+    }
 }
 
 #[test]
@@ -51,20 +52,35 @@ fn create_incoming_connection() {
     let connection = DummyConnection;
     let repo = Repository::default();
     let emitter = EventEmitter::new();
-    let _ = IncomingConnection::new(connection, emitter, repo);
+    let _ = IncomingConnection::new(connection, default_router(), emitter, repo);
 }
 
 #[test]
+#[should_panic(expected = "EndOfInput")]
 fn handle_connection_reads_input() {
-    let connection = setup!([Message::Input(Input::Ping)].into_iter());
+    let Tester { connection, .. } = Tester::setup(
+        [resp::Value::simple_string("PING")],
+        [resp::Value::simple_string("PONG")],
+    );
     connection.run_handler().unwrap();
 }
 
 #[test]
+#[should_panic(expected = "EndOfInput")]
 fn handler_reads_two_inputs() {
-    let connection = setup!([Message::Input(Input::Ping), Message::Input(Input::Ping)]);
-    connection.run_handler().unwrap();
+    let tester = Tester::setup(
+        [
+            resp::Value::simple_string("PING"),
+            resp::Value::simple_string("PING"),
+        ],
+        [
+            resp::Value::simple_string("PONG"),
+            resp::Value::simple_string("PONG"),
+        ],
+    );
+    tester.run().unwrap();
 }
+
 #[test]
 #[ignore = "todo"]
 fn handler_reads_until_end_of_input() {
@@ -141,30 +157,11 @@ fn connection_writes_same_output_as_follower_connection_handler_when_connection_
 #[test]
 #[ignore = "todo"]
 fn handle_follower_connection_writes_same_output_as_follower_handler() {
-    setup!(_connection, emitter: emitter);
-    let event = event::Kind::Set {
-        key: "abc".into(),
-        value: "efg".into(),
-        expiry: None,
-    };
-    todo!()
-}
-
-struct DummyConnection;
-impl Connection for DummyConnection {
-    fn connect(_addr: std::net::SocketAddr) -> ConnectionResult<Self> {
-        todo!()
-    }
-
-    fn read_value(&mut self) -> ConnectionResult<connection::Value> {
-        todo!()
-    }
-
-    fn write_value(&mut self, _command: resp::Value) -> ConnectionResult<usize> {
-        todo!()
-    }
-
-    fn get_peer_addr(&self) -> std::net::SocketAddr {
-        todo!()
-    }
+    //setup!(_connection, emitter: emitter);
+    //let event = event::Kind::Set {
+    //    key: "abc".into(),
+    //    value: "efg".into(),
+    //    expiry: None,
+    //};
+    //todo!()
 }

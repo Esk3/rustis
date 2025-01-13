@@ -1,5 +1,5 @@
 use crate::{
-    connection::incoming::client,
+    connection::incoming::client_connection::client,
     resp::{self, value::IntoRespArray},
     Service,
 };

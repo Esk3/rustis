@@ -1,7 +1,7 @@
 use crate::{
     config::{RedisConfig, Role},
     connection::{
-        incoming::{client, IncomingConnection},
+        incoming::{client_connection::client, IncomingConnection},
         outgoing::OutgoingConnection,
         stream::Stream,
     },

@@ -1,7 +1,8 @@
+use crate::connection::incoming::client_connection::client;
+use crate::connection::incoming::client_connection::client::Response;
 use queue::Queue;
 
 use crate::{
-    connection::incoming::client::{self, Response},
     resp::{self, value::IntoRespArray},
     Service,
 };

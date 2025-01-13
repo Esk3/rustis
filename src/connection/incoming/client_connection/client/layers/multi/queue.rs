@@ -1,4 +1,4 @@
-use crate::connection::incoming::client;
+use crate::connection::incoming::client_connection::client;
 
 pub struct Queue(Option<Vec<client::Request>>);
 

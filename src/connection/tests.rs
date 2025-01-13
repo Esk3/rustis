@@ -1,3 +1,6 @@
+use std::io::Write;
+
+use resp::value::{deserialize_value, serialize_value};
 use stream::Stream;
 
 use super::*;
@@ -79,13 +82,20 @@ impl MockConnection {
 }
 
 impl std::io::Read for MockConnection {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        todo!()
+    fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
+        let value = self.read_value().unwrap();
+        let bytes = serialize_value(&value.value);
+        let len = bytes.len();
+        buf.write_all(&bytes);
+        Ok(len)
     }
 }
+
 impl std::io::Write for MockConnection {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        todo!()
+        let value = deserialize_value(buf).unwrap().0;
+        self.write_value(value).unwrap();
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -104,16 +114,11 @@ impl Stream for MockConnection {
 }
 
 impl MockConnection {
-    fn read_values(&mut self) -> ConnectionResult<Vec<crate::connection::Value>> {
-        self.input
-            .pop()
-            .ok_or(ConnectionError::EndOfInput)
-            .map(|v| vec![v])
+    fn read_value(&mut self) -> ConnectionResult<crate::connection::Value> {
+        self.input.pop().ok_or(ConnectionError::EndOfInput)
     }
 
-    fn write_values(&mut self, command: Vec<resp::Value>) -> ConnectionResult<usize> {
-        assert_eq!(command.len(), 1);
-        let command = command.into_iter().next().unwrap();
+    fn write_value(&mut self, command: resp::Value) -> ConnectionResult<usize> {
         let Some(ref mut expected) = self.expected_output else {
             return Ok(1);
         };
