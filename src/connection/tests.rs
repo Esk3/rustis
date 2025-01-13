@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use stream::Stream;
 
 use super::*;
@@ -10,7 +9,7 @@ impl std::io::Read for DummyConnection {
     }
 }
 impl std::io::Write for DummyConnection {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
         todo!()
     }
 
@@ -28,7 +27,7 @@ impl Stream for DummyConnection {
     }
 
     fn peer_addr(&self) -> Self::Addr {
-        todo!()
+        std::net::SocketAddrV4::new(std::net::Ipv4Addr::LOCALHOST, 0)
     }
 }
 

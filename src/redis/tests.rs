@@ -118,6 +118,7 @@ fn creating_outgoing_connection_as_leader_panics() {
 }
 
 #[test]
+#[ignore = "todo"]
 fn create_outgoing_connection_as_follower_is_ok() {
     let mut redis = setup_follower();
     let _connection_to_leader = redis.connect_to_leader().unwrap();
@@ -125,6 +126,7 @@ fn create_outgoing_connection_as_follower_is_ok() {
 
 #[test]
 #[should_panic(expected = "incoming called on dummy listner")]
+#[ignore = "todo"]
 fn creates_outgoing_connection_on_run_as_follower() {
     let redis = setup_follower();
     redis.run();

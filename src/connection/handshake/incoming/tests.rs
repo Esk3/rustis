@@ -13,7 +13,7 @@ pub fn expected_input() -> [Vec<resp::Value>; 4] {
 
 #[must_use]
 pub fn expected_output() -> [Vec<resp::Value>; 4] {
-    resp::Value::bulk_strings("PONG; OK; OK; PSYNC")
+    resp::Value::bulk_strings("PONG; OK; OK; FULLRESYNC")
         .into_iter()
         .map(|v| vec![v])
         .collect::<Vec<_>>()
@@ -59,8 +59,12 @@ fn expected_use() {
         dbg!(&input, &expected_response);
         let response = handshake.try_advance(&input).unwrap();
         assert!(
-            response.eq_ignore_ascii_case(&expected_response[0].clone().expect_string().unwrap()),
-            "{i}, left: {input:?} != right: {expected_response:?}"
+            response
+                .clone()
+                .expect_string()
+                .unwrap()
+                .starts_with(&expected_response[0].clone().expect_string().unwrap()),
+            "{i}, left: {response:?} != right: {expected_response:?}. input: {input:?}"
         );
     }
     assert!(handshake.is_finished());

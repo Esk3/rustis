@@ -83,7 +83,7 @@ fn xrange() {
     assert_eq!(found_value, [value]);
 
     let found_value = repo
-        .xrange(stream_key, EntryId::new(1, 0), EntryId::new(1, 0))
+        .xrange(stream_key, EntryId::new(0, 1), EntryId::new(0, 1))
         .unwrap();
     assert_eq!(found_value, [value]);
 }
@@ -136,7 +136,7 @@ fn values_are_vissable_in_all_clones_of_repo() {
     let value = "amazingValue";
     repo.xadd(stream_key, None, value).unwrap();
     let result = clone
-        .xrange(stream_key, EntryId::new(1, 0), EntryId::new(1, 0))
+        .xrange(stream_key, EntryId::new(0, 1), EntryId::new(0, 1))
         .unwrap();
     assert_eq!(result, [value]);
 }
@@ -152,14 +152,15 @@ fn blocking_returns_data_recived_during_block() {
     let repo2 = repo.clone();
     let handle = std::thread::spawn(move || {
         repo2.blocking_query(block_duration, |repo: &StreamRepository| {
-            repo.xrange(stream_key, EntryId::new(2, 0), EntryId::max())
+            repo.xrange(stream_key, EntryId::new(0, 1), EntryId::new(0, 1))
                 .map(|v| if v.is_empty() { None } else { Some(v) })
         })
     });
     std::thread::sleep(std::time::Duration::from_millis(1));
     assert!(!handle.is_finished());
     let new_value = "theNewValue";
-    repo.xadd(stream_key, None, new_value).unwrap();
+    let key = repo.xadd(stream_key, None, new_value).unwrap();
+    dbg!(key);
     std::thread::sleep(std::time::Duration::from_millis(1));
     assert!(handle.is_finished());
     let res = handle.join().unwrap().unwrap().unwrap();

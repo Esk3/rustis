@@ -66,6 +66,7 @@ where
             self.config
                 .leader_addr()
                 .expect("should be set if follower"),
+            self.emitter.clone(),
             self.repo.clone(),
         )
     }
