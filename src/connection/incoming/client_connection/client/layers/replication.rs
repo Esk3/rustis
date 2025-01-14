@@ -1,4 +1,4 @@
-use crate::{connection::incoming::client_connection::client, Service};
+use crate::{connection::incoming::client_connection::client, service::Service};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ReplicationResponse<T> {

@@ -1,7 +1,6 @@
 use crate::{
     command::Command,
     repository::{stream_repo::StreamId, Repository},
-    resp,
 };
 
 pub struct XAdd;

@@ -1,7 +1,6 @@
 use crate::{
     command::Command,
     repository::{stream_repo::stream::EntryId, Repository},
-    resp,
 };
 
 pub struct XRange;

@@ -19,7 +19,11 @@ impl Follower {
 
     pub fn handle_event(&mut self, event: Kind) -> anyhow::Result<Option<resp::Value>> {
         let res = match event {
-            Kind::Set { key, value, expiry } => Some(
+            Kind::Set {
+                key,
+                value,
+                expiry: _,
+            } => Some(
                 vec![
                     resp::Value::bulk_string("SET"),
                     resp::Value::bulk_string(key),

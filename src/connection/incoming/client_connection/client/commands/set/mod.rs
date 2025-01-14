@@ -1,4 +1,4 @@
-use anyhow::{bail, Context};
+use anyhow::bail;
 
 use crate::{command::Command, repository::Repository, resp};
 

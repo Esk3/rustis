@@ -1,8 +1,9 @@
 use anyhow::anyhow;
 
 use crate::{
+    message::request::Standard,
     resp::{self, value::IntoRespArray},
-    Message,
+    Message, Request,
 };
 
 #[cfg(test)]
@@ -27,17 +28,17 @@ impl OutgoingHandshake {
     pub fn try_advance(
         &mut self,
         response: &Option<Message<resp::Value>>,
-    ) -> anyhow::Result<Option<resp::Value>> {
+    ) -> anyhow::Result<Option<Request>> {
         let result = match (self.advances, response) {
-            (0, None) => Ok(Some(resp::Value::simple_string("PING"))),
-            (1, Some(res)) if res.content().eq_ignore_ascii_case("PONG") => Ok(Some(
-                resp::Value::bulk_strings("REPLCONF; listing-port;1").into_array(),
-            )),
-            (2, Some(res)) if res.content().eq_ignore_ascii_case("OK") => Ok(Some(
-                resp::Value::bulk_strings("REPLCONF; CAPA; SYNC").into_array(),
-            )),
+            (0, None) => Ok(Some(Standard::new_empty("PING"))),
+            (1, Some(res)) if res.content().eq_ignore_ascii_case("PONG") => {
+                Ok(Some(Standard::new("REPLCONF", ["listening-port", "1"])))
+            }
+            (2, Some(res)) if res.content().eq_ignore_ascii_case("OK") => {
+                Ok(Some(Standard::new("REPLCONF", ["CAPA", "SYNC"])))
+            }
             (3, Some(res)) if res.content().eq_ignore_ascii_case("OK") => {
-                Ok(Some(resp::Value::bulk_strings("PSYNC").into_array()))
+                Ok(Some(Standard::new("PSYNC", ["?", "-1"])))
             }
             (4, Some(res))
                 if res
@@ -57,6 +58,6 @@ impl OutgoingHandshake {
         } else {
             self.advances = 0;
         }
-        result
+        result.map(|s| s.map(|s| s.into()))
     }
 }

@@ -2,7 +2,7 @@ use client_connection::ClientConnectionResult;
 use follower_connection::{follower::Follower, FollowerConnection};
 use tracing::instrument;
 
-use crate::{event::EventEmitter, repository::Repository, resp};
+use crate::{event::EventEmitter, repository::Repository};
 
 pub mod client_connection;
 mod follower_connection;

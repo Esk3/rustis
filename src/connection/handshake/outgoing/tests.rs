@@ -3,7 +3,7 @@ use crate::connection::stream::RedisConnection;
 use super::*;
 
 #[must_use]
-pub fn expected_order() -> [Option<Vec<resp::Value>>; 5] {
+pub fn expected_order() -> [Option<crate::Message<resp::Value>>; 5] {
     [
         None,
         Some(resp::Value::simple_string("Pong")),
@@ -11,7 +11,7 @@ pub fn expected_order() -> [Option<Vec<resp::Value>>; 5] {
         Some(resp::Value::ok()),
         Some(resp::Value::simple_string("FULLRESYNC")),
     ]
-    .map(|v| v.map(|v| vec![v]))
+    .map(|v| v.map(|val| crate::Message::new(val, 1)))
 }
 
 #[test]
@@ -23,7 +23,8 @@ fn new_handshake_is_not_finished() {
 fn incorrect_try_advance_errors() {
     let mut handshake = OutgoingHandshake::new();
     let response = resp::Value::simple_string("SomethingInvalid");
-    let err = handshake.try_advance(&Some(vec![response]));
+    let message = Message::new(response, 1);
+    let err = handshake.try_advance(&Some(message));
     assert!(err.is_err());
 }
 #[test]
@@ -60,9 +61,10 @@ fn handshake_resets_on_trying_to_advance_on_wrong_message() {
     let messages = expected_order()
         .into_iter()
         .take(4)
-        .chain(std::iter::once(Some(vec![resp::Value::simple_string(
-            "abc",
-        )])))
+        .chain(std::iter::once(Some(Message::new(
+            resp::Value::simple_string("abc"),
+            1,
+        ))))
         .chain(expected_order());
     for (i, message) in messages.enumerate() {
         assert!(!handshake.is_finished(), "i: {i}, msg: {message:?}");

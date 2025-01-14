@@ -22,7 +22,7 @@ fn connection_reads_single_value_from_stream() {
     fn test(expected_value: resp::Value) {
         let s = stream_single(expected_value.clone());
         let mut connection = RedisConnection::new(s);
-        let value = connection.read().unwrap().value;
+        let value = connection.read().unwrap().into_content();
         assert_eq!(value, expected_value);
     }
 
@@ -62,7 +62,7 @@ fn connection_reads_multiple_values_from_stream() {
         let s = stream(expected_values.clone());
         let mut connection = RedisConnection::new(s);
         let values = (0..expected_values.len())
-            .map(|_| connection.read().unwrap().value)
+            .map(|_| connection.read().unwrap().into_content())
             .collect::<Vec<resp::Value>>();
         assert_eq!(values, expected_values);
     }
@@ -83,7 +83,7 @@ fn read_all_returns_all_values() {
             .read_all()
             .unwrap()
             .into_iter()
-            .map(|r| r.value)
+            .map(|r| r.into_content())
             .collect::<Vec<_>>();
         assert_eq!(actual, values);
     }
@@ -102,7 +102,7 @@ fn written_value_can_be_read_from_stream() {
         let mut conn = RedisConnection::new(s);
         conn.write(&value).unwrap();
         conn.inner().set_position(0);
-        let actual = conn.read().unwrap().value;
+        let actual = conn.read().unwrap().into_content();
         assert_eq!(actual, value);
     }
     for value in test_values() {
@@ -149,7 +149,7 @@ fn values_written_are_avalible_for_read_all() {
             .read_all()
             .unwrap()
             .into_iter()
-            .map(|r| r.value)
+            .map(|r| r.into_content())
             .collect::<Vec<_>>();
         assert_eq!(read, values);
     }
@@ -163,7 +163,7 @@ fn pipeline_buffer_reads_single_value() {
     fn test(expected_value: resp::Value) {
         let s = stream_single(expected_value.clone());
         let mut connection = PipelineBuffer::new(s);
-        let value = connection.read().unwrap().value;
+        let value = connection.read().unwrap().into_content();
         assert_eq!(value, expected_value);
     }
 
@@ -184,7 +184,7 @@ fn pipeline_buffer_writes_single_value() {
         let mut connection = PipelineBuffer::new(s);
         connection.write(&expected_value).unwrap();
         connection.connection.stream.set_position(0);
-        let value = connection.read().unwrap().value;
+        let value = connection.read().unwrap().into_content();
         assert_eq!(value, expected_value);
     }
 
@@ -268,7 +268,7 @@ fn pipeline_buffer_writes_to_stream_on_first_write_after_read_buffer_is_empty() 
             .read_all()
             .unwrap()
             .into_iter()
-            .map(|v| v.value)
+            .map(|v| v.into_content())
             .collect::<Vec<_>>();
         assert_eq!(
             res,

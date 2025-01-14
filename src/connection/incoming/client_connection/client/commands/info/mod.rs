@@ -1,5 +1,5 @@
 use crate::{
-    command::{parser::Parser, Command, CommandInfo},
+    command::{Command, CommandInfo},
     repository::Repository,
     resp,
 };

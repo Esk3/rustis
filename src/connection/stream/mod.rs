@@ -80,10 +80,16 @@ where
 {
     pub fn read(&mut self) -> anyhow::Result<Message<resp::Value>> {
         if self.i == 0 {
+            tracing::trace!("reading from stream");
             let bytes_read = self.stream.read(&mut self.buf).unwrap();
+            tracing::trace!(
+                "read from stream: {:?}",
+                String::from_utf8_lossy(&self.buf[..bytes_read])
+            );
             self.i = bytes_read;
         }
         let (value, bytes_consumed) = deserialize_value(&self.buf).unwrap();
+        tracing::trace!("deserialized value: {value:?}");
         self.buf.rotate_left(bytes_consumed);
         self.i -= bytes_consumed;
         tracing::trace!("read value: [{value:?}]");
@@ -104,10 +110,18 @@ where
     }
 
     pub fn write(&mut self, value: &resp::Value) -> anyhow::Result<usize> {
+        tracing::trace!("serializing value: {value:?}");
         let bytes = serialize_value(value);
+        tracing::trace!(
+            "value serialized: {bytes:?}, {:?}",
+            String::from_utf8_lossy(&bytes)
+        );
         self.stream.write_all(&bytes).unwrap();
         self.stream.flush().unwrap();
-        tracing::trace!("value written: [{value:?}]");
+        tracing::trace!(
+            "serialized value flushed to stream. length: {}",
+            bytes.len()
+        );
         Ok(bytes.len())
     }
 
@@ -169,14 +183,21 @@ where
     pub fn write(&mut self, value: &resp::Value) -> anyhow::Result<usize> {
         let value = serialize_value(value);
         let len = value.len();
-        tracing::trace!("value written to buffer: [{value:?}]");
+        tracing::trace!(
+            "value written to buffer: {value:?}, {:?}",
+            String::from_utf8_lossy(&value)
+        );
         self.write_buffer.extend(value);
         if self.read_buffer.is_empty() {
             self.connection
                 .inner()
                 .write_all(&self.write_buffer)
                 .unwrap();
-            tracing::trace!("values written from buffer {:?}", self.write_buffer);
+            tracing::trace!(
+                "values written from buffer {:?}, {:?}",
+                self.write_buffer,
+                String::from_utf8_lossy(&self.write_buffer)
+            );
             // TODO test clear write buf
             self.write_buffer.clear();
             Ok(len)

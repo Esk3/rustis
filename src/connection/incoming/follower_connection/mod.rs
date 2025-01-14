@@ -61,7 +61,6 @@ where
 
         while !handshake.is_finished() {
             let response = handshake.try_advance(&starting_input).unwrap();
-            dbg!("sending response", &response);
             self.connection.write(&response).unwrap();
             if handshake.is_finished() {
                 break;

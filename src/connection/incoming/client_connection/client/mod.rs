@@ -1,4 +1,4 @@
-use crate::{event::EventEmitter, repository::Repository, Service};
+use crate::{repository::Repository, service::Service};
 
 pub mod commands;
 pub mod layers;

@@ -1,5 +1,5 @@
 use crate::resp::Value;
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 use array::deserialize_array;
 use bulk_string::deserialize_bulk_string;
 use simple_string::deserialize_simple_string;

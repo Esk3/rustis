@@ -8,12 +8,7 @@ pub mod radix;
 pub mod redis;
 pub mod repository;
 pub mod resp;
+pub mod service;
 
 pub use message::request::Request;
 pub use message::Message;
-
-pub trait Service<Req> {
-    type Response;
-    type Error;
-    fn call(&mut self, request: Req) -> Result<Self::Response, Self::Error>;
-}

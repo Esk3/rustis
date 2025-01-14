@@ -1,7 +1,11 @@
+use resp::value::IntoRespArray;
+
+use crate::message::request::Standard;
+
 use super::*;
 
 #[must_use]
-pub fn expected_input() -> [Vec<resp::Value>; 4] {
+pub fn expected_input() -> [crate::Request; 4] {
     [
         "PING",
         "REPLCONF; listing-port; 1",
@@ -9,6 +13,7 @@ pub fn expected_input() -> [Vec<resp::Value>; 4] {
         "PSYNC",
     ]
     .map(resp::Value::bulk_strings)
+    .map(|val| crate::Message::new(val.into_array(), 1).into())
 }
 
 #[must_use]
@@ -41,10 +46,11 @@ fn can_start_with_repl_conf_listing_port() {
     let ok = handshake.try_advance(&other_valid_first);
     assert!(ok.is_ok());
 }
+
 #[test]
 fn invalid_start_input_is_err() {
     let mut handshake = IncomingHandshake::new();
-    let err = handshake.try_advance(&[resp::Value::bulk_string("MULTI")]);
+    let err = handshake.try_advance(&Standard::new_empty("MULTI").into());
     assert!(err.is_err());
 }
 
@@ -56,7 +62,6 @@ fn expected_use() {
     for (i, (input, expected_response)) in dummy_input.into_iter().zip(expected_output).enumerate()
     {
         assert!(!handshake.is_finished());
-        dbg!(&input, &expected_response);
         let response = handshake.try_advance(&input).unwrap();
         assert!(
             response

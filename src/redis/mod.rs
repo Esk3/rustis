@@ -1,4 +1,5 @@
 use crate::{
+    command,
     config::{RedisConfig, Role},
     connection::{
         incoming::{client_connection::client, IncomingConnection},
@@ -21,6 +22,7 @@ pub struct Redis<L, C> {
     listner: L,
     leader_connection: Option<C>,
     client_router: &'static client::Router,
+    leader_router: &'static command::CommandRouter<crate::Request, (), Repository>,
     repo: Repository,
     emitter: EventEmitter,
 }
@@ -47,6 +49,7 @@ where
             listner,
             leader_connection,
             client_router: client::default_router(),
+            leader_router: crate::connection::outgoing::default_leader_router(),
             repo,
             emitter,
         }
@@ -66,6 +69,7 @@ where
             self.config
                 .leader_addr()
                 .expect("should be set if follower"),
+            self.leader_router,
             self.emitter.clone(),
             self.repo.clone(),
         )

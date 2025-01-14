@@ -1,5 +1,5 @@
 use crate::{
-    command::{parser::Parser, Command},
+    command::Command,
     repository::Repository,
     resp::{self, value::IntoRespArray},
 };
@@ -25,7 +25,7 @@ impl Command<super::Request, super::Response, Repository> for Config {
         crate::command::CommandInfo::new_name("CONFIG")
     }
 
-    fn call(&self, request: super::Request, repo: &Repository) -> anyhow::Result<super::Response> {
+    fn call(&self, request: super::Request, _repo: &Repository) -> anyhow::Result<super::Response> {
         Ok(Self::handle_request(request.try_into().unwrap()).into())
     }
 }

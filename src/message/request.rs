@@ -12,6 +12,12 @@ impl Request {
             Request::Standard(s) => Some(s.command.as_str()),
         }
     }
+
+    pub fn into_standard(self) -> Result<Standard, Self> {
+        match self {
+            Self::Standard(s) => Ok(s),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -69,5 +75,24 @@ impl From<super::Message<resp::Value>> for Request {
                 }
             }
         }
+    }
+}
+
+impl From<Request> for resp::Value {
+    fn from(value: Request) -> Self {
+        match value {
+            Request::Standard(s) => s.into(),
+        }
+    }
+}
+
+impl From<Standard> for resp::Value {
+    fn from(mut value: Standard) -> Self {
+        value.args.insert(0, value.command);
+        value
+            .args
+            .into_iter()
+            .map(resp::Value::BulkString)
+            .collect()
     }
 }

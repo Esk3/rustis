@@ -2,7 +2,9 @@ use client_connection::client::default_router;
 
 use crate::{
     connection::{self, ConnectionResult, DummyConnection},
-    event, repository, resp,
+    event,
+    message::request::Standard,
+    repository, resp,
 };
 
 use super::super::MockConnection;
@@ -172,6 +174,6 @@ fn handle_follower_connection_call_runs_follower_connection() {
     let s = PipelineBuffer::new(DummyConnection);
     let follower_connection = FollowerConnection::new(s, test.emitter.clone());
     test.connection
-        .handle_follower_connection(Vec::new())
+        .handle_follower_connection(Standard::new_empty("PING").into())
         .unwrap();
 }

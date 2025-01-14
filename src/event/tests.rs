@@ -8,7 +8,7 @@ fn create_subscriber() {
 #[test]
 fn emit_event() {
     let emitter = EventEmitter::new();
-    emitter.emmit(Kind::Set {
+    emitter.emit(Kind::Set {
         key: "key".to_string(),
         value: "value".to_string(),
         expiry: None,
@@ -19,7 +19,7 @@ fn subscriber_recives_emitted_event() {
     let emitter = EventEmitter::new();
     let subscriber = emitter.subscribe();
     let (key, value) = ("abc", "xyz");
-    emitter.emmit(Kind::Set {
+    emitter.emit(Kind::Set {
         key: key.into(),
         value: value.into(),
         expiry: None,
@@ -41,7 +41,7 @@ fn subscriber_recives_event_from_cloned_emitter() {
     let subscriber = emitter.subscribe();
     let clone = emitter.clone();
     let (key, value) = ("abc", "xyz");
-    clone.emmit(Kind::Set {
+    clone.emit(Kind::Set {
         key: key.into(),
         value: value.into(),
         expiry: None,
@@ -65,7 +65,7 @@ fn iter_events() {
             expiry: None,
         },
     ];
-    events.iter().for_each(|e| emitter.emmit(e.clone()));
+    events.iter().for_each(|e| emitter.emit(e.clone()));
     drop(emitter);
     let recived_events = subscriber.into_iter().collect::<Vec<_>>();
     assert_eq!(recived_events, events);

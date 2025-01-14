@@ -9,7 +9,7 @@ use crate::{
     repository::Repository,
 };
 
-mod leader;
+pub mod leader;
 
 pub struct LeaderConnection<S> {
     connection: PipelineBuffer<S>,
@@ -20,10 +20,15 @@ impl<S> LeaderConnection<S>
 where
     S: Stream,
 {
-    pub fn new(connection: PipelineBuffer<S>, emitter: EventEmitter, repo: Repository) -> Self {
+    pub fn new(
+        connection: PipelineBuffer<S>,
+        router: &'static crate::command::CommandRouter<crate::Request, (), Repository>,
+        emitter: EventEmitter,
+        repo: Repository,
+    ) -> Self {
         Self {
             connection,
-            leader: Leader::new((), emitter, repo),
+            leader: Leader::new(router, emitter, repo),
         }
     }
 
@@ -35,18 +40,18 @@ where
             let message = match self.connection.read() {
                 Ok(msg) => msg,
                 Err(err) => todo!("{err}"),
-                //Err(err) => match err {
-                //    super::ConnectionError::EndOfInput => return Ok(()),
-                //    super::ConnectionError::Io(_) => todo!(),
-                //    super::ConnectionError::Any(_) => todo!(),
-                //},
             };
             tracing::debug!("got message from leader {message:?}");
-            let request = todo!();
-            let response = self.leader.handle_request(request).unwrap();
-            tracing::debug!("sending response {response:?}");
-            if let Some(response) = response {
+            let leader::LeaderResponse { value, events } =
+                self.leader.handle_request(message.into()).unwrap();
+
+            if let Some(response) = value {
+                tracing::debug!("sending value [{response:?}]");
                 self.connection.write(&response).unwrap();
+            }
+
+            if let Some(events) = events {
+                todo!()
             }
         }
     }
@@ -55,14 +60,16 @@ where
         let mut handshake = OutgoingHandshake::new();
         let mut response = None;
         while let Some(next) = handshake.try_advance(&response).unwrap() {
-            dbg!(&next);
-            self.connection.write(&next).unwrap();
+            self.connection.write(&next.into()).unwrap();
             let message = self.connection.read().unwrap();
             response = Some(message);
         }
         let mut rdb_buf = [0; 1024];
+        std::thread::sleep(std::time::Duration::from_secs(1));
         let bytes_read = self.connection.inner().inner().read(&mut rdb_buf).unwrap();
         assert_ne!(bytes_read, rdb_buf.len(), "rdb buffer overflow");
+        tracing::debug!("{:?}", &rdb_buf[..bytes_read]);
+        tracing::debug!("{bytes_read}");
         Ok(1)
     }
 }

@@ -3,7 +3,7 @@ use queue::Queue;
 
 use crate::{
     resp::{self, value::IntoRespArray},
-    Service,
+    service::Service,
 };
 
 pub mod queue;

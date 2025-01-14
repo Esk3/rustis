@@ -16,6 +16,13 @@ impl<T> Message<T> {
     pub fn content(&self) -> &T {
         &self.content
     }
+    pub fn into_content(self) -> T {
+        self.content
+    }
+
+    pub fn length(&self) -> usize {
+        self.length
+    }
 }
 
 pub enum Kind {

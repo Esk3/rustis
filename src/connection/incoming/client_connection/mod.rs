@@ -38,7 +38,7 @@ where
             match self.handle_client_request(request_id).unwrap() {
                 ClientRequestResult::Ok => (),
                 ClientRequestResult::Close => todo!(),
-                ClientRequestResult::ReplicationMessage(messages) => {
+                ClientRequestResult::ReplicationRequest(messages) => {
                     return Ok(ClientConnectionResult::ReplicationMessage(messages))
                 }
             }
@@ -55,7 +55,9 @@ where
         tracing::trace!("got result: {result:?}");
         let client::Response { value, events } = match result {
             client::Result::Response(response) => response,
-            client::Result::ReplicationMessage(_) => todo!(),
+            client::Result::ReplicationMessage(request) => {
+                return Ok(ClientRequestResult::ReplicationRequest(request))
+            }
         };
 
         if let Some(events) = events {
@@ -75,5 +77,5 @@ pub enum ClientConnectionResult {
 pub enum ClientRequestResult {
     Ok,
     Close,
-    ReplicationMessage(crate::Request),
+    ReplicationRequest(crate::Request),
 }
