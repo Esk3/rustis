@@ -18,6 +18,25 @@ pub enum Kind {
     },
 }
 
+impl Kind {
+    pub fn emit(self, emitter: &EventEmitter) {
+        emitter.emit(self);
+    }
+}
+
+pub trait EmitAll {
+    fn emit_all(self, emitter: &EventEmitter);
+}
+
+impl<T> EmitAll for T
+where
+    T: IntoIterator<Item = Kind>,
+{
+    fn emit_all(self, emitter: &EventEmitter) {
+        self.into_iter().for_each(|e| e.emit(emitter));
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LockEventProducer {
     subscribers: Arc<Mutex<Vec<Sender<Kind>>>>,
@@ -31,7 +50,7 @@ impl LockEventProducer {
         }
     }
 
-    pub fn emmit(&self, kind: Kind) {
+    pub fn emit(&self, kind: Kind) {
         tracing::debug!("emitting event: {kind:?}");
         self.subscribers.lock().unwrap().iter().for_each(|tx| {
             tx.send(kind.clone());

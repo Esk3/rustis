@@ -33,7 +33,7 @@ impl Leader {
             .kv_repo()
             .set("MyKey".to_string(), "myValue".to_string(), None)
             .unwrap();
-        self.emitter.emmit(event::Kind::Set {
+        self.emitter.emit(event::Kind::Set {
             key: "MyKey".to_string(),
             value: "myValue".to_string(),
             expiry: None,

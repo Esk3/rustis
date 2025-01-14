@@ -1,5 +1,4 @@
-use crate::connection::incoming::client_connection::client;
-use crate::connection::incoming::client_connection::client::Response;
+use crate::connection::incoming::client_connection::client::{self, Response};
 use queue::Queue;
 
 use crate::{
@@ -28,18 +27,16 @@ where
         }
     }
     fn commit_multi(&mut self, request: Vec<client::Request>) -> Response {
-        let map = request.into_iter().map(|req| self.inner.call(req).unwrap());
-        let mut values = Vec::new();
-        let mut events = Vec::new();
-        for i in map {
-            match i.kind {
-                client::response::ResponseKind::Value(value) => values.push(value),
-                client::response::ResponseKind::RecivedReplconf(_) => todo!(),
-            }
-            if let Some(event) = i.event {
-                events.extend(event);
-            }
-        }
+        // TODO:! currently the lock on the repo gets released after every call to `self.inner.call`
+        // so another request could come and write to the repo in the middle of the transaction
+        // which does not follow the redis protocol
+        // https://redis.io/docs/latest/develop/interact/transactions/ (bullet point 1)
+        let (values, events): (Vec<_>, Vec<_>) = request
+            .into_iter()
+            .map(|req| self.inner.call(req).unwrap())
+            .map(|res| (res.value, res.events))
+            .unzip();
+        let events = events.into_iter().flatten().flatten().collect::<Vec<_>>();
         Response::value_events(values.into_array(), events)
     }
 }
@@ -55,7 +52,7 @@ where
     fn call(&mut self, request: client::Request) -> Result<Self::Response, Self::Error> {
         if self.queue.is_active() {
             return match self.queue.store(request) {
-                queue::StoreResult::Ok => Ok(resp::Value::simple_string("Queued").into()),
+                queue::StoreResult::Ok => Ok(resp::Value::simple_string("QUEUED").into()),
                 queue::StoreResult::InvalidStore(client::Request { request, .. }) => {
                     todo!("invalid store, {request:?}")
                 }
@@ -64,7 +61,7 @@ where
         }
         if request.command().unwrap().eq_ignore_ascii_case("MULTI") {
             self.queue.store(request);
-            todo!("multi started msg")
+            Ok(Response::ok())
         } else {
             self.inner.call(request)
         }

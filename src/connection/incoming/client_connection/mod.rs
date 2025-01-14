@@ -1,10 +1,8 @@
-use client::response::ResponseKind;
 use tracing::instrument;
 
 use crate::{
     connection::stream::{PipelineBuffer, Stream},
-    event::EventEmitter,
-    resp,
+    event::{EmitAll, EventEmitter},
 };
 
 pub mod client;
@@ -53,23 +51,18 @@ where
 
         tracing::trace!("handling request: {message:?}");
         let request = client::Request::now(message.into());
-        let response = self.client.handle_request(request).unwrap();
-        tracing::trace!("got response: {response:?}");
-        if let Some(event) = response.event {
-            // TODO
-            for event in event {
-                self.emitter.emmit(event);
-            }
-        }
-
-        let response = match response.kind {
-            ResponseKind::Value(response) => response,
-            ResponseKind::RecivedReplconf(repl) => {
-                return Ok(ClientRequestResult::ReplicationMessage(repl))
-            }
+        let result = self.client.handle_request(request).unwrap();
+        tracing::trace!("got result: {result:?}");
+        let client::Response { value, events } = match result {
+            client::Result::Response(response) => response,
+            client::Result::ReplicationMessage(_) => todo!(),
         };
 
-        self.connection.write(&response).unwrap();
+        if let Some(events) = events {
+            events.emit_all(&self.emitter);
+        }
+
+        self.connection.write(&value).unwrap();
         Ok(ClientRequestResult::Ok)
     }
 }

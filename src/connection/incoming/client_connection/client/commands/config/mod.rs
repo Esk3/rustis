@@ -57,6 +57,6 @@ impl From<Response> for super::Response {
             resp::Value::bulk_string(value.value),
         ]
         .to_vec();
-        return Self::value(res.into_array());
+        Self::value(res.into_array())
     }
 }

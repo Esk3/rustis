@@ -29,16 +29,21 @@ impl Client {
         }
     }
 
-    pub fn handle_request(&mut self, request: Request) -> anyhow::Result<Response> {
+    pub fn handle_request(&mut self, request: Request) -> anyhow::Result<Result> {
         tracing::debug!("handling request: {request:?}");
-        let res = self.service.call(request)?;
-        let res = match res {
+        let result = self.service.call(request)?;
+        tracing::debug!("{result:?}");
+        Ok(match result {
             layers::replication::ReplicationResponse::ReplicationRequest(value) => {
-                Response::new(response::ResponseKind::RecivedReplconf(value), None)
+                Result::ReplicationMessage(value)
             }
-            layers::replication::ReplicationResponse::Inner(response) => response,
-        };
-        tracing::debug!("{res:?}");
-        Ok(res)
+            layers::replication::ReplicationResponse::Inner(response) => Result::Response(response),
+        })
     }
+}
+
+#[derive(Debug)]
+pub enum Result {
+    Response(Response),
+    ReplicationMessage(crate::Request),
 }
