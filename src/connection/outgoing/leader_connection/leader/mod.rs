@@ -1,16 +1,15 @@
+use crate::Request;
 use crate::{
     event::{self, EventEmitter},
     repository::Repository,
     resp,
 };
 
-mod request;
 mod response;
 
 #[cfg(test)]
 mod tests;
 
-pub use request::{Request, Standard};
 pub use response::Response;
 
 pub struct Leader {

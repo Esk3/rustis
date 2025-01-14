@@ -25,13 +25,16 @@ impl Value {
     pub fn simple_string(s: impl ToString) -> Self {
         Self::SimpleString(s.to_string())
     }
+
     #[allow(clippy::needless_pass_by_value)]
     pub fn bulk_string(s: impl ToString) -> Self {
         Self::BulkString(s.to_string())
     }
+
     pub fn bulk_strings(s: impl ToString) -> Vec<Self> {
         Self::bulk_string_pat(s, ";")
     }
+
     #[allow(clippy::needless_pass_by_value)]
     pub fn bulk_string_pat(s: impl ToString, pat: &str) -> Vec<Self> {
         s.to_string()
@@ -40,10 +43,17 @@ impl Value {
             .map(Self::bulk_string)
             .collect()
     }
+
     #[must_use]
     pub fn ok() -> Self {
         Self::simple_string("OK")
     }
+
+    #[must_use]
+    pub fn is_string(&self) -> bool {
+        matches!(self, Value::SimpleString(_) | Value::BulkString(_))
+    }
+
     pub fn into_string(self) -> Result<String, Self> {
         match self {
             Value::SimpleString(s) | Value::BulkString(s) => Ok(s),
@@ -55,10 +65,12 @@ impl Value {
             Value::Raw(_) => todo!(),
         }
     }
+
     pub fn expect_string(self) -> anyhow::Result<String> {
         self.into_string()
             .map_err(|err| anyhow!("expected string got {err:?}"))
     }
+
     #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
@@ -66,6 +78,7 @@ impl Value {
             _ => None,
         }
     }
+
     pub fn into_array(self) -> Result<Vec<Self>, Self> {
         if let Self::Array(arr) = self {
             Ok(arr)
@@ -87,6 +100,7 @@ impl Value {
             Value::Raw(_) => todo!(),
         }
     }
+
     #[must_use]
     pub fn eq_ignore_ascii_case(&self, other: &str) -> bool {
         match self {

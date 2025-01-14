@@ -20,18 +20,8 @@ impl IncomingHandshake {
         self.count >= 4
     }
 
-    pub fn try_advance(&mut self, input: &[resp::Value]) -> anyhow::Result<resp::Value> {
-        let res = match (
-            input
-                .first()
-                .unwrap()
-                .clone()
-                .expect_string()
-                .unwrap()
-                .to_uppercase()
-                .as_str(),
-            self.count,
-        ) {
+    pub fn try_advance(&mut self, input: &crate::Request) -> anyhow::Result<resp::Value> {
+        let res = match (input.command().unwrap().to_uppercase().as_str(), self.count) {
             ("PING", 0) => {
                 self.count = 1;
                 "PONG"

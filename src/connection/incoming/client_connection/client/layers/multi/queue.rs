@@ -13,15 +13,15 @@ impl Queue {
     }
     pub fn store(&mut self, request: client::Request) -> StoreResult {
         match &mut self.0 {
-            None if request.value.first().unwrap().eq_ignore_ascii_case("Multi") => {
+            None if request.command().unwrap().eq_ignore_ascii_case("MULTI") => {
                 self.0 = Some(Vec::new());
                 StoreResult::Ok
             }
-            Some(_) if request.value.first().unwrap().eq_ignore_ascii_case("Multi") => {
+            Some(_) if request.command().unwrap().eq_ignore_ascii_case("MULTI") => {
                 StoreResult::InvalidStore(request)
             }
             None => StoreResult::InvalidStore(request),
-            Some(_) if request.value.first().unwrap().eq_ignore_ascii_case("Exec") => {
+            Some(_) if request.command().unwrap().eq_ignore_ascii_case("EXEC") => {
                 StoreResult::QueueFinished(self.0.take().unwrap())
             }
             Some(list) => {

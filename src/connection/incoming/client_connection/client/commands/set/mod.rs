@@ -31,27 +31,11 @@ impl TryFrom<super::Request> for Request {
     type Error = anyhow::Error;
 
     fn try_from(value: super::Request) -> Result<Self, Self::Error> {
-        let mut iter = value.value.into_iter();
-        assert!(iter
-            .next()
-            .context("expected set ident")?
-            .eq_ignore_ascii_case("SET"));
+        let mut iter = value.into_content().unwrap().into_iter();
 
         let (Some(key), Some(value)) = (iter.next(), iter.next()) else {
             bail!("usage: SET <key> <value>")
         };
-        let key = match key {
-            crate::resp::Value::SimpleString(s) | crate::resp::Value::BulkString(s) => s,
-            crate::resp::Value::SimpleError(_) => todo!(),
-            crate::resp::Value::BulkByteString(s) => String::from_utf8_lossy(&s).to_string(),
-            crate::resp::Value::NullString => todo!(),
-            crate::resp::Value::Integer(_) => todo!(),
-            crate::resp::Value::Array(_) => todo!(),
-            crate::resp::Value::NullArray => todo!(),
-            crate::resp::Value::Raw(_) => todo!(),
-        };
-        //let key = key.expect_string()?;
-        let value = value.expect_string()?;
         Ok(Self { key, value })
     }
 }

@@ -45,14 +45,8 @@ impl TryFrom<super::Request> for Request {
     type Error = anyhow::Error;
 
     fn try_from(value: super::Request) -> Result<Self, Self::Error> {
-        let key = Parser::new(value.value)
-            .ident("info")
-            .unwrap()
-            .value("key")
-            .unwrap()
-            .finish()
-            .remove("key")
-            .unwrap();
+        let mut iter = value.into_content().unwrap().into_iter();
+        let key = iter.next().unwrap();
         Ok(Self { key })
     }
 }

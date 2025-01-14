@@ -23,7 +23,7 @@ impl Command<super::Request, super::Response, Repository> for XAdd {
     }
 
     fn call(&self, request: super::Request, repo: &Repository) -> anyhow::Result<super::Response> {
-        let request = Request::try_from(request.value)?;
+        let request = Request::try_from(request)?;
         Self::handle_request(request, repo);
         todo!()
     }
@@ -34,10 +34,10 @@ struct Request {
     entry_id: Option<StreamId>,
     value: String,
 }
-impl TryFrom<Vec<resp::Value>> for Request {
+impl TryFrom<super::Request> for Request {
     type Error = anyhow::Error;
 
-    fn try_from(value: Vec<resp::Value>) -> Result<Self, Self::Error> {
+    fn try_from(value: super::Request) -> Result<Self, Self::Error> {
         todo!()
     }
 }

@@ -57,9 +57,8 @@ where
         while let Some(next) = handshake.try_advance(&response).unwrap() {
             dbg!(&next);
             self.connection.write(&next).unwrap();
-            let value = self.connection.read().unwrap().value;
-            let arr = value.into_array().unwrap_or_else(|v| vec![v]);
-            response = Some(arr);
+            let message = self.connection.read().unwrap();
+            response = Some(message);
         }
         let mut rdb_buf = [0; 1024];
         let bytes_read = self.connection.inner().inner().read(&mut rdb_buf).unwrap();

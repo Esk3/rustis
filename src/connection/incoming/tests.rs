@@ -165,3 +165,13 @@ fn handle_follower_connection_writes_same_output_as_follower_handler() {
     //};
     //todo!()
 }
+
+#[test]
+fn handle_follower_connection_call_runs_follower_connection() {
+    let test = Tester::setup([], []);
+    let s = PipelineBuffer::new(DummyConnection);
+    let follower_connection = FollowerConnection::new(s, test.emitter.clone());
+    test.connection
+        .handle_follower_connection(Vec::new())
+        .unwrap();
+}

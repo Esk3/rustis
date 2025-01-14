@@ -1,9 +1,8 @@
-use anyhow::bail;
-use client_connection::{client::response::ResponseKind, ClientConnectionResult};
-use follower_connection::follower::Follower;
+use client_connection::ClientConnectionResult;
+use follower_connection::{follower::Follower, FollowerConnection};
 use tracing::instrument;
 
-use crate::{connection::ConnectionError, event::EventEmitter, repository::Repository, resp};
+use crate::{event::EventEmitter, repository::Repository, resp};
 
 pub mod client_connection;
 mod follower_connection;
@@ -56,22 +55,19 @@ where
         match self.handle_client_connection()? {
             ClientConnectionResult::Close => Ok(()),
             ClientConnectionResult::ReplicationMessage(messages) => {
-                self.handle_follower_connection(messages);
-                todo!();
-                Ok(())
+                self.handle_follower_connection(messages)
             }
         }
     }
 
     fn handle_client_connection(&mut self) -> anyhow::Result<ClientConnectionResult> {
-        let mut client = client_connection::client::Client::new(
-            self.client_router,
+        let client = client_connection::client::Client::new(self.client_router, self.repo.clone());
+        let mut client = client_connection::ClientConnection::new(
+            &mut self.connection,
             self.emitter.clone(),
-            self.repo.clone(),
+            client,
         );
-        let mut client = client_connection::ClientConnection::new(&mut self.connection, client);
-        client.run();
-        Ok(ClientConnectionResult::Close)
+        client.run()
     }
 
     pub fn spawn_handler(self)
@@ -81,7 +77,8 @@ where
         std::thread::spawn(move || self.run_handler().unwrap());
     }
 
-    fn handle_follower_connection(self, messages: Vec<resp::Value>) {
-        todo!()
+    fn handle_follower_connection(self, messages: crate::Request) -> anyhow::Result<()> {
+        let follower_connection = FollowerConnection::new(self.connection, self.emitter);
+        follower_connection.run(messages)
     }
 }

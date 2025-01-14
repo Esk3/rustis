@@ -41,9 +41,8 @@ impl TryFrom<super::Request> for Request {
     type Error = anyhow::Error;
 
     fn try_from(value: super::Request) -> Result<Self, Self::Error> {
-        let mut iter = value.value.into_iter();
-        _ = iter.next();
-        let sub_cmd = iter.next().unwrap().expect_string().unwrap();
+        let mut iter = value.into_content().unwrap().into_iter();
+        let sub_cmd = iter.next().unwrap();
         if sub_cmd.eq_ignore_ascii_case("ID") {
             Ok(Request { cmd: Cmd::Id })
         } else {

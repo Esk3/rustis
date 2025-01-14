@@ -13,14 +13,15 @@ pub use router::{default_router, Router};
 //#[cfg(test)]
 //mod tests;
 
+type ClientService = layers::ReplicationService<layers::MultiLayer<layers::Routing>>;
+
 pub struct Client {
-    service: layers::ReplicationService<layers::MultiLayer<layers::Routing>>,
+    service: ClientService,
 }
 
 impl Client {
     #[must_use]
-    pub fn new(router: &'static Router, emitter: EventEmitter, repo: Repository) -> Self {
-        let emitter = emitter;
+    pub fn new(router: &'static Router, repo: Repository) -> Self {
         Self {
             service: layers::ReplicationService::new(layers::MultiLayer::new(
                 layers::Routing::new(repo, router),

@@ -56,13 +56,13 @@ where
         if self.queue.is_active() {
             return match self.queue.store(request) {
                 queue::StoreResult::Ok => Ok(resp::Value::simple_string("Queued").into()),
-                queue::StoreResult::InvalidStore(client::Request { value, .. }) => {
-                    todo!("invalid store, {value:?}")
+                queue::StoreResult::InvalidStore(client::Request { request, .. }) => {
+                    todo!("invalid store, {request:?}")
                 }
                 queue::StoreResult::QueueFinished(queue) => Ok(self.commit_multi(queue)),
             };
         }
-        if request.value.first().unwrap().eq_ignore_ascii_case("MULTI") {
+        if request.command().unwrap().eq_ignore_ascii_case("MULTI") {
             self.queue.store(request);
             todo!("multi started msg")
         } else {

@@ -1,28 +1,42 @@
-use crate::resp;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Request {
-    pub value: Vec<resp::Value>,
-    pub size: usize,
+    pub request: crate::Request,
     pub timestamp: std::time::SystemTime,
 }
 
 impl Request {
     #[must_use]
-    pub fn new(value: resp::Value, input_length: usize, timestamp: std::time::SystemTime) -> Self {
-        Self {
-            value: value.into_array().unwrap_or_else(|v| vec![v]),
-            size: input_length,
-            timestamp,
-        }
+    pub fn new(request: crate::Request, timestamp: std::time::SystemTime) -> Self {
+        Self { request, timestamp }
     }
     #[must_use]
-    pub fn now(value: resp::Value, input_length: usize) -> Self {
-        Self::new(value, input_length, std::time::SystemTime::now())
+    pub fn now(request: crate::Request) -> Self {
+        Self::new(request, std::time::SystemTime::now())
     }
 
     #[allow(dead_code)]
     #[must_use]
-    pub fn epoch(value: resp::Value, input_length: usize) -> Self {
-        Self::new(value, input_length, std::time::SystemTime::UNIX_EPOCH)
+    pub fn epoch(request: crate::Request) -> Self {
+        Self::new(request, std::time::SystemTime::UNIX_EPOCH)
+    }
+
+    pub fn into_content(self) -> Result<Vec<String>, Self> {
+        match self.request {
+            crate::Request::Standard(s) => Ok(s.args),
+        }
+    }
+}
+
+impl std::ops::Deref for Request {
+    type Target = crate::Request;
+
+    fn deref(&self) -> &Self::Target {
+        &self.request
+    }
+}
+
+impl From<Request> for crate::Request {
+    fn from(value: Request) -> Self {
+        value.request
     }
 }

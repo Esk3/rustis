@@ -1,6 +1,9 @@
 use anyhow::anyhow;
 
-use crate::resp::{self, value::IntoRespArray};
+use crate::{
+    resp::{self, value::IntoRespArray},
+    Message,
+};
 
 #[cfg(test)]
 pub mod tests;
@@ -23,23 +26,22 @@ impl OutgoingHandshake {
 
     pub fn try_advance(
         &mut self,
-        response: &Option<Vec<resp::Value>>,
+        response: &Option<Message<resp::Value>>,
     ) -> anyhow::Result<Option<resp::Value>> {
         let result = match (self.advances, response) {
             (0, None) => Ok(Some(resp::Value::simple_string("PING"))),
-            (1, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("PONG") => Ok(Some(
+            (1, Some(res)) if res.content().eq_ignore_ascii_case("PONG") => Ok(Some(
                 resp::Value::bulk_strings("REPLCONF; listing-port;1").into_array(),
             )),
-            (2, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("OK") => Ok(Some(
+            (2, Some(res)) if res.content().eq_ignore_ascii_case("OK") => Ok(Some(
                 resp::Value::bulk_strings("REPLCONF; CAPA; SYNC").into_array(),
             )),
-            (3, Some(res)) if res.first().unwrap().eq_ignore_ascii_case("OK") => {
+            (3, Some(res)) if res.content().eq_ignore_ascii_case("OK") => {
                 Ok(Some(resp::Value::bulk_strings("PSYNC").into_array()))
             }
             (4, Some(res))
                 if res
-                    .first()
-                    .unwrap()
+                    .content()
                     .clone()
                     .expect_string()
                     .unwrap()

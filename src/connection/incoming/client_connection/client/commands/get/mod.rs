@@ -31,16 +31,10 @@ impl TryFrom<super::Request> for Request {
     type Error = anyhow::Error;
 
     fn try_from(value: super::Request) -> Result<Self, Self::Error> {
-        let mut iter = value.value.into_iter();
-        assert!(iter
-            .next()
-            .context("expected get ident")?
-            .eq_ignore_ascii_case("GET"));
-        let key = iter.next().context("key missing")?.expect_string()?;
-        Ok(Self {
-            key,
-            timestamp: value.timestamp,
-        })
+        let timestamp = value.timestamp;
+        let mut iter = value.into_content().unwrap().into_iter();
+        let key = iter.next().context("key missing")?;
+        Ok(Self { key, timestamp })
     }
 }
 

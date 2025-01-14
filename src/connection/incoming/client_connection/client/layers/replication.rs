@@ -1,12 +1,8 @@
-use crate::{
-    connection::incoming::client_connection::client,
-    resp::{self, value::IntoRespArray},
-    Service,
-};
+use crate::{connection::incoming::client_connection::client, Service};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ReplicationResponse<T> {
-    ReplicationRequest(resp::Value),
+    ReplicationRequest(crate::Request),
     Inner(T),
 }
 
@@ -29,18 +25,9 @@ where
     type Error = anyhow::Error;
 
     fn call(&mut self, request: client::Request) -> Result<Self::Response, Self::Error> {
-        if request
-            .value
-            .first()
-            .unwrap()
-            .eq_ignore_ascii_case("ReplConf")
-        {
-            return Ok(ReplicationResponse::ReplicationRequest(
-                request.value.into_array(),
-            ));
-            todo!()
-            //Ok(ReplicationResponse::ReplicationRequest(replconf)),
-        } else if request.value.first().unwrap().eq_ignore_ascii_case("PSYNC") {
+        if request.command().unwrap().eq_ignore_ascii_case("ReplConf") {
+            Ok(ReplicationResponse::ReplicationRequest(request.request))
+        } else if request.command().unwrap().eq_ignore_ascii_case("PSYNC") {
             todo!()
         } else {
             self.inner.call(request).map(ReplicationResponse::Inner)

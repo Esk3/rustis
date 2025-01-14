@@ -16,8 +16,7 @@ impl Routing {
         &self,
         request: &Request,
     ) -> Option<&dyn crate::command::Command<Request, Response, Repository>> {
-        self.router
-            .route(request.value.first()?.as_str()?.as_bytes())
+        self.router.route(request.command()?.as_bytes())
     }
 }
 
@@ -29,7 +28,7 @@ impl Service<Request> for Routing {
     fn call(&mut self, request: Request) -> Result<Self::Response, Self::Error> {
         let Some(handler) = self.handler(&request) else {
             // TODO handle routing failed somewhere else
-            tracing::warn!("unknown command {:?}", request.value);
+            tracing::warn!("unknown command {:?}", request.command().unwrap());
             return Ok(Response::value(resp::Value::SimpleError(
                 "ERR unknown command 'SENTINEL', with args beginning with: 'masters'".into(),
             )));

@@ -2,7 +2,7 @@ use crate::{event, resp};
 #[derive(Debug, PartialEq, Eq)]
 pub enum ResponseKind {
     Value(resp::Value),
-    RecivedReplconf(resp::Value),
+    RecivedReplconf(crate::Request),
 }
 
 #[derive(Debug, PartialEq, Eq)]

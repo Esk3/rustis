@@ -34,18 +34,11 @@ impl TryFrom<super::Request> for Request {
     type Error = anyhow::Error;
 
     fn try_from(value: super::Request) -> Result<Self, Self::Error> {
-        let mut iter = value.value.into_iter();
-        let _ = iter.next();
+        let mut iter = value.into_content().unwrap().into_iter();
+
         let value = iter.next().unwrap();
-        let echo = match value {
-            resp::Value::SimpleString(s) | resp::Value::BulkString(s) => s.as_bytes().to_vec(),
-            resp::Value::BulkByteString(s) => s,
-            resp::Value::NullString | resp::Value::NullArray => Vec::new(),
-            resp::Value::Integer(_) => todo!(),
-            resp::Value::Array(_) => todo!(),
-            resp::Value::SimpleError(_) => todo!(),
-            resp::Value::Raw(_) => todo!(),
-        };
+
+        let echo = value.as_bytes().to_vec();
         Ok(Self { echo })
     }
 }

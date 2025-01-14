@@ -1,8 +1,11 @@
 use std::fmt::Debug;
 
-use crate::resp::{
-    self,
-    value::{deserialize_value, serialize_value},
+use crate::{
+    resp::{
+        self,
+        value::{deserialize_value, serialize_value},
+    },
+    Message,
 };
 
 #[cfg(test)]
@@ -75,7 +78,7 @@ impl<S> RedisConnection<S>
 where
     S: Stream,
 {
-    pub fn read(&mut self) -> anyhow::Result<ReadResult> {
+    pub fn read(&mut self) -> anyhow::Result<Message<resp::Value>> {
         if self.i == 0 {
             let bytes_read = self.stream.read(&mut self.buf).unwrap();
             self.i = bytes_read;
@@ -84,13 +87,10 @@ where
         self.buf.rotate_left(bytes_consumed);
         self.i -= bytes_consumed;
         tracing::trace!("read value: [{value:?}]");
-        Ok(ReadResult {
-            value,
-            bytes_read: bytes_consumed,
-        })
+        Ok(Message::new(value, bytes_consumed))
     }
 
-    pub fn read_all(&mut self) -> anyhow::Result<Vec<ReadResult>> {
+    pub fn read_all(&mut self) -> anyhow::Result<Vec<Message<resp::Value>>> {
         let mut values = Vec::new();
         for i in 0..10 {
             let value = self.read().unwrap();
@@ -137,7 +137,7 @@ where
 #[derive(Debug)]
 pub struct PipelineBuffer<S> {
     connection: RedisConnection<S>,
-    read_buffer: Vec<ReadResult>,
+    read_buffer: Vec<Message<resp::Value>>,
     write_buffer: Vec<u8>,
 }
 
@@ -153,7 +153,7 @@ where
         }
     }
 
-    pub fn read(&mut self) -> anyhow::Result<ReadResult> {
+    pub fn read(&mut self) -> anyhow::Result<Message<resp::Value>> {
         if let Some(value) = self.read_buffer.pop() {
             tracing::trace!("value read from buffer: [{value:?}]");
             Ok(value)
@@ -191,10 +191,4 @@ where
     pub fn into_inner(self) -> RedisConnection<S> {
         self.connection
     }
-}
-
-#[derive(Debug)]
-pub struct ReadResult {
-    pub value: resp::Value,
-    pub bytes_read: usize,
 }
