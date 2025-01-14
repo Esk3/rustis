@@ -1,10 +1,6 @@
 use anyhow::anyhow;
 
-use crate::{
-    message::request::Standard,
-    resp::{self, value::IntoRespArray},
-    Message, Request,
-};
+use crate::{message::request::Standard, resp, Message, Request};
 
 #[cfg(test)]
 pub mod tests;

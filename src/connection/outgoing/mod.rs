@@ -7,7 +7,6 @@ use super::{
     stream::{PipelineBuffer, Stream},
 };
 
-mod handler;
 mod leader_connection;
 pub use leader_connection::leader::default_leader_router;
 
