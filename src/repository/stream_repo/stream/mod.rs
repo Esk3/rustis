@@ -44,8 +44,8 @@ impl Stream {
         self.indexes.is_empty()
     }
 
-    pub fn add_default_key(&mut self, key: impl DefaultEntryId, value: impl ToString) -> EntryId {
-        let key = key.into_or_default(&self.next);
+    pub fn add_default_key(&mut self, key: impl PartialEntryId, value: impl ToString) -> EntryId {
+        let key = key.into_entry_id_or_default(&self.next);
         if key == self.next {
             self.next.id += 1;
         }
@@ -53,11 +53,14 @@ impl Stream {
             self.next = key.clone();
             self.next.id += 1;
         }
-        self.indexes.add(key.as_radix_key(), self.entries.len());
+        self.indexes
+            .add(key.as_radix_key(), self.entries.len())
+            .unwrap();
         self.entries.push(Entry::new(key.clone(), value));
         key
     }
 
+    #[must_use]
     pub fn read(&self, key: &EntryId, count: usize) -> Vec<String> {
         let start = match self.entries.binary_search_by_key(key, |e| e.id.clone()) {
             Ok(i) => i,

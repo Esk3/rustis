@@ -5,7 +5,7 @@ use crate::{
         outgoing::OutgoingHandshake,
         stream::{PipelineBuffer, Stream},
     },
-    event::EventEmitter,
+    event::{EmitAll, EventEmitter},
     repository::Repository,
 };
 
@@ -14,6 +14,7 @@ pub mod leader;
 pub struct LeaderConnection<S> {
     connection: PipelineBuffer<S>,
     leader: Leader,
+    emitter: EventEmitter,
 }
 
 impl<S> LeaderConnection<S>
@@ -28,7 +29,8 @@ where
     ) -> Self {
         Self {
             connection,
-            leader: Leader::new(router, emitter, repo),
+            leader: Leader::new(router, emitter.clone(), repo),
+            emitter,
         }
     }
 
@@ -51,7 +53,7 @@ where
             }
 
             if let Some(events) = events {
-                todo!()
+                events.emit_all(&self.emitter);
             }
         }
     }

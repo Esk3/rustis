@@ -51,7 +51,7 @@ where
     type Error = anyhow::Error;
 
     fn call(&mut self, request: Req) -> Result<Self::Response, Self::Error> {
-        let response = self.inner.call(request)?;
+        let _response = self.inner.call(request)?;
         Ok(Response::NoResponse)
     }
 }

@@ -1,8 +1,6 @@
 use std::fmt::Debug;
 use thiserror::Error;
 
-use crate::resp::{self};
-
 pub mod handshake;
 pub mod incoming;
 pub mod outgoing;
@@ -25,18 +23,3 @@ pub enum ConnectionError {
 }
 
 pub type ConnectionResult<T> = Result<T, ConnectionError>;
-
-#[derive(Debug)]
-pub struct Value {
-    pub value: resp::Value,
-    pub bytes_read: usize,
-}
-
-impl Value {
-    fn new(value: resp::Value, bytes_consumed: usize) -> Self {
-        Self {
-            value,
-            bytes_read: bytes_consumed,
-        }
-    }
-}
