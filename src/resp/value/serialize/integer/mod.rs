@@ -5,6 +5,7 @@ use super::util::{ExtendIdentifier, ExtendLinefeed as _};
 #[cfg(test)]
 mod tests;
 
+#[must_use]
 pub fn serialize_int(n: i64) -> Vec<u8> {
     let binding = n.to_string();
     let digits = binding.as_bytes();

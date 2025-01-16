@@ -90,7 +90,7 @@ fn handshake_returns_err_on_advancing_after_finish() {
 #[test]
 fn expected_usage() {
     let mut handshake = OutgoingHandshake::new();
-    let mut dummy_conn = RedisConnection::new(crate::connection::DummyConnection);
+    let dummy_conn = RedisConnection::new(crate::connection::DummyConnection);
     let mut dummy_responses = expected_order().into_iter().skip(1).map(|msg| msg.unwrap());
     let mut response = None;
     while let Some(next) = handshake.try_advance(&response).unwrap() {

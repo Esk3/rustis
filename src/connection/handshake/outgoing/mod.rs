@@ -54,6 +54,6 @@ impl OutgoingHandshake {
         } else {
             self.advances = 0;
         }
-        result.map(|s| s.map(|s| s.into()))
+        result.map(|s| s.map(std::convert::Into::into))
     }
 }

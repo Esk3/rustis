@@ -1,10 +1,8 @@
 use client_connection::client::default_router;
 
 use crate::{
-    connection::{self, ConnectionResult, DummyConnection},
-    event,
-    message::request::Standard,
-    repository, resp,
+    connection::{DummyConnection},
+    message::request::Standard, resp,
 };
 
 use super::super::MockConnection;

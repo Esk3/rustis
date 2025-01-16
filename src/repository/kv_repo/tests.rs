@@ -52,7 +52,7 @@ fn getting_other_value_still_returns_none() {
     let none = repo
         .get("other_key", std::time::SystemTime::UNIX_EPOCH)
         .unwrap();
-    assert_eq!(none, None)
+    assert_eq!(none, None);
 }
 
 #[test]

@@ -24,6 +24,7 @@ pub struct CommandRouter<Req, Res, S> {
 }
 
 impl<Req, Res, S> CommandRouter<Req, Res, S> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             routes: Radix::new(),
@@ -40,6 +41,7 @@ impl<Req, Res, S> CommandRouter<Req, Res, S> {
         self
     }
 
+    #[must_use]
     pub fn route(&self, cmd: &[u8]) -> Option<&dyn Command<Req, Res, S>> {
         self.routes.get(&cmd.to_ascii_uppercase()).map(|cmd| &**cmd)
     }

@@ -51,11 +51,11 @@ impl<V> Radix<V> {
                             };
                             let common = key.common_prefix(&edge).unwrap();
                             let n1 = Self::Leaf {
-                                edge: edge.strip_common_prefix(&common).to_vec(),
+                                edge: edge.strip_common_prefix(common).to_vec(),
                                 value: leaf_value,
                             };
                             let n2 = Self::Leaf {
-                                edge: key.strip_common_prefix(&common).to_vec(),
+                                edge: key.strip_common_prefix(common).to_vec(),
                                 value,
                             };
                             *next = Self::Node {
@@ -100,7 +100,7 @@ impl<V> Radix<V> {
                     .iter()
                     .find(|child| child.edge().common_prefix(key).is_some())?;
                 match child {
-                    Radix::Node { edge, children } => child.get(key.strip_common_prefix(&edge)),
+                    Radix::Node { edge, children } => child.get(key.strip_common_prefix(edge)),
                     Radix::Leaf { edge, value } if edge == key => Some(value),
                     Radix::Leaf { .. } => None,
                 }
@@ -213,8 +213,7 @@ impl CommondPrefix for [u8] {
     fn strip_common_prefix(&self, other: &[u8]) -> &[u8] {
         let split = self
             .common_prefix(other)
-            .map(|common| common.len())
-            .unwrap_or(0);
+            .map_or(0, <[u8]>::len);
         &self[split..]
     }
 }

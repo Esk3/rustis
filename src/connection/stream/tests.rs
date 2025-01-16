@@ -88,7 +88,7 @@ fn read_all_returns_all_values() {
             .read_all()
             .unwrap()
             .into_iter()
-            .map(|r| r.into_content())
+            .map(crate::message::Message::into_content)
             .collect::<Vec<_>>();
         assert_eq!(actual, values);
     }
@@ -154,7 +154,7 @@ fn values_written_are_avalible_for_read_all() {
             .read_all()
             .unwrap()
             .into_iter()
-            .map(|r| r.into_content())
+            .map(crate::message::Message::into_content)
             .collect::<Vec<_>>();
         assert_eq!(read, values);
     }
@@ -273,7 +273,7 @@ fn pipeline_buffer_writes_to_stream_on_first_write_after_read_buffer_is_empty() 
             .read_all()
             .unwrap()
             .into_iter()
-            .map(|v| v.into_content())
+            .map(crate::message::Message::into_content)
             .collect::<Vec<_>>();
         assert_eq!(
             res,

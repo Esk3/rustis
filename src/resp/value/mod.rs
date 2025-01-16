@@ -87,7 +87,7 @@ impl Value {
         }
     }
 
-    pub fn is_into_byte_string(&self) -> bool {
+    #[must_use] pub fn is_into_byte_string(&self) -> bool {
         match self {
             Value::SimpleString(_) | Value::BulkString(_) | Value::BulkByteString(_) => true,
             _ => false,
