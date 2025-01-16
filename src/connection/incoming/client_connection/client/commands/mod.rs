@@ -9,6 +9,7 @@ pub mod set;
 pub mod subscribe;
 pub mod xadd;
 pub mod xrange;
+pub mod xread;
 
 type Request = super::Request;
 type Response = super::Response;

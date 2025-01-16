@@ -6,21 +6,61 @@ pub mod entry_id;
 use entry_id::TimestampEntryId;
 pub use entry_id::{EntryId, PartialEntryId};
 
-use crate::radix::Radix;
+use crate::{
+    radix::Radix,
+    resp::{self, value::IntoRespArray},
+};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Field {
+    name: String,
+    value: String,
+}
+
+impl Field {
+    pub fn new(name: impl ToString, value: impl ToString) -> Self {
+        Self {
+            name: name.to_string(),
+            value: value.to_string(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub(super) id: EntryId,
-    pub(super) value: String,
+    pub(super) fields: Vec<Field>,
 }
 
 impl Entry {
     #[allow(clippy::needless_pass_by_value)]
-    pub fn new(id: EntryId, value: impl ToString) -> Self {
-        Self {
-            id,
-            value: value.to_string(),
-        }
+    pub fn new(id: EntryId, fields: Vec<Field>) -> Self {
+        Self { id, fields }
+    }
+
+    #[must_use]
+    pub fn id(&self) -> &EntryId {
+        &self.id
+    }
+
+    pub fn fields(&self) -> &[Field] {
+        &self.fields
+    }
+}
+
+impl From<Entry> for resp::Value {
+    fn from(value: Entry) -> Self {
+        [
+            resp::Value::simple_string(value.id),
+            value
+                .fields
+                .into_iter()
+                .map(|field| [field.name, field.value])
+                .flatten()
+                .map(resp::Value::simple_string)
+                .collect(),
+        ]
+        .into_array()
     }
 }
 
@@ -59,7 +99,7 @@ impl Stream {
 
     pub fn add_with_auto_key(
         &mut self,
-        value: impl ToString,
+        fields: Vec<Field>,
         timestamp: &std::time::SystemTime,
     ) -> EntryId {
         let key = self.next_id(timestamp);
@@ -67,7 +107,7 @@ impl Stream {
         self.indexes
             .add(key.as_radix_key(), self.entries.len())
             .unwrap();
-        self.entries.push(Entry::new(key.clone(), value));
+        self.entries.push(Entry::new(key.clone(), fields));
         key
     }
 

@@ -32,30 +32,30 @@ impl LockingStreamRepository {
     pub fn xadd_auto_increment(
         &self,
         stream_key: impl ToString,
-        value: impl ToString,
+        fields: Vec<stream::Field>,
         timestamp: &std::time::SystemTime,
     ) -> EntryId {
         let mut lock = self.streams.lock().unwrap();
         let stream = lock.entry(stream_key.to_string()).or_insert(Stream::new());
         self.wakeup_listers("0");
-        stream.add_with_auto_key(value, timestamp)
+        stream.add_with_auto_key(fields, timestamp)
     }
 
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn xadd(
-        &self,
-        stream_key: impl ToString,
-        entry_id: impl PartialEntryId,
-        value: impl ToString,
-    ) -> anyhow::Result<EntryId> {
-        let mut lock = self.streams.lock().unwrap();
-        let key = lock
-            .entry(stream_key.to_string())
-            .or_insert(Stream::new())
-            .add_default_key(EntryId::min(), value);
-        self.wakeup_listers("0");
-        Ok(key)
-    }
+    //#[allow(clippy::needless_pass_by_value)]
+    //pub fn xadd(
+    //    &self,
+    //    stream_key: impl ToString,
+    //    entry_id: impl PartialEntryId,
+    //    value: impl ToString,
+    //) -> anyhow::Result<EntryId> {
+    //    let mut lock = self.streams.lock().unwrap();
+    //    let key = lock
+    //        .entry(stream_key.to_string())
+    //        .or_insert(Stream::new())
+    //        .add_default_key(EntryId::min(), value);
+    //    self.wakeup_listers("0");
+    //    Ok(key)
+    //}
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn read(
@@ -81,7 +81,7 @@ impl LockingStreamRepository {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn xrange(
+    pub fn range(
         &self,
         stream_key: impl ToString,
         start: &EntryId,
@@ -121,7 +121,7 @@ impl LockingStreamRepository {
         block_duration: std::time::Duration,
     ) -> BlockResult<Vec<Entry>> {
         self.blocking_query(block_duration, |_repo| {
-            let res = self.xrange(stream_key.to_string(), start, end).unwrap();
+            let res = self.range(stream_key.to_string(), start, end).unwrap();
             if res.is_empty() {
                 BlockResult::NotFound
             } else {

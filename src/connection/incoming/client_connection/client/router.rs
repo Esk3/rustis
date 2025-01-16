@@ -29,6 +29,7 @@ impl Router {
 pub fn default_router() -> &'static Router {
     let mut router = Router::new();
     router
+        .add(super::commands::xread::XRead)
         .add(super::commands::cluster::Cluster)
         .add(super::commands::subscribe::Subscribe)
         .add(super::commands::ping::Ping)

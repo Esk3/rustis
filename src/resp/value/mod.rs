@@ -126,6 +126,12 @@ impl IntoRespArray for Vec<Value> {
     }
 }
 
+impl IntoRespArray for &[Value] {
+    fn into_array(self) -> Value {
+        Value::Array(self.to_vec())
+    }
+}
+
 impl FromIterator<Value> for Value {
     fn from_iter<T: IntoIterator<Item = Value>>(iter: T) -> Self {
         iter.into_iter().collect::<Vec<Self>>().into_array()

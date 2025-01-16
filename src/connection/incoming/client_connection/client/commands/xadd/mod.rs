@@ -1,7 +1,7 @@
 use crate::{
     command::Command,
     repository::{
-        stream_repo::stream::{entry_id, EntryId},
+        stream_repo::stream::{entry_id, EntryId, Field},
         Repository,
     },
     resp,
@@ -15,15 +15,21 @@ impl XAdd {
         let key = match request.entry_id {
             EntryIdKind::None(_) => stream_repo.xadd_auto_increment(
                 request.stream_key,
-                request.value,
+                request.fields,
                 &request.timestamp,
             ),
-            EntryIdKind::Timestamp(partial_entry_id) => stream_repo
-                .xadd(request.stream_key, partial_entry_id, request.value)
-                .unwrap(),
-            EntryIdKind::Full(entry_id) => stream_repo
-                .xadd(request.stream_key, entry_id, request.value)
-                .unwrap(),
+            EntryIdKind::Timestamp(partial_entry_id) => {
+                todo!()
+                //stream_repo
+                //            .xadd(request.stream_key, partial_entry_id, request.fields)
+                //            .unwrap()
+            }
+            EntryIdKind::Full(entry_id) => {
+                todo!()
+                //stream_repo
+                //            .xadd(request.stream_key, entry_id, request.fields)
+                //            .unwrap()
+            }
         };
         Response::Ok(key)
     }
@@ -35,16 +41,14 @@ impl Command<super::Request, super::Response, Repository> for XAdd {
     }
 
     fn call(&self, request: super::Request, repo: &Repository) -> anyhow::Result<super::Response> {
-        let request = Request::try_from(request)?;
-        Self::handle_request(request, repo);
-        todo!()
+        Ok(Self::handle_request(Request::try_from(request)?, repo).into())
     }
 }
 
 struct Request {
     stream_key: String,
     entry_id: EntryIdKind,
-    value: String,
+    fields: Vec<Field>,
     timestamp: std::time::SystemTime,
 }
 
@@ -57,7 +61,11 @@ impl TryFrom<super::Request> for Request {
         let entry_id = iter.next().unwrap();
         let timestamp = value.timestamp;
         // TODO should be field then value
-        let value = iter.next().unwrap();
+        let mut fields = Vec::new();
+        while let Some(name) = iter.next() {
+            let value = iter.next().unwrap();
+            fields.push(Field::new(name, value));
+        }
 
         let entry_id = match entry_id.as_str() {
             "*" => EntryIdKind::None(entry_id::EmptyEntryId),
@@ -78,7 +86,7 @@ impl TryFrom<super::Request> for Request {
         Ok(Self {
             stream_key,
             entry_id,
-            value,
+            fields,
             timestamp,
         })
     }

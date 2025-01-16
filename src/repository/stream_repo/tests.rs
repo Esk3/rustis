@@ -136,8 +136,7 @@ fn xread_last() {
 #[should_panic(expected = "stream not found")]
 fn xrange_on_empty_repo_fails() {
     tester(|repo| {
-        repo.xrange("any", &EntryId::min(), &EntryId::max())
-            .unwrap();
+        repo.range("any", &EntryId::min(), &EntryId::max()).unwrap();
     });
 }
 
@@ -146,7 +145,7 @@ fn xrange_test() {
     seed_tester(|repo, stream_keys| {
         for (stream_key, entries) in stream_keys {
             let entry = entries.first().unwrap();
-            let found_values = repo.xrange(stream_key, &entry.id, &entry.id).unwrap();
+            let found_values = repo.range(stream_key, &entry.id, &entry.id).unwrap();
             assert_eq!(found_values, [entry.clone()], "{entry:?}, {entries:?}");
         }
     });
@@ -163,7 +162,7 @@ fn blocking_query_does_not_block_when_it_finds_data() {
 
             let entry = entries.first().unwrap();
             let result = repo.blocking_query(block_duration, |repo| {
-                let res = repo.xrange(key.clone(), &entry.id, &entry.id).unwrap();
+                let res = repo.range(key.clone(), &entry.id, &entry.id).unwrap();
                 if res.is_empty() {
                     BlockResult::NotFound
                 } else {
@@ -190,7 +189,7 @@ fn blocking_query_blocks_on_no_data_and_returns_none() {
 
             let entry_id = &entries.last().unwrap().id + 1;
             let result = repo.blocking_query(std::time::Duration::from_millis(100), |repo| {
-                let res = repo.xrange(key.clone(), &entry_id, &entry_id).unwrap();
+                let res = repo.range(key.clone(), &entry_id, &entry_id).unwrap();
                 if res.is_empty() {
                     BlockResult::NotFound
                 } else {
@@ -223,7 +222,7 @@ fn blocking_returns_data_recived_during_block() {
                 let entry = &entries.last().unwrap().id + 1;
                 handle = std::thread::spawn(move || {
                     repo2.blocking_query(block_duration, |repo: &StreamRepository| {
-                        repo.xrange(stream_key.clone(), &entry, &entry)
+                        repo.range(stream_key.clone(), &entry, &entry)
                             .map(|v| {
                                 if v.is_empty() {
                                     BlockResult::NotFound
@@ -339,7 +338,7 @@ fn blocking_range_returns_found_data_as_normal() {
         for (key, entries) in streams {
             let start = &(&entries.first().unwrap().id + 1);
             let end = &(start + 1);
-            let expected = repo.xrange(key.clone(), start, end).unwrap();
+            let expected = repo.range(key.clone(), start, end).unwrap();
             assert!(!expected.is_empty(), "bad test. read is empty");
             let actual = repo.range_blocking(key, start, end, std::time::Duration::from_millis(10));
             let BlockResult::Found(actual) = actual else {
