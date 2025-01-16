@@ -8,7 +8,7 @@ pub struct XRange;
 impl XRange {
     fn handle_request(request: Request, repo: &Repository) -> anyhow::Result<Response> {
         repo.stream_repo()
-            .xrange(request.stream_key, request.start, request.end);
+            .xrange(request.stream_key, &request.start, &request.end);
         todo!()
     }
 }

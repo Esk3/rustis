@@ -40,7 +40,7 @@ impl TryFrom<super::Request> for Request {
     fn try_from(value: super::Request) -> Result<Self, Self::Error> {
         assert_eq!(value.command().unwrap().to_uppercase(), "CONFIG");
         let mut content = value.into_content().unwrap();
-        let key = content.swap_remove(0);
+        let key = content.swap_remove(1);
         Ok(Self { key })
     }
 }

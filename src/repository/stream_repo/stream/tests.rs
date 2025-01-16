@@ -1,130 +1,147 @@
-use std::collections::HashSet;
+use crate::repository::stream_repo::tests::EqEntryValues;
 
 use super::*;
 
+fn tester<F>(f: F) -> Stream
+where
+    F: FnOnce(&mut Stream) + std::panic::UnwindSafe,
+{
+    let mut stream = Stream::new();
+    let result = std::panic::catch_unwind(move || {
+        f(&mut stream);
+        stream
+    });
+    match result {
+        Ok(stream) => stream,
+        Err(err) => std::panic::resume_unwind(err),
+    }
+}
+
 #[test]
 fn new_stream_is_empty() {
-    let stream = Stream::new();
+    let stream = tester(|_| ());
     assert!(stream.is_empty());
 }
 
 #[test]
-fn stream_is_not_empty_after_add() {
-    let mut stream = Stream::new();
-    stream.add_default_key(EmptyEntryId, "value");
+fn stream_is_not_empty_after_single_add() {
+    let stream = tester(|stream| {
+        stream.add_with_auto_key("value", &std::time::UNIX_EPOCH);
+    });
     assert!(!(stream.is_empty()));
 }
 
-const DATA: [&str; 3] = ["ValueOne", "TwoItems", "LastItem"];
-const DEFAULT: EmptyEntryId = EmptyEntryId;
-
-fn stream_data() -> Stream {
-    let mut stream = Stream::new();
-    for value in DATA {
-        stream.add_default_key(DEFAULT, value);
-    }
-    stream
+fn seed_tester<F>(f: F) -> Stream
+where
+    F: FnOnce(&mut Stream, &mut Vec<EntryId>, &mut Vec<String>, &mut Vec<Entry>)
+        + std::panic::UnwindSafe,
+{
+    tester(|stream| {
+        let data = ["ValueOne", "TwoItems", "LastItem"]
+            .into_iter()
+            .map(std::string::ToString::to_string)
+            .collect::<Vec<String>>();
+        let mut entries = data
+            .into_iter()
+            .map(|value| {
+                Entry::new(
+                    stream.add_with_auto_key(value.clone(), &std::time::UNIX_EPOCH),
+                    value,
+                )
+            })
+            .collect::<Vec<_>>();
+        let (mut ids, mut values) = entries
+            .clone()
+            .into_iter()
+            .map(|entry| (entry.id.clone(), entry.value.clone()))
+            .unzip();
+        f(stream, &mut ids, &mut values, &mut entries);
+    })
 }
 
 #[test]
-fn key_returned_from_add_default_is_always_unique() {
-    let mut stream = Stream::new();
-    let mut set = HashSet::new();
-    for value in ["first", "second", "third"] {
-        let key = stream.add_default_key(DEFAULT, value);
-        assert!(set.insert(key.clone()), "key: {key:?}, value: {value}");
-    }
+fn key_returned_from_add_auto_key_is_always_unique() {
+    seed_tester(|_stream, key, _data, all| {
+        while let Some(last) = key.pop() {
+            assert!(!key.contains(&last));
+        }
+    });
 }
 
 #[test]
 fn read_returns_value() {
-    let mut stream = Stream::new();
-    for value in ["first", "second", "third"] {
-        let key = stream.add_default_key(DEFAULT, value);
-        let query = stream.read(&key, 1);
-        assert_eq!(query, [value]);
-    }
+    seed_tester(|stream, keys, values, _| {
+        let read = stream.read(keys.first().unwrap(), 1);
+
+        read.eq_values(&values[0..1]);
+    });
+    seed_tester(|stream, keys, values, _| {
+        let read = stream.read(keys.get(1).unwrap(), 1);
+        read.eq_values(&values[1..2]);
+    });
 }
 
 #[test]
 fn read_returns_later_values_but_not_earlier_values() {
-    let mut stream = Stream::new();
-    let values = ["first", "second", "third"];
-    let mut keys = Vec::with_capacity(values.len());
-    for value in &values {
-        let key = stream.add_default_key(DEFAULT, value);
-        keys.push(key);
-    }
-
-    for (i, key) in keys.into_iter().enumerate() {
-        let expected = &values[i..];
-        let values = stream.read(&key, values.len());
-        assert_eq!(values, expected);
-    }
+    seed_tester(|stream, keys, values, _| {
+        for (i, key) in keys.iter().enumerate() {
+            let read = stream.read(key, usize::MAX);
+            read.eq_values(&values[i..]);
+        }
+    });
 }
 
 #[test]
 fn read_returns_later_values_when_key_is_not_matched() {
-    let mut stream = Stream::new();
-    let default = "the_default";
-    let values = ["first", "second", "third"];
-    let mut keys = Vec::with_capacity(values.len());
-    for value in &values {
-        let key = stream.add_default_key(DEFAULT, value);
-        keys.push(key);
-    }
-
-    let list = stream.read(&EntryId::min(), values.len());
-    assert_eq!(list, values);
+    seed_tester(|stream, _, values, _| {
+        let read = stream.read(unsafe { &EntryId::null() }, usize::MAX);
+        read.eq_values(&values);
+    });
 }
 
 #[test]
 fn read_last_on_empty_returns_none() {
-    let stream = Stream::new();
-    let none_value = stream.read_last();
-    assert_eq!(none_value, None);
+    tester(|stream| {
+        let none_value = stream.read_last();
+        assert_eq!(none_value, None);
+    });
 }
 
 #[test]
 fn read_last_returns_last_value() {
-    let stream = stream_data();
-    let last = stream.read_last().unwrap();
-    assert_eq!(last, *DATA.last().unwrap());
+    seed_tester(|stream, _, data, entries| {
+        let last = stream.read_last().unwrap();
+        assert_eq!(last, *entries.last().unwrap());
+    });
 }
 
 #[test]
 fn range_returns_nothing_on_empty() {
-    let stream = Stream::new();
-    let empty = stream.range(&EntryId::min(), &EntryId::max());
-    assert_eq!(empty, Vec::<String>::new());
+    tester(|stream| {
+        let empty = stream.range(&EntryId::min(), &EntryId::max());
+        assert_eq!(empty, Vec::<Entry>::new());
+    });
 }
 
 #[test]
 fn range_returns_everything_between_entry_min_and_max() {
-    let stream = stream_data();
-    let range = stream.range(&EntryId::min(), &EntryId::max());
-    assert_eq!(range, DATA);
+    seed_tester(|stream, _, _, entries| {
+        let read = stream.range(&EntryId::min(), &EntryId::max());
+        assert_eq!(read, *entries);
+    });
 }
 
 #[test]
 fn range_returns_nothing_when_no_keys_are_in_range() {
-    let stream = stream_data();
-    let range = stream.range(&EntryId::new(10, 0), &EntryId::max());
-    assert_eq!(range, Vec::<String>::new());
+    seed_tester(|stream, keys, _, _| {
+        let read = stream.range(&(keys.last().unwrap() + 1), &EntryId::max());
+        assert_eq!(read, Vec::<Entry>::new());
+    });
 }
-
 #[test]
 fn range_returns_keys_in_range_inclusive() {
-    let stream = stream_data();
-    let range = stream.range(&EntryId::new(0, 1), &EntryId::new(0, 2));
-    dbg!(&stream);
-    assert_eq!(range, &DATA[..=1]);
-}
-
-#[test]
-fn stream_uses_default_key_if_empty() {
-    let mut stream = Stream::new();
-    let set_key = EntryId::new(1234, 567);
-    let recived_key = stream.add_default_key(set_key.clone(), "myVal");
-    assert_eq!(recived_key, set_key);
+    seed_tester(|stream, keys, _, entires| {
+        let read = stream.range(keys.first().unwrap(), keys.get(1).unwrap());
+        assert_eq!(read, entires[0..=1]);
+    });
 }

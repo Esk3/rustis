@@ -9,7 +9,7 @@ use super::{RedisConnection, Stream};
 
 #[derive(Debug)]
 pub struct PipelineBuffer<S> {
-    connection: RedisConnection<S>,
+    pub(super) connection: RedisConnection<S>,
     read_buffer: Vec<Message<resp::Value>>,
     write_buffer: Vec<u8>,
 }

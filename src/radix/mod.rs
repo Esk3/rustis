@@ -1,4 +1,4 @@
-use crate::repository::stream_repo::StreamId;
+use crate::repository::stream_repo::stream::EntryId;
 
 #[cfg(test)]
 mod tests;
@@ -169,8 +169,8 @@ impl RadixCmp for RadixStreamIdKey {
     }
 }
 
-impl From<StreamId> for RadixStreamIdKey {
-    fn from(value: StreamId) -> Self {
+impl From<EntryId> for RadixStreamIdKey {
+    fn from(value: EntryId) -> Self {
         todo!()
     }
 }

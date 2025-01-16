@@ -3,18 +3,20 @@ mod tests;
 
 pub mod entry_id;
 
-pub use entry_id::*;
+use entry_id::TimestampEntryId;
+pub use entry_id::{EntryId, PartialEntryId};
 
 use crate::radix::Radix;
 
-#[derive(Debug, Clone)]
-struct Entry {
-    id: EntryId,
-    value: String,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Entry {
+    pub(super) id: EntryId,
+    pub(super) value: String,
 }
 
 impl Entry {
-    fn new(id: EntryId, value: impl ToString) -> Self {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(id: EntryId, value: impl ToString) -> Self {
         Self {
             id,
             value: value.to_string(),
@@ -26,7 +28,6 @@ impl Entry {
 pub struct Stream {
     indexes: Radix<usize>,
     entries: Vec<Entry>,
-    next: EntryId,
 }
 
 impl Stream {
@@ -35,8 +36,20 @@ impl Stream {
         Self {
             indexes: Radix::new(),
             entries: Vec::new(),
-            next: EntryId::min(),
         }
+    }
+
+    fn next_id(&self, timestamp: &std::time::SystemTime) -> EntryId {
+        self.entries.last().map_or_else(
+            || TimestampEntryId::new(timestamp).into_full(),
+            |e| e.id.next(timestamp),
+        )
+    }
+
+    fn min_next_id(&self) -> EntryId {
+        self.entries
+            .last()
+            .map_or(EntryId::min(), |e| &e.id + 1_u64)
     }
 
     #[must_use]
@@ -44,15 +57,13 @@ impl Stream {
         self.indexes.is_empty()
     }
 
-    pub fn add_default_key(&mut self, key: impl PartialEntryId, value: impl ToString) -> EntryId {
-        let key = key.into_entry_id_or_default(&self.next);
-        if key == self.next {
-            self.next.id += 1;
-        }
-        if key > self.next {
-            self.next = key.clone();
-            self.next.id += 1;
-        }
+    pub fn add_with_auto_key(
+        &mut self,
+        value: impl ToString,
+        timestamp: &std::time::SystemTime,
+    ) -> EntryId {
+        let key = self.next_id(timestamp);
+
         self.indexes
             .add(key.as_radix_key(), self.entries.len())
             .unwrap();
@@ -60,36 +71,62 @@ impl Stream {
         key
     }
 
+    pub fn add_with_partial_key(
+        &mut self,
+        key: impl PartialEntryId,
+        value: impl ToString,
+    ) -> EntryId {
+        todo!()
+    }
+
+    pub fn add_default_key(&mut self, key: impl PartialEntryId, value: impl ToString) -> EntryId {
+        todo!()
+        //let key = key.into_entry_id_or_default(&self.next);
+        //if key == self.next {
+        //    self.next.id += 1;
+        //}
+        //if key > self.next {
+        //    self.next = key.clone();
+        //    self.next.id += 1;
+        //}
+        //self.indexes
+        //    .add(key.as_radix_key(), self.entries.len())
+        //    .unwrap();
+        //self.entries.push(Entry::new(key.clone(), value));
+        //key
+    }
+
     #[must_use]
-    pub fn read(&self, key: &EntryId, count: usize) -> Vec<String> {
+    pub fn read(&self, key: &EntryId, count: usize) -> Vec<Entry> {
         let start = match self.entries.binary_search_by_key(key, |e| e.id.clone()) {
             Ok(i) => i,
             Err(i) => i,
         };
-        self.entries[start..]
-            .into_iter()
-            .map(|e| e.value.clone())
+        self.entries
+            .iter()
+            .skip(start)
+            .take(count)
+            .cloned()
             .collect()
     }
 
     #[must_use]
-    pub fn read_last(&self) -> Option<String> {
-        self.entries.last().map(|e| e.value.clone())
+    pub fn read_last(&self) -> Option<Entry> {
+        self.entries.last().cloned()
     }
 
     #[must_use]
-    pub fn range(&self, start: &EntryId, end: &EntryId) -> Vec<String> {
+    pub fn range(&self, start: &EntryId, end: &EntryId) -> Vec<Entry> {
         let start = match self.entries.binary_search_by_key(start, |e| e.id.clone()) {
             Ok(i) => i,
             Err(i) => i,
         };
+
         let end = match self.entries.binary_search_by_key(end, |e| e.id.clone()) {
             Ok(i) => i + 1,
             Err(i) => i,
         };
-        self.entries[start..end]
-            .iter()
-            .map(|e| e.value.to_string())
-            .collect()
+
+        self.entries.iter().skip(start).take(end).cloned().collect()
     }
 }

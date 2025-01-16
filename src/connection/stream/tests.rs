@@ -1,4 +1,9 @@
-use resp::value::{serialize::Serialize, IntoRespArray};
+use std::fmt::Debug;
+
+use crate::resp::{
+    self,
+    value::{serialize::Serialize, serialize_value, IntoRespArray},
+};
 
 use super::*;
 

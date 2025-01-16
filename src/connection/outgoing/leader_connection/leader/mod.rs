@@ -49,30 +49,32 @@ impl Leader {
     }
 
     pub fn handle_request(&mut self, request: Request) -> anyhow::Result<LeaderResponse> {
-        let result = match self.service.call(request) {
-            Ok(res) => res,
-            Err(err) => {
-                tracing::error!("{err:?}");
-                tracing::warn!("ignoring error");
-                return Ok(LeaderResponse {
-                    value: None,
-                    events: None,
-                });
-            }
-        };
+        let result = self.service.call(request).unwrap();
+        //let result = match self.service.call(request) {
+        //    Ok(res) => res,
+        //    Err(err) => {
+        //        tracing::error!("{err:?}");
+        //        tracing::warn!("ignoring error");
+        //        return Ok(LeaderResponse::NONE);
+        //    }
+        //};
         Ok(match result {
-            Response::NoResponse => LeaderResponse {
-                value: None,
-                events: None,
-            },
+            Response::NoResponse => LeaderResponse::NONE,
         })
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct LeaderResponse {
     pub value: Option<resp::Value>,
     pub events: Option<Vec<event::Kind>>,
+}
+
+impl LeaderResponse {
+    pub const NONE: Self = Self::new(None, None);
+    pub const fn new(value: Option<resp::Value>, events: Option<Vec<event::Kind>>) -> Self {
+        Self { value, events }
+    }
 }
 
 #[must_use]

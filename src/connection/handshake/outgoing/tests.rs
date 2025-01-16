@@ -1,3 +1,5 @@
+use resp::value::IntoRespArray;
+
 use crate::connection::stream::RedisConnection;
 
 use super::*;
@@ -40,18 +42,19 @@ fn handshake_is_finished_after_five_sucessfull_advances() {
 fn handshake_try_advance_returns_correct_messages_on_sucessful_advance() {
     let mut handshake = OutgoingHandshake::new();
     let expected_advance_return_value_order = [
-        vec![resp::Value::simple_string("PING")],
-        resp::Value::bulk_strings("REPLCONF; listing-port; 1"),
-        resp::Value::bulk_strings("REPLCONF; CAPA; SYNC"),
-        vec![resp::Value::bulk_string("PSYNC")],
-    ];
+        resp::Value::simple_string("PING"),
+        resp::Value::bulk_strings("REPLCONF; listening-port; 1").into_array(),
+        resp::Value::bulk_strings("REPLCONF; CAPA; SYNC").into_array(),
+        resp::Value::bulk_strings("PSYNC; ?; -1").into_array(),
+    ]
+    .map(|val| crate::Message::new(val, 1));
     let in_out = expected_order()
         .into_iter()
         .zip(expected_advance_return_value_order);
     for (i, (msg, expected)) in in_out.enumerate() {
         let actual = handshake.try_advance(&msg).unwrap();
         if i > 0 {
-            assert_eq!(actual, Some(expected.into_array()), "i: {i}, msg: {msg:?}");
+            assert_eq!(actual, Some(expected.into()), "i: {i}, msg: {msg:?}");
         }
     }
 }

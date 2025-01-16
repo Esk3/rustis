@@ -13,18 +13,18 @@ impl Test {
         let repo = Repository::default();
         let emitter = EventEmitter::new();
         Self {
-            leader: Leader::new((), emitter.clone(), repo.clone()),
+            leader: Leader::new(default_leader_router(), emitter.clone(), repo.clone()),
             emitter,
             repo,
         }
     }
 
-    fn send_request(&mut self, request: Standard) -> anyhow::Result<Option<resp::Value>> {
+    fn send_request(&mut self, request: Standard) -> anyhow::Result<LeaderResponse> {
         self.leader.handle_request(request.into())
     }
 
     fn send_request_assert_recive_none(&mut self, request: Standard) {
-        assert_eq!(self.send_request(request).unwrap(), None);
+        assert_eq!(self.send_request(request).unwrap(), LeaderResponse::NONE);
     }
 }
 

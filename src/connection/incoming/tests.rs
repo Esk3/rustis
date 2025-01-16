@@ -147,7 +147,7 @@ fn connection_calls_follower_connection_hanlder_when_connection_is_to_a_follower
 #[test]
 #[ignore = "todo"]
 fn connection_preformes_follower_handshake_on_replconf() {
-    todo!()
+    todo!();
 }
 
 #[test]
@@ -170,7 +170,8 @@ fn handle_follower_connection_writes_same_output_as_follower_handler() {
 
 #[test]
 fn handle_follower_connection_call_runs_follower_connection() {
-    let test = Tester::setup([], []);
+    let test = Tester::setup([], [resp::Value::simple_string("PONG")]);
+    todo!();
     let s = PipelineBuffer::new(DummyConnection);
     let follower_connection = FollowerConnection::new(s, test.emitter.clone());
     test.connection

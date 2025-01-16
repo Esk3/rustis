@@ -87,17 +87,18 @@ impl Value {
         }
     }
 
+    pub fn is_into_byte_string(&self) -> bool {
+        match self {
+            Value::SimpleString(_) | Value::BulkString(_) | Value::BulkByteString(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn into_byte_string(self) -> Result<Vec<u8>, Self> {
         match self {
-            Value::SimpleString(_) => Err(self),
-            Value::BulkString(_) => todo!(),
+            Value::SimpleString(s) | Value::BulkString(s) => Ok(s.as_bytes().to_vec()),
             Value::BulkByteString(bytes) => Ok(bytes),
-            Value::NullString => todo!(),
-            Value::Array(_) => todo!(),
-            Value::NullArray => todo!(),
-            Value::Integer(_) => todo!(),
-            Value::SimpleError(_) => todo!(),
-            Value::Raw(_) => todo!(),
+            _ => Err(self),
         }
     }
 

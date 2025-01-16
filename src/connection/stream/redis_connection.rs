@@ -12,7 +12,7 @@ use super::Stream;
 
 #[derive(Debug)]
 pub struct RedisConnection<S> {
-    stream: S,
+    pub(super) stream: S,
     buf: [u8; 1024],
     i: usize,
 }
@@ -21,10 +21,10 @@ impl<S> RedisConnection<S>
 where
     S: Stream,
 {
-    pub fn read(&mut self) -> anyhow::Result<Message<resp::Value>> {
+    pub fn read(&mut self) -> super::Result<Message<resp::Value>> {
         if self.i == 0 {
             tracing::trace!("reading from stream");
-            let bytes_read = self.stream.read(&mut self.buf).unwrap();
+            let bytes_read = self.stream.read(&mut self.buf)?;
             tracing::trace!(
                 "read from stream: {:?}",
                 String::from_utf8_lossy(&self.buf[..bytes_read])
@@ -39,12 +39,12 @@ where
         Ok(Message::new(value, bytes_consumed))
     }
 
-    pub fn read_all(&mut self) -> anyhow::Result<Vec<Message<resp::Value>>> {
+    pub fn read_all(&mut self) -> super::Result<Vec<Message<resp::Value>>> {
         let mut values = Vec::new();
-        for i in 0..10 {
-            let value = self.read().unwrap();
+        for i in 0..100 {
+            let value = self.read()?;
             values.push(value);
-            assert!(i != 8);
+            assert!(i != 90);
             if self.i == 0 {
                 break;
             }
@@ -52,15 +52,15 @@ where
         Ok(values)
     }
 
-    pub fn write(&mut self, value: &resp::Value) -> anyhow::Result<usize> {
+    pub fn write(&mut self, value: &resp::Value) -> super::Result<usize> {
         tracing::trace!("serializing value: {value:?}");
         let bytes = serialize_value(value);
         tracing::trace!(
             "value serialized: {bytes:?}, {:?}",
             String::from_utf8_lossy(&bytes)
         );
-        self.stream.write_all(&bytes).unwrap();
-        self.stream.flush().unwrap();
+        self.stream.write_all(&bytes)?;
+        self.stream.flush()?;
         tracing::trace!(
             "serialized value flushed to stream. length: {}",
             bytes.len()
@@ -68,9 +68,16 @@ where
         Ok(bytes.len())
     }
 
-    pub fn write_all(&mut self, values: &[resp::Value]) -> anyhow::Result<usize> {
+    pub fn write_all(&mut self, values: &[resp::Value]) -> super::Result<usize> {
+        tracing::trace!("serializing values: {values:?}");
         let bytes = values.iter().flat_map(serialize_value).collect::<Vec<u8>>();
-        self.stream.write_all(&bytes).unwrap();
+        tracing::trace!(
+            "values serialized: {bytes:?}, {:?}",
+            String::from_utf8_lossy(&bytes)
+        );
+        self.stream.write_all(&bytes)?;
+        self.stream.flush()?;
+        tracing::trace!("{}, bytes flushed to stream", bytes.len());
         Ok(bytes.len())
     }
 

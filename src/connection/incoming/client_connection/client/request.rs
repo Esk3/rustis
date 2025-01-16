@@ -23,6 +23,15 @@ impl Request {
     pub fn into_content(self) -> Result<Vec<String>, Self> {
         match self.request {
             crate::Request::Standard(s) => Ok(s.args),
+            crate::Request::StandardByteString(_) => todo!(),
+        }
+    }
+    pub fn into_byte_content(self) -> Result<Vec<Vec<u8>>, Self> {
+        match self.request {
+            crate::Request::Standard(s) => {
+                Ok(s.args.into_iter().map(|s| s.as_bytes().to_vec()).collect())
+            }
+            crate::Request::StandardByteString(b) => Ok(b.args),
         }
     }
 }

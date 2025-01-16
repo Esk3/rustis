@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use resp::value::{deserialize_value, serialize_value};
+use crate::resp::{
+    self,
+    value::{deserialize_value, serialize_value},
+};
 use stream::Stream;
 
 use super::*;
@@ -36,7 +39,7 @@ impl Stream for DummyConnection {
 
 #[derive(Debug)]
 pub struct MockConnection {
-    input: Vec<crate::connection::Value>,
+    input: Vec<resp::Value>,
     expected_output: Option<Vec<resp::Value>>,
 }
 
@@ -49,11 +52,7 @@ impl MockConnection {
         <O as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
     {
         Self {
-            input: input
-                .into_iter()
-                .rev()
-                .map(|msg| crate::connection::Value::new(msg, 1))
-                .collect(),
+            input: input.into_iter().rev().collect(),
             expected_output: Some(expected_output.into_iter().rev().collect()),
         }
     }
@@ -64,11 +63,7 @@ impl MockConnection {
         <I as std::iter::IntoIterator>::IntoIter: std::iter::DoubleEndedIterator,
     {
         Self {
-            input: input
-                .into_iter()
-                .rev()
-                .map(|msg| crate::connection::Value::new(msg, 1))
-                .collect(),
+            input: input.into_iter().rev().collect(),
             expected_output: None,
         }
     }
@@ -84,9 +79,9 @@ impl MockConnection {
 impl std::io::Read for MockConnection {
     fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         let value = self.read_value().unwrap();
-        let bytes = serialize_value(&value.value);
+        let bytes = serialize_value(&value);
         let len = bytes.len();
-        buf.write_all(&bytes);
+        buf.write_all(&bytes).unwrap();
         Ok(len)
     }
 }
@@ -114,7 +109,7 @@ impl Stream for MockConnection {
 }
 
 impl MockConnection {
-    fn read_value(&mut self) -> ConnectionResult<crate::connection::Value> {
+    fn read_value(&mut self) -> ConnectionResult<resp::Value> {
         self.input.pop().ok_or(ConnectionError::EndOfInput)
     }
 
