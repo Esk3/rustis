@@ -4,8 +4,11 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use stream::{Entry, EntryId, Stream};
+use stream::{Entry, EntryId, PartialEntryId, Stream};
 
+pub use block_result::BlockResult;
+
+pub mod block_result;
 pub mod stream;
 
 #[cfg(test)]
@@ -35,27 +38,32 @@ impl LockingStreamRepository {
         fields: Vec<stream::Field>,
         timestamp: &std::time::SystemTime,
     ) -> EntryId {
-        let mut lock = self.streams.lock().unwrap();
-        let stream = lock.entry(stream_key.to_string()).or_insert(Stream::new());
-        self.wakeup_listers("0");
-        stream.add_with_auto_key(fields, timestamp)
+        self.notify_add(stream_key, |stream| {
+            stream.add_with_auto_key(fields, timestamp)
+        })
     }
 
-    //#[allow(clippy::needless_pass_by_value)]
-    //pub fn xadd(
-    //    &self,
-    //    stream_key: impl ToString,
-    //    entry_id: impl PartialEntryId,
-    //    value: impl ToString,
-    //) -> anyhow::Result<EntryId> {
-    //    let mut lock = self.streams.lock().unwrap();
-    //    let key = lock
-    //        .entry(stream_key.to_string())
-    //        .or_insert(Stream::new())
-    //        .add_default_key(EntryId::min(), value);
-    //    self.wakeup_listers("0");
-    //    Ok(key)
-    //}
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn add(
+        &self,
+        stream_key: impl ToString,
+        entry_id: impl PartialEntryId,
+        fields: Vec<stream::Field>,
+    ) -> anyhow::Result<EntryId> {
+        self.notify_add(stream_key, |stream| {
+            stream.try_add_with_key(entry_id, fields)
+        })
+    }
+
+    fn notify_add<F, T>(&self, stream_key: impl ToString, f: F) -> T
+    where
+        F: FnOnce(&mut Stream) -> T,
+    {
+        let mut lock = self.streams.lock().unwrap();
+        let stream = lock.entry(stream_key.to_string()).or_default();
+        self.wakeup_listers("0");
+        f(stream)
+    }
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn read(
@@ -209,31 +217,13 @@ impl LockingStreamRepository {
     }
 }
 
+impl Default for LockingStreamRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 enum Event {
     Added,
     Timeout,
-}
-
-#[derive(Debug)]
-pub enum BlockResult<T> {
-    Found(T),
-    NotFound,
-    Err(anyhow::Error),
-}
-
-impl<T: Eq> Eq for BlockResult<T> {}
-
-impl<T: PartialEq> PartialEq for BlockResult<T> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Found(l0), Self::Found(r0)) => l0 == r0,
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
-}
-
-impl<T> BlockResult<T> {
-    fn is_not_found(&self) -> bool {
-        matches!(self, Self::NotFound)
-    }
 }

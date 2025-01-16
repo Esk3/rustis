@@ -115,6 +115,12 @@ impl EmptyEntryId {
     }
 }
 
+impl Default for EmptyEntryId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct TimestampEntryId {
     timestamp: u64,
 }

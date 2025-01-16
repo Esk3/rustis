@@ -18,12 +18,9 @@ impl XAdd {
                 request.fields,
                 &request.timestamp,
             ),
-            EntryIdKind::Timestamp(partial_entry_id) => {
-                todo!()
-                //stream_repo
-                //            .xadd(request.stream_key, partial_entry_id, request.fields)
-                //            .unwrap()
-            }
+            EntryIdKind::Timestamp(partial_entry_id) => stream_repo
+                .add(request.stream_key, partial_entry_id, request.fields)
+                .unwrap(),
             EntryIdKind::Full(entry_id) => {
                 todo!()
                 //stream_repo

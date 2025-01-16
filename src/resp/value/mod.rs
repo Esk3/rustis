@@ -87,11 +87,12 @@ impl Value {
         }
     }
 
-    #[must_use] pub fn is_into_byte_string(&self) -> bool {
-        match self {
-            Value::SimpleString(_) | Value::BulkString(_) | Value::BulkByteString(_) => true,
-            _ => false,
-        }
+    #[must_use]
+    pub fn is_into_byte_string(&self) -> bool {
+        matches!(
+            self,
+            Value::SimpleString(_) | Value::BulkString(_) | Value::BulkByteString(_)
+        )
     }
 
     pub fn into_byte_string(self) -> Result<Vec<u8>, Self> {

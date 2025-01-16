@@ -1,70 +1,16 @@
 #[cfg(test)]
 mod tests;
 
+pub mod entry;
 pub mod entry_id;
+pub mod field;
 
+pub use entry::Entry;
 use entry_id::TimestampEntryId;
 pub use entry_id::{EntryId, PartialEntryId};
+pub use field::Field;
 
-use crate::{
-    radix::Radix,
-    resp::{self, value::IntoRespArray},
-};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Field {
-    name: String,
-    value: String,
-}
-
-impl Field {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(name: impl ToString, value: impl ToString) -> Self {
-        Self {
-            name: name.to_string(),
-            value: value.to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Entry {
-    pub(super) id: EntryId,
-    pub(super) fields: Vec<Field>,
-}
-
-impl Entry {
-    #[allow(clippy::needless_pass_by_value)]
-    #[must_use]
-    pub fn new(id: EntryId, fields: Vec<Field>) -> Self {
-        Self { id, fields }
-    }
-
-    #[must_use]
-    pub fn id(&self) -> &EntryId {
-        &self.id
-    }
-
-    #[must_use]
-    pub fn fields(&self) -> &[Field] {
-        &self.fields
-    }
-}
-
-impl From<Entry> for resp::Value {
-    fn from(value: Entry) -> Self {
-        [
-            resp::Value::simple_string(value.id),
-            value
-                .fields
-                .into_iter()
-                .flat_map(|field| [field.name, field.value])
-                .map(resp::Value::simple_string)
-                .collect(),
-        ]
-        .into_array()
-    }
-}
+use crate::radix::Radix;
 
 #[derive(Debug)]
 pub struct Stream {
@@ -121,21 +67,21 @@ impl Stream {
         todo!()
     }
 
-    pub fn add_default_key(&mut self, key: impl PartialEntryId, value: impl ToString) -> EntryId {
-        todo!()
-        //let key = key.into_entry_id_or_default(&self.next);
-        //if key == self.next {
-        //    self.next.id += 1;
-        //}
-        //if key > self.next {
-        //    self.next = key.clone();
-        //    self.next.id += 1;
-        //}
-        //self.indexes
-        //    .add(key.as_radix_key(), self.entries.len())
-        //    .unwrap();
-        //self.entries.push(Entry::new(key.clone(), value));
-        //key
+    pub fn try_add_with_key(
+        &mut self,
+        key: impl PartialEntryId,
+        fields: Vec<Field>,
+    ) -> anyhow::Result<EntryId> {
+        // TODO tests
+        let key = key.into_entry_id_or_default(&self.min_next_id());
+        if key < self.min_next_id() {
+            panic!();
+        }
+        self.indexes
+            .add(key.as_radix_key(), self.entries.len())
+            .unwrap();
+        self.entries.push(Entry::new(key.clone(), fields));
+        Ok(key)
     }
 
     #[must_use]
@@ -170,5 +116,11 @@ impl Stream {
         };
 
         self.entries.iter().skip(start).take(end).cloned().collect()
+    }
+}
+
+impl Default for Stream {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -1,11 +1,11 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
 use clap::Parser;
-use rustis::connection::stream::{self, Stream};
-use rustis::redis::builder::RedisBuilder;
 use rustis::{
+    connection::stream::{self, Stream},
     event::EventEmitter,
     listner::{RedisListner, RedisTcpListner},
+    redis::builder::RedisBuilder,
     repository::Repository,
 };
 
