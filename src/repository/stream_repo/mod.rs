@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use stream::{Entry, EntryId, PartialEntryId, Stream};
+use stream::{Entry, EntryId, Stream};
 
 pub mod stream;
 
@@ -29,7 +29,7 @@ impl LockingStreamRepository {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn xadd_auto_increment(
+    pub fn add_auto_increment(
         &self,
         stream_key: impl ToString,
         fields: Vec<stream::Field>,
@@ -72,7 +72,7 @@ impl LockingStreamRepository {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn xread_last(&self, stream_key: impl ToString) -> anyhow::Result<Entry> {
+    pub fn read_last(&self, stream_key: impl ToString) -> anyhow::Result<Entry> {
         let lock = self.streams.lock().unwrap();
         let Some(stream) = lock.get(&stream_key.to_string()) else {
             todo!();

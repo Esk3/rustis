@@ -1,15 +1,6 @@
+use stream::Field;
+
 use super::*;
-
-pub(super) trait EqEntryValues<Rhs: ?Sized = Self> {
-    fn eq_values(self, rhs: &Rhs);
-}
-
-impl EqEntryValues<[String]> for Vec<Entry> {
-    fn eq_values(self, rhs: &[String]) {
-        let v = self.into_iter().map(|e| e.value).collect::<Vec<String>>();
-        assert_eq!(v, rhs);
-    }
-}
 
 fn tester<F>(f: F) -> StreamRepository
 where
@@ -35,7 +26,11 @@ fn create_stream_repo() {
 #[test]
 fn xadd_creates_stream_if_key_does_not_exsist() {
     tester(|repo| {
-        repo.xadd_auto_increment("myNewStream", "myValue", &std::time::UNIX_EPOCH);
+        repo.add_auto_increment(
+            "myNewStream",
+            vec![Field::new("mykey", "myValue")],
+            &std::time::UNIX_EPOCH,
+        );
         assert!(!repo.is_empty());
     });
 }
@@ -49,15 +44,15 @@ fn xread_fails_if_stream_does_not_exsist() {
 }
 
 #[test]
-fn xread_returns_newly_added_value_if_done_on_a_new_stream() {
+fn xread_returns_newly_added_field_if_done_on_a_new_stream() {
     tester(|repo| {
         let stream_key = "streamkey123";
-        let value = "abc";
-        let key = repo.xadd_auto_increment(stream_key, value, &std::time::UNIX_EPOCH);
-        let read = repo.read(stream_key, &key, usize::MAX).unwrap();
-        read.eq_values(&[value.to_string()]);
-        let read = repo.read(stream_key, &EntryId::min(), usize::MAX).unwrap();
-        read.eq_values(&[value.to_string()]);
+        let fields = vec![Field::new("abc", "xyz")];
+        repo.add_auto_increment(stream_key, fields.clone(), &std::time::UNIX_EPOCH);
+        let read = repo
+            .read(stream_key, &EntryId::new(0, 0), usize::MAX)
+            .unwrap();
+        assert_eq!(read.first().unwrap().fields, fields);
     });
 }
 
@@ -65,7 +60,11 @@ fn xread_returns_newly_added_value_if_done_on_a_new_stream() {
 fn xread_returns_empty_list_if_keys_not_found() {
     tester(|repo| {
         let stream_key = "streamKey";
-        let _ = repo.xadd_auto_increment(stream_key, "abc", &std::time::UNIX_EPOCH);
+        let _ = repo.add_auto_increment(
+            stream_key,
+            vec![Field::new("not gonna", "be found")],
+            &std::time::UNIX_EPOCH,
+        );
 
         let empty_list = repo.read(stream_key, &EntryId::max(), 1).unwrap();
         assert!(empty_list.is_empty());
@@ -76,27 +75,38 @@ fn seed_tester<F>(f: F) -> StreamRepository
 where
     F: FnOnce(&mut StreamRepository, &mut Vec<(String, Vec<Entry>)>) + std::panic::UnwindSafe,
 {
-    let values1 = ["First", "iOne", "Last"]
-        .into_iter()
-        .map(std::string::ToString::to_string)
-        .collect::<Vec<_>>();
-    let keys = [("abc", values1)];
+    let fields = [
+        [
+            Field::new("fsfsaf", "djfldasføl"),
+            Field::new("hello", "world"),
+            Field::new("what is", "up"),
+        ]
+        .to_vec(),
+        [Field::new("dfjsalkf", "djfldasføl")].to_vec(),
+        [
+            Field::new("fjk", "dfjk"),
+            Field::new("hello", "fsadfasdf"),
+            Field::new("SF", "left"),
+        ]
+        .to_vec(),
+    ];
+    let keys = [("abc", fields)];
     tester(|repo| {
         let mut keys = keys
             .into_iter()
-            .map(|(stream_key, values)| {
+            .map(|(stream_key, fields)| {
                 (
                     stream_key.to_string(),
-                    values
+                    fields
                         .into_iter()
-                        .map(|value| {
+                        .map(|fields| {
                             Entry::new(
-                                repo.xadd_auto_increment(
+                                repo.add_auto_increment(
                                     stream_key,
-                                    value.clone(),
+                                    fields.clone(),
                                     &std::time::UNIX_EPOCH,
                                 ),
-                                value,
+                                fields,
                             )
                         })
                         .collect::<Vec<_>>(),
@@ -123,8 +133,8 @@ fn xread_last() {
     seed_tester(|repo, keys| {
         let (stream_key, data) = keys.first().unwrap();
         let expected_last_entry = data.last().unwrap();
-        let read = repo.xread_last(stream_key).unwrap();
-        assert_eq!(read.value, *expected_last_entry.value);
+        let read = repo.read_last(stream_key).unwrap();
+        assert_eq!(read, *expected_last_entry);
     });
 }
 
@@ -237,17 +247,18 @@ fn blocking_returns_data_recived_during_block() {
             std::thread::sleep(std::time::Duration::from_millis(1));
             assert!(!handle.is_finished(), "{:?}", handle.join());
 
-            let new_value = "theNewValue";
-            let key = repo.xadd_auto_increment(stream_key, new_value, &std::time::UNIX_EPOCH);
+            let new_field = vec![Field::new("thenewKey", "theNewValue")];
+            let key =
+                repo.add_auto_increment(stream_key, new_field.clone(), &std::time::UNIX_EPOCH);
 
             dbg!(key);
             std::thread::sleep(std::time::Duration::from_millis(4));
             assert!(handle.is_finished());
             let res = handle.join().unwrap();
-            let BlockResult::Found(entry) = res else {
+            let BlockResult::Found(entries) = res else {
                 panic!()
             };
-            assert_eq!(entry.first().unwrap().value, new_value);
+            assert_eq!(entries.first().unwrap().fields, new_field);
         }
     });
 }
@@ -293,7 +304,7 @@ fn blocking_read_returns_data_recived_during_block() {
             let handle;
             {
                 let stream_key = stream_key.clone();
-                let entry_id = &entries.last().unwrap().id + 1;
+                let entry_id = entries.last().unwrap().id.clone();
                 handle = std::thread::spawn(move || {
                     repo2.read_blocking(stream_key, &entry_id, 10, block_duration)
                 });
@@ -302,16 +313,16 @@ fn blocking_read_returns_data_recived_during_block() {
             std::thread::sleep(std::time::Duration::from_millis(1));
             assert!(!handle.is_finished(), "{:?}", handle.join());
 
-            let new_value = "theNewValue";
-            repo.xadd_auto_increment(stream_key, new_value, &std::time::UNIX_EPOCH);
+            let new_value = vec![Field::new("someNewKey", "theNewValue")];
+            repo.add_auto_increment(stream_key, new_value.clone(), &std::time::UNIX_EPOCH);
 
             std::thread::sleep(std::time::Duration::from_millis(4));
             assert!(handle.is_finished());
             let res = handle.join().unwrap();
-            let BlockResult::Found(entry) = res else {
+            let BlockResult::Found(entries) = res else {
                 panic!()
             };
-            assert_eq!(entry.first().unwrap().value, new_value);
+            assert_eq!(entries.first().unwrap().fields, new_value);
         }
     });
 }
@@ -368,8 +379,8 @@ fn blocking_range_returns_data_recived_during_block() {
             std::thread::sleep(std::time::Duration::from_millis(1));
             assert!(!handle.is_finished(), "{:?}", handle.join());
 
-            let new_value = "theNewValue";
-            repo.xadd_auto_increment(stream_key, new_value, &std::time::UNIX_EPOCH);
+            let new_value = vec![Field::new("CoolKey", "theNewValue")];
+            repo.add_auto_increment(stream_key, new_value.clone(), &std::time::UNIX_EPOCH);
 
             std::thread::sleep(std::time::Duration::from_millis(4));
             assert!(handle.is_finished());
@@ -377,7 +388,7 @@ fn blocking_range_returns_data_recived_during_block() {
             let BlockResult::Found(entry) = res else {
                 panic!()
             };
-            assert_eq!(entry.first().unwrap().value, new_value);
+            assert_eq!(entry.first().unwrap().fields, new_value);
         }
     });
 }

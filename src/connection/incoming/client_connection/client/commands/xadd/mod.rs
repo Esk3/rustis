@@ -13,7 +13,7 @@ impl XAdd {
     fn handle_request(request: Request, repo: &Repository) -> Response {
         let stream_repo = repo.stream_repo();
         let key = match request.entry_id {
-            EntryIdKind::None(_) => stream_repo.xadd_auto_increment(
+            EntryIdKind::None(_) => stream_repo.add_auto_increment(
                 request.stream_key,
                 request.fields,
                 &request.timestamp,

@@ -18,6 +18,7 @@ pub struct Field {
 }
 
 impl Field {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(name: impl ToString, value: impl ToString) -> Self {
         Self {
             name: name.to_string(),
@@ -34,6 +35,7 @@ pub struct Entry {
 
 impl Entry {
     #[allow(clippy::needless_pass_by_value)]
+    #[must_use]
     pub fn new(id: EntryId, fields: Vec<Field>) -> Self {
         Self { id, fields }
     }
@@ -43,6 +45,7 @@ impl Entry {
         &self.id
     }
 
+    #[must_use]
     pub fn fields(&self) -> &[Field] {
         &self.fields
     }
@@ -55,8 +58,7 @@ impl From<Entry> for resp::Value {
             value
                 .fields
                 .into_iter()
-                .map(|field| [field.name, field.value])
-                .flatten()
+                .flat_map(|field| [field.name, field.value])
                 .map(resp::Value::simple_string)
                 .collect(),
         ]
@@ -139,7 +141,7 @@ impl Stream {
     #[must_use]
     pub fn read(&self, key: &EntryId, count: usize) -> Vec<Entry> {
         let start = match self.entries.binary_search_by_key(key, |e| e.id.clone()) {
-            Ok(i) => i,
+            Ok(i) => i + 1,
             Err(i) => i,
         };
         self.entries
