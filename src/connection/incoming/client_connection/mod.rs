@@ -1,11 +1,15 @@
 use tracing::instrument;
 
 use crate::{
-    connection::stream::{PipelineBuffer, Stream},
+    connection::stream::{self, PipelineBuffer, Stream},
     event::{EmitAll, EventEmitter},
 };
 
 pub mod client;
+
+pub use error::Error;
+
+pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub struct ClientConnection<'a, S> {
     connection: &'a mut PipelineBuffer<S>,
@@ -30,14 +34,14 @@ where
     }
 
     #[instrument(name = "client_connection", skip(self))]
-    pub fn run(&mut self) -> anyhow::Result<ClientConnectionResult> {
+    pub fn run(&mut self) -> Result<ClientConnectionResult> {
         tracing::info!("handling client connection");
         let mut request_id = 0;
         loop {
             request_id += 1;
             match self.handle_client_request(request_id).unwrap() {
                 ClientRequestResult::Ok => (),
-                ClientRequestResult::Close => todo!(),
+                ClientRequestResult::Close => return Err(Error::ConnectionClosed),
                 ClientRequestResult::ReplicationRequest(messages) => {
                     return Ok(ClientConnectionResult::ReplicationMessage(messages))
                 }
@@ -46,8 +50,13 @@ where
     }
 
     #[instrument(name = "handle_client_request", skip(self))]
-    fn handle_client_request(&mut self, request_id: usize) -> anyhow::Result<ClientRequestResult> {
-        let message = self.connection.read().unwrap();
+    fn handle_client_request(&mut self, request_id: usize) -> Result<ClientRequestResult> {
+        let message = match self.connection.read() {
+            Ok(msg) => msg,
+            Err(stream::Error::StreamClosed) => return Err(error::Error::ConnectionClosed),
+            Err(stream::Error::IoError(err)) => return Err(err.into()),
+            Err(stream::Error::ConnectinClosedUnexpectedly(err)) => return Err(err.into()),
+        };
 
         tracing::trace!("handling request: {message:?}");
         let request = client::Request::now(message.into());
@@ -78,4 +87,14 @@ pub enum ClientRequestResult {
     Ok,
     Close,
     ReplicationRequest(crate::Request),
+}
+
+pub mod error {
+    #[derive(thiserror::Error, Debug)]
+    pub enum Error {
+        #[error("connection closed")]
+        ConnectionClosed,
+        #[error("io error {0}")]
+        IoError(#[from] std::io::Error),
+    }
 }

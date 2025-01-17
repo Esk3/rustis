@@ -32,6 +32,12 @@ impl Queue {
     }
 }
 
+impl Default for Queue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum StoreResult {
     Ok,

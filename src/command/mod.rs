@@ -34,15 +34,27 @@ impl<Req, Res, S> CommandRouter<Req, Res, S> {
     where
         C: Command<Req, Res, S> + 'static,
     {
-        self.routes.add(
-            command.info().name.to_uppercase().as_bytes(),
-            Box::new(command),
-        );
+        if self
+            .routes
+            .add(
+                command.info().name.to_uppercase().as_bytes(),
+                Box::new(command),
+            )
+            .is_err()
+        {
+            panic!("error adding command to router")
+        };
         self
     }
 
     #[must_use]
     pub fn route(&self, cmd: &[u8]) -> Option<&dyn Command<Req, Res, S>> {
         self.routes.get(&cmd.to_ascii_uppercase()).map(|cmd| &**cmd)
+    }
+}
+
+impl<Req, Res, S> Default for CommandRouter<Req, Res, S> {
+    fn default() -> Self {
+        Self::new()
     }
 }

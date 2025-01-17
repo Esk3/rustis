@@ -1,3 +1,5 @@
+use event::EventEmitter;
+
 use crate::message::request::Standard;
 
 use super::*;
@@ -13,7 +15,7 @@ impl Test {
         let repo = Repository::default();
         let emitter = EventEmitter::new();
         Self {
-            leader: Leader::new(default_leader_router(), emitter.clone(), repo.clone()),
+            leader: Leader::new(default_leader_router(), repo.clone()),
             emitter,
             repo,
         }

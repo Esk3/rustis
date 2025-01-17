@@ -57,3 +57,9 @@ impl OutgoingHandshake {
         result.map(|s| s.map(std::convert::Into::into))
     }
 }
+
+impl Default for OutgoingHandshake {
+    fn default() -> Self {
+        Self::new()
+    }
+}

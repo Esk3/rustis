@@ -80,13 +80,14 @@ where
         <L as RedisListner>::Stream: std::marker::Send + 'static,
     {
         info!("accepting incoming connections");
-        for connection in self.listner.incoming() {
+        for (id, connection) in self.listner.incoming().enumerate() {
             info!("connection accepted");
             let connection = IncomingConnection::new(
                 connection,
                 self.client_router,
                 self.emitter.clone(),
                 self.repo.clone(),
+                id,
             );
             connection.spawn_handler();
         }

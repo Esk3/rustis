@@ -1,7 +1,7 @@
 use crate::{
     command::Command,
     repository::{
-        stream_repo::stream::{entry_id, EntryId, Field},
+        stream_repo::stream::{entry_id::EntryIdKind, EntryId, Field},
         Repository,
     },
     resp,
@@ -21,12 +21,9 @@ impl XAdd {
             EntryIdKind::Timestamp(partial_entry_id) => stream_repo
                 .add(request.stream_key, partial_entry_id, request.fields)
                 .unwrap(),
-            EntryIdKind::Full(entry_id) => {
-                todo!()
-                //stream_repo
-                //            .xadd(request.stream_key, entry_id, request.fields)
-                //            .unwrap()
-            }
+            EntryIdKind::Full(entry_id) => stream_repo
+                .add(request.stream_key, entry_id, request.fields)
+                .unwrap(),
         };
         Response::Ok(key)
     }
@@ -64,22 +61,7 @@ impl TryFrom<super::Request> for Request {
             fields.push(Field::new(name, value));
         }
 
-        let entry_id = match entry_id.as_str() {
-            "*" => EntryIdKind::None(entry_id::EmptyEntryId),
-            timestamp if timestamp.ends_with("-*") => {
-                let timestamp = timestamp.split('-').next().unwrap();
-                EntryIdKind::Timestamp(entry_id::TimestampEntryId::from_millis(
-                    timestamp.parse().unwrap(),
-                ))
-            }
-            full => {
-                let (timestamp, id) = full.split_once('-').unwrap();
-                EntryIdKind::Full(entry_id::EntryId::new(
-                    timestamp.parse().unwrap(),
-                    id.parse().unwrap(),
-                ))
-            }
-        };
+        let entry_id: EntryIdKind = entry_id.parse().unwrap();
         Ok(Self {
             stream_key,
             entry_id,
@@ -87,12 +69,6 @@ impl TryFrom<super::Request> for Request {
             timestamp,
         })
     }
-}
-
-enum EntryIdKind {
-    None(entry_id::EmptyEntryId),
-    Timestamp(entry_id::TimestampEntryId),
-    Full(entry_id::EntryId),
 }
 
 enum Response {

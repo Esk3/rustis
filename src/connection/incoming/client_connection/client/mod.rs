@@ -47,3 +47,15 @@ pub enum Result {
     Response(Response),
     ReplicationMessage(crate::Request),
 }
+
+pub mod error {
+    #[derive(thiserror::Error, Debug)]
+    pub enum Error {
+        #[error("command not found {0}")]
+        NotFound(String),
+        #[error("error parsing request")]
+        Parsing,
+        #[error("{0}")]
+        Any(#[from] anyhow::Error),
+    }
+}

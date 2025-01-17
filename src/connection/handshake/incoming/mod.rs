@@ -46,3 +46,9 @@ impl IncomingHandshake {
         Ok(resp::Value::simple_string(res))
     }
 }
+
+impl Default for IncomingHandshake {
+    fn default() -> Self {
+        Self::new()
+    }
+}

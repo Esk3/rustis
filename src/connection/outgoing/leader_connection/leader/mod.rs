@@ -1,7 +1,7 @@
 use crate::service::layers::command_router::Routeable;
 use crate::service::Service;
 use crate::{
-    event::{self, EventEmitter},
+    event::{self},
     repository::Repository,
     resp,
 };
@@ -28,36 +28,21 @@ impl Routeable for Request {
 
 pub struct Leader {
     service: LeaderService,
-    repo: Repository,
-    emitter: EventEmitter,
 }
 
 impl Leader {
     pub fn new(
         router: &'static crate::command::CommandRouter<Request, (), Repository>,
-        emitter: EventEmitter,
         repo: Repository,
     ) -> Self {
         let service = layers::ReplConf::new(layers::ResponseEater::new(
-            service::layers::command_router::CommandRouter::new(repo.clone(), router),
+            service::layers::command_router::CommandRouter::new(repo, router),
         ));
-        Self {
-            service,
-            repo,
-            emitter,
-        }
+        Self { service }
     }
 
     pub fn handle_request(&mut self, request: Request) -> anyhow::Result<LeaderResponse> {
         let result = self.service.call(request).unwrap();
-        //let result = match self.service.call(request) {
-        //    Ok(res) => res,
-        //    Err(err) => {
-        //        tracing::error!("{err:?}");
-        //        tracing::warn!("ignoring error");
-        //        return Ok(LeaderResponse::NONE);
-        //    }
-        //};
         Ok(match result {
             Response::NoResponse => LeaderResponse::NONE,
         })

@@ -29,7 +29,7 @@ where
     ) -> Self {
         Self {
             connection,
-            leader: Leader::new(router, emitter.clone(), repo),
+            leader: Leader::new(router, repo),
             emitter,
         }
     }

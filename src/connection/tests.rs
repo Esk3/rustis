@@ -10,7 +10,7 @@ use super::*;
 
 pub struct DummyConnection;
 impl std::io::Read for DummyConnection {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
         todo!()
     }
 }

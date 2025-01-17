@@ -26,20 +26,20 @@ where
         }
     }
 
-    pub fn read(&mut self) -> anyhow::Result<Message<resp::Value>> {
+    pub fn read(&mut self) -> super::Result<Message<resp::Value>> {
         if let Some(value) = self.read_buffer.pop() {
             tracing::trace!("value read from buffer: [{value:?}]");
             Ok(value)
         } else {
             self.read_buffer
-                .extend(self.connection.read_all().unwrap().into_iter().rev());
+                .extend(self.connection.read_all()?.into_iter().rev());
             tracing::trace!("values read into buffer: {:?}", self.read_buffer);
             tracing::trace!("value read from buffer: [{:?}]", self.read_buffer.last());
-            Ok(self.read_buffer.pop().unwrap())
+            Ok(self.read_buffer.pop().expect("`self.read_buffer` just got filled by reading inner so it should have item(s) to pop"))
         }
     }
 
-    pub fn write(&mut self, value: &resp::Value) -> anyhow::Result<usize> {
+    pub fn write(&mut self, value: &resp::Value) -> super::Result<usize> {
         let value = serialize_value(value);
         let len = value.len();
         tracing::trace!(
@@ -48,10 +48,7 @@ where
         );
         self.write_buffer.extend(value);
         if self.read_buffer.is_empty() {
-            self.connection
-                .inner()
-                .write_all(&self.write_buffer)
-                .unwrap();
+            self.connection.inner().write_all(&self.write_buffer)?;
             tracing::trace!(
                 "values written from buffer {:?}, {:?}",
                 self.write_buffer,
@@ -68,6 +65,7 @@ where
     pub fn inner(&mut self) -> &mut RedisConnection<S> {
         &mut self.connection
     }
+
     pub fn into_inner(self) -> RedisConnection<S> {
         self.connection
     }

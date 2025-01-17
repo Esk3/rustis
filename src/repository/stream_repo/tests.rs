@@ -52,7 +52,7 @@ fn xread_returns_newly_added_field_if_done_on_a_new_stream() {
         let read = repo
             .read(stream_key, &EntryId::new(0, 0), usize::MAX)
             .unwrap();
-        assert_eq!(read.first().unwrap().fields, fields);
+        assert_eq!(read.first().unwrap().fields(), fields);
     });
 }
 
@@ -122,7 +122,7 @@ fn keys_are_unique() {
     seed_tester(|_repo, stream_keys| {
         for (_stream_key, entires) in stream_keys {
             while let Some(entry) = entires.pop() {
-                assert_eq!(entires.iter().find(|e| e.id == entry.id), None);
+                assert_eq!(entires.iter().find(|e| e.id() == entry.id()), None);
             }
         }
     });
@@ -155,7 +155,7 @@ fn xrange_test() {
     seed_tester(|repo, stream_keys| {
         for (stream_key, entries) in stream_keys {
             let entry = entries.first().unwrap();
-            let found_values = repo.range(stream_key, &entry.id, &entry.id).unwrap();
+            let found_values = repo.range(stream_key, entry.id(), entry.id()).unwrap();
             assert_eq!(found_values, [entry.clone()], "{entry:?}, {entries:?}");
         }
     });
@@ -171,8 +171,8 @@ fn blocking_query_does_not_block_when_it_finds_data() {
             let block_duration = std::time::Duration::from_millis(10);
 
             let entry = entries.first().unwrap();
-            let result = repo.blocking_query(block_duration, |repo| {
-                let res = repo.range(key.clone(), &entry.id, &entry.id).unwrap();
+            let result = repo.blocking_query(Some(block_duration), |repo| {
+                let res = repo.range(key.clone(), entry.id(), entry.id()).unwrap();
                 if res.is_empty() {
                     BlockResult::NotFound
                 } else {
@@ -197,8 +197,8 @@ fn blocking_query_blocks_on_no_data_and_returns_none() {
             let start = std::time::Instant::now();
             let block_duration = std::time::Duration::from_millis(10);
 
-            let entry_id = &entries.last().unwrap().id + 1;
-            let result = repo.blocking_query(std::time::Duration::from_millis(100), |repo| {
+            let entry_id = entries.last().unwrap().id() + 1;
+            let result = repo.blocking_query(Some(std::time::Duration::from_millis(100)), |repo| {
                 let res = repo.range(key.clone(), &entry_id, &entry_id).unwrap();
                 if res.is_empty() {
                     BlockResult::NotFound
@@ -229,9 +229,9 @@ fn blocking_returns_data_recived_during_block() {
             let handle;
             {
                 let stream_key = stream_key.clone();
-                let entry = &entries.last().unwrap().id + 1;
+                let entry = entries.last().unwrap().id() + 1;
                 handle = std::thread::spawn(move || {
-                    repo2.blocking_query(block_duration, |repo: &StreamRepository| {
+                    repo2.blocking_query(Some(block_duration), |repo: &StreamRepository| {
                         repo.range(stream_key.clone(), &entry, &entry)
                             .map(|v| {
                                 if v.is_empty() {
@@ -258,7 +258,7 @@ fn blocking_returns_data_recived_during_block() {
             let BlockResult::Found(entries) = res else {
                 panic!()
             };
-            assert_eq!(entries.first().unwrap().fields, new_field);
+            assert_eq!(entries.first().unwrap().fields(), new_field);
         }
     });
 }
@@ -269,9 +269,9 @@ fn blocking_read_returns_not_found_if_no_data_in_range() {
         for (key, entries) in streams {
             let result = repo.read_blocking(
                 key,
-                &(&entries.last().unwrap().id + 1),
+                &(entries.last().unwrap().id() + 1),
                 10,
-                std::time::Duration::from_millis(10),
+                Some(std::time::Duration::from_millis(10)),
             );
             assert_eq!(result, BlockResult::NotFound);
         }
@@ -282,11 +282,12 @@ fn blocking_read_returns_not_found_if_no_data_in_range() {
 fn blocking_read_returns_found_data_as_normal() {
     seed_tester(|repo, streams| {
         for (key, entries) in streams {
-            let id = &entries.first().unwrap().id;
+            let id = entries.first().unwrap().id();
             let count = 2;
             let expected = repo.read(key.clone(), id, count).unwrap();
             assert!(!expected.is_empty(), "bad test. read is empty");
-            let actual = repo.read_blocking(key, id, count, std::time::Duration::from_millis(10));
+            let actual =
+                repo.read_blocking(key, id, count, Some(std::time::Duration::from_millis(10)));
             let BlockResult::Found(actual) = actual else {
                 panic!("expected BlockResult::Found got: {actual:?}");
             };
@@ -304,9 +305,9 @@ fn blocking_read_returns_data_recived_during_block() {
             let handle;
             {
                 let stream_key = stream_key.clone();
-                let entry_id = entries.last().unwrap().id.clone();
+                let entry_id = entries.last().unwrap().id().clone();
                 handle = std::thread::spawn(move || {
-                    repo2.read_blocking(stream_key, &entry_id, 10, block_duration)
+                    repo2.read_blocking(stream_key, &entry_id, 10, Some(block_duration))
                 });
             }
 
@@ -322,73 +323,7 @@ fn blocking_read_returns_data_recived_during_block() {
             let BlockResult::Found(entries) = res else {
                 panic!()
             };
-            assert_eq!(entries.first().unwrap().fields, new_value);
-        }
-    });
-}
-
-#[test]
-fn blocking_range_returns_not_found_if_no_data_in_range() {
-    seed_tester(|repo, streams| {
-        for (key, entries) in streams {
-            let entry_id = &entries.last().unwrap().id + 1;
-            let result = repo.range_blocking(
-                key,
-                &entry_id,
-                &entry_id,
-                std::time::Duration::from_millis(10),
-            );
-            assert_eq!(result, BlockResult::NotFound);
-        }
-    });
-}
-
-#[test]
-fn blocking_range_returns_found_data_as_normal() {
-    seed_tester(|repo, streams| {
-        for (key, entries) in streams {
-            let start = &(&entries.first().unwrap().id + 1);
-            let end = &(start + 1);
-            let expected = repo.range(key.clone(), start, end).unwrap();
-            assert!(!expected.is_empty(), "bad test. read is empty");
-            let actual = repo.range_blocking(key, start, end, std::time::Duration::from_millis(10));
-            let BlockResult::Found(actual) = actual else {
-                panic!("expected BlockResult::Found got: {actual:?}");
-            };
-            assert_eq!(actual, expected);
-        }
-    });
-}
-
-#[test]
-fn blocking_range_returns_data_recived_during_block() {
-    seed_tester(|repo, streams| {
-        for (stream_key, entries) in streams {
-            let block_duration = std::time::Duration::from_millis(100);
-            let repo2 = repo.clone();
-            let handle;
-            {
-                let stream_key = stream_key.clone();
-                let start = &entries.last().unwrap().id + 1;
-                let end = &start + 1;
-                handle = std::thread::spawn(move || {
-                    repo2.range_blocking(stream_key, &start, &end, block_duration)
-                });
-            }
-
-            std::thread::sleep(std::time::Duration::from_millis(1));
-            assert!(!handle.is_finished(), "{:?}", handle.join());
-
-            let new_value = vec![Field::new("CoolKey", "theNewValue")];
-            repo.add_auto_increment(stream_key, new_value.clone(), &std::time::UNIX_EPOCH);
-
-            std::thread::sleep(std::time::Duration::from_millis(4));
-            assert!(handle.is_finished());
-            let res = handle.join().unwrap();
-            let BlockResult::Found(entry) = res else {
-                panic!()
-            };
-            assert_eq!(entry.first().unwrap().fields, new_value);
+            assert_eq!(entries.first().unwrap().fields(), new_value);
         }
     });
 }

@@ -15,6 +15,8 @@ pub struct FollowerConnection<S> {
     emitter: EventEmitter,
 }
 
+pub type Error = anyhow::Error;
+
 impl<S> FollowerConnection<S>
 where
     S: Stream,

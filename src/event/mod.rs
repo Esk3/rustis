@@ -52,9 +52,8 @@ impl LockEventProducer {
 
     pub fn emit(&self, kind: Kind) {
         tracing::debug!("emitting event: {kind:?}");
-        self.subscribers.lock().unwrap().iter().for_each(|tx| {
-            tx.send(kind.clone());
-        });
+        let mut lock = self.subscribers.lock().unwrap();
+        lock.retain(|tx| tx.send(kind.clone()).is_ok());
     }
 
     #[must_use]
@@ -63,6 +62,12 @@ impl LockEventProducer {
         self.subscribers.lock().unwrap().push(tx);
         tracing::debug!("subscriber added");
         EventSubscriber::new(rx)
+    }
+}
+
+impl Default for LockEventProducer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

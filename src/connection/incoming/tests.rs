@@ -1,9 +1,6 @@
 use client_connection::client::default_router;
 
-use crate::{
-    connection::{DummyConnection},
-    message::request::Standard, resp,
-};
+use crate::{connection::DummyConnection, message::request::Standard, resp};
 
 use super::super::MockConnection;
 use super::*;
@@ -12,7 +9,7 @@ fn dummy_setup() -> IncomingConnection<DummyConnection> {
     let connection = DummyConnection;
     let repo = Repository::default();
     let emitter = EventEmitter::new();
-    IncomingConnection::new(connection, default_router(), emitter, repo)
+    IncomingConnection::new(connection, default_router(), emitter, repo, 123)
 }
 
 struct Tester {
@@ -37,12 +34,13 @@ impl Tester {
                 default_router(),
                 emitter.clone(),
                 repo.clone(),
+                123,
             ),
             emitter,
             repo,
         }
     }
-    fn run(self) -> anyhow::Result<()> {
+    fn run(self) -> Result<()> {
         self.connection.run_handler()
     }
 }
@@ -52,7 +50,7 @@ fn create_incoming_connection() {
     let connection = DummyConnection;
     let repo = Repository::default();
     let emitter = EventEmitter::new();
-    let _ = IncomingConnection::new(connection, default_router(), emitter, repo);
+    let _ = IncomingConnection::new(connection, default_router(), emitter, repo, 123);
 }
 
 #[test]

@@ -182,3 +182,47 @@ impl PartialEntryId for TimestampEntryId {
         None
     }
 }
+
+pub enum EntryIdKind {
+    None(EmptyEntryId),
+    Timestamp(TimestampEntryId),
+    Full(EntryId),
+}
+
+impl std::str::FromStr for EntryIdKind {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // TODO err handling
+        match s {
+            "*" => Ok(EntryIdKind::None(EmptyEntryId)),
+            timestamp if timestamp.ends_with("-*") => {
+                let timestamp = timestamp.split('-').next().unwrap();
+                Ok(EntryIdKind::Timestamp(TimestampEntryId::from_millis(
+                    timestamp.parse().unwrap(),
+                )))
+            }
+            full => {
+                let (timestamp, id) = full.split_once('-').unwrap();
+                Ok(EntryIdKind::Full(EntryId::new(
+                    timestamp.parse().unwrap(),
+                    id.parse().unwrap(),
+                )))
+            }
+        }
+    }
+}
+
+impl PartialEntryId for EntryIdKind {
+    fn into_entry_id_or_default(self, default: &EntryId) -> EntryId {
+        match self {
+            EntryIdKind::None(id) => id.into_entry_id_or_default(default),
+            EntryIdKind::Timestamp(id) => id.into_entry_id_or_default(default),
+            EntryIdKind::Full(id) => id.into_entry_id_or_default(default),
+        }
+    }
+
+    fn try_into_full_entry_id(self) -> Option<EntryId> {
+        todo!()
+    }
+}

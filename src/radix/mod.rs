@@ -1,3 +1,6 @@
+// TODO finish
+#![allow(clippy::all, dead_code, unused)]
+
 use crate::repository::stream_repo::stream::EntryId;
 
 #[cfg(test)]
@@ -156,25 +159,6 @@ impl RadixCmp for &str {
     }
 }
 
-struct RadixStreamIdKey {
-    key: [u8; std::mem::size_of::<u64>() * 8 * 2],
-}
-
-impl RadixCmp for RadixStreamIdKey {
-    fn find_common_prefix(&self, other: &Self) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        todo!()
-    }
-}
-
-impl From<EntryId> for RadixStreamIdKey {
-    fn from(value: EntryId) -> Self {
-        todo!()
-    }
-}
-
 pub trait IntoRadixKey {
     fn into_key(self) -> Vec<u8>;
 }
@@ -211,9 +195,7 @@ impl CommondPrefix for [u8] {
         Some(&self[0..count])
     }
     fn strip_common_prefix(&self, other: &[u8]) -> &[u8] {
-        let split = self
-            .common_prefix(other)
-            .map_or(0, <[u8]>::len);
+        let split = self.common_prefix(other).map_or(0, <[u8]>::len);
         &self[split..]
     }
 }

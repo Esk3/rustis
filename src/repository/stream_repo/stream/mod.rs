@@ -59,14 +59,6 @@ impl Stream {
         key
     }
 
-    pub fn add_with_partial_key(
-        &mut self,
-        key: impl PartialEntryId,
-        value: impl ToString,
-    ) -> EntryId {
-        todo!()
-    }
-
     pub fn try_add_with_key(
         &mut self,
         key: impl PartialEntryId,

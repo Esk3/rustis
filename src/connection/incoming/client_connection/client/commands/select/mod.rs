@@ -6,7 +6,11 @@ impl Command<super::Request, super::Response, Repository> for Select {
         crate::command::CommandInfo::new_name("SELECT")
     }
 
-    fn call(&self, request: super::Request, state: &Repository) -> anyhow::Result<super::Response> {
+    fn call(
+        &self,
+        _request: super::Request,
+        _state: &Repository,
+    ) -> anyhow::Result<super::Response> {
         tracing::warn!("SELECT not implimented");
         Ok(super::Response::ok())
     }

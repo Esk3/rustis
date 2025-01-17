@@ -1,10 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-use crate::{
-    config::Role,
-    connection::{DummyConnection},
-    listner::RedisListner,
-};
+use crate::{config::Role, connection::DummyConnection, listner::RedisListner};
 use builder::RedisBuilder;
 
 use super::*;
@@ -31,7 +27,7 @@ fn setup_follower() -> DummyRedis {
 
 #[test]
 fn create_redis_server() {
-    let redis_server = RedisBuilder::<_, DummyConnection>::new()
+    let _redis_server = RedisBuilder::<_, DummyConnection>::new()
         .listner(DummyListner)
         .repo(Repository::default())
         .emitter(EventEmitter::new())
@@ -162,6 +158,7 @@ impl RedisListner for DummyListner {
 
     fn incoming(self) -> impl Iterator<Item = Self::Stream> {
         panic!("incoming called on dummy listner");
+        #[allow(unreachable_code)]
         std::iter::once(DummyConnection)
     }
 

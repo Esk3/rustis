@@ -18,11 +18,11 @@ impl<S> ReplicationService<S> {
 
 impl<S> Service<client::Request> for ReplicationService<S>
 where
-    S: Service<client::Request, Error = anyhow::Error>,
+    S: Service<client::Request>,
 {
     type Response = ReplicationResponse<S::Response>;
 
-    type Error = anyhow::Error;
+    type Error = S::Error;
 
     fn call(&mut self, request: client::Request) -> Result<Self::Response, Self::Error> {
         if request.command().unwrap().eq_ignore_ascii_case("ReplConf") {

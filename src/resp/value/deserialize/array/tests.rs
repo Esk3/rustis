@@ -3,7 +3,10 @@ use super::*;
 #[test]
 fn deserialize_array_test() {
     let bytes = b"+Hello\r\n";
-    let arr = deserialize_array(bytes, 1).unwrap();
+    let (arr, bytes_used) = deserialize_array(bytes, 1).unwrap();
+    assert_eq!(bytes_used, bytes.len());
+    assert_eq!(arr.len(), 1);
+    assert_eq!(arr[0], Value::bulk_string("Hello"));
 }
 
 #[test]
@@ -32,6 +35,8 @@ fn deserialize_array_consumes_bytes_of_single_item_test() {
     let bytes = b"+MyStr\r\n";
     let (arr, bytes_consumed) = deserialize_array(bytes, 1).unwrap();
     assert_eq!(bytes_consumed, bytes.len());
+    assert_eq!(arr.len(), 1);
+    assert_eq!(arr[0], Value::simple_string("MyStr"));
 }
 
 #[test]

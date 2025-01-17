@@ -120,24 +120,6 @@ impl LockingStreamRepository {
         })
     }
 
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn range_blocking(
-        &self,
-        stream_key: impl ToString,
-        start: &EntryId,
-        end: &EntryId,
-        block_duration: Option<std::time::Duration>,
-    ) -> BlockResult<Vec<Entry>> {
-        self.blocking_query(block_duration, |_repo| {
-            let res = self.range(stream_key.to_string(), start, end).unwrap();
-            if res.is_empty() {
-                BlockResult::NotFound
-            } else {
-                BlockResult::Found(res)
-            }
-        })
-    }
-
     fn blocking_query<F, T>(
         &self,
         block_duration: Option<std::time::Duration>,

@@ -69,3 +69,9 @@ impl LockingMemoryRepository {
         is_empty
     }
 }
+
+impl Default for LockingMemoryRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}

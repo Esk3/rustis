@@ -13,9 +13,11 @@ mod tests;
 
 pub trait Stream: std::io::Read + std::io::Write {
     type Addr;
+
     fn connect(addr: Self::Addr) -> anyhow::Result<Self>
     where
         Self: Sized;
+
     fn peer_addr(&self) -> Self::Addr;
 }
 
