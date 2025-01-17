@@ -5,6 +5,7 @@ pub mod echo;
 pub mod get;
 pub mod info;
 pub mod ping;
+pub mod select;
 pub mod set;
 pub mod subscribe;
 pub mod xadd;

@@ -77,7 +77,7 @@ impl Command<super::Request, super::Response, Repository> for XRead {
 
 struct Request {
     count: Option<usize>,
-    block: Option<std::time::Duration>,
+    block: Option<Option<std::time::Duration>>,
     streams: Vec<Stream>,
 }
 
@@ -99,9 +99,12 @@ impl TryFrom<super::Request> for Request {
         let block = if iter.peek().unwrap().eq_ignore_ascii_case("BLOCK") {
             iter.next();
             args -= 2;
-            Some(std::time::Duration::from_millis(
-                iter.next().unwrap().parse().unwrap(),
-            ))
+            let millis = iter.next().unwrap().parse().unwrap();
+            if millis == 0 {
+                Some(None)
+            } else {
+                Some(Some(std::time::Duration::from_millis(millis)))
+            }
         } else {
             None
         };

@@ -25,10 +25,17 @@ impl Router {
     }
 }
 
+impl Default for Router {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[must_use]
 pub fn default_router() -> &'static Router {
     let mut router = Router::new();
     router
+        .add(super::commands::select::Select)
         .add(super::commands::xread::XRead)
         .add(super::commands::cluster::Cluster)
         .add(super::commands::subscribe::Subscribe)

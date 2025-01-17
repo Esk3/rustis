@@ -108,7 +108,7 @@ impl LockingStreamRepository {
         stream_key: impl ToString,
         entry_id: &EntryId,
         count: usize,
-        block_duration: std::time::Duration,
+        block_duration: Option<std::time::Duration>,
     ) -> BlockResult<Vec<Entry>> {
         self.blocking_query(block_duration, |_repo| -> BlockResult<Vec<Entry>> {
             let res = self.read(stream_key.to_string(), entry_id, count).unwrap();
@@ -126,7 +126,7 @@ impl LockingStreamRepository {
         stream_key: impl ToString,
         start: &EntryId,
         end: &EntryId,
-        block_duration: std::time::Duration,
+        block_duration: Option<std::time::Duration>,
     ) -> BlockResult<Vec<Entry>> {
         self.blocking_query(block_duration, |_repo| {
             let res = self.range(stream_key.to_string(), start, end).unwrap();
@@ -138,7 +138,11 @@ impl LockingStreamRepository {
         })
     }
 
-    fn blocking_query<F, T>(&self, block_duration: std::time::Duration, f: F) -> BlockResult<T>
+    fn blocking_query<F, T>(
+        &self,
+        block_duration: Option<std::time::Duration>,
+        f: F,
+    ) -> BlockResult<T>
     where
         F: Fn(&Self) -> BlockResult<T>,
     {
@@ -182,11 +186,15 @@ impl LockingStreamRepository {
         rx
     }
 
-    fn block<F, T>(&self, block_duration: std::time::Duration, f: F) -> BlockResult<T>
+    fn block<F, T>(&self, block_duration: Option<std::time::Duration>, f: F) -> BlockResult<T>
     where
         F: Fn(&Self) -> BlockResult<T>,
     {
-        let rx = self.get_listner_with_timeout(0, block_duration);
+        let rx = if let Some(block_duration) = block_duration {
+            self.get_listner_with_timeout(0, block_duration)
+        } else {
+            self.get_listner(0)
+        };
 
         for event in rx {
             match event {
