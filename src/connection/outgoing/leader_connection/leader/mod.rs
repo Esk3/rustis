@@ -66,6 +66,6 @@ impl LeaderResponse {
 pub fn default_leader_router(
 ) -> &'static crate::command::CommandRouter<crate::Request, (), Repository> {
     let mut router = crate::command::CommandRouter::new();
-    router.add(commands::set::Set);
+    router.add(commands::set::Set).add(commands::ping::Ping);
     Box::leak(Box::new(router))
 }

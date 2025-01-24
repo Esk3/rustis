@@ -10,7 +10,7 @@ pub mod bulk_string;
 pub mod integer;
 pub mod simple_error;
 pub mod simple_string;
-pub(super) mod util;
+pub mod util;
 
 use super::identifier::{GetIdentifier, Identifier};
 
