@@ -9,6 +9,7 @@ pub fn deserialize_header(mut bytes: &[u8]) -> anyhow::Result<(isize, usize)> {
     if bytes
         .first()
         .is_some_and(|byte| Identifier::from_byte(*byte).is_ok())
+        && bytes.first().is_some_and(|b| *b != b'-')
     {
         bytes = &bytes[1..];
         length += 1;
@@ -19,7 +20,7 @@ pub fn deserialize_header(mut bytes: &[u8]) -> anyhow::Result<(isize, usize)> {
     length += linefeed + 2;
     let digits = &bytes[..linefeed];
     let digits = String::from_utf8(digits.to_vec())?;
-    let number = digits.parse()?;
+    let number = dbg!(digits).parse()?;
     Ok((number, length))
 }
 

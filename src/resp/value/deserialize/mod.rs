@@ -2,57 +2,59 @@ use crate::resp::Value;
 use anyhow::bail;
 use array::deserialize_array;
 use bulk_string::deserialize_bulk_string;
+use info::MapValue;
 use simple_string::deserialize_simple_string;
 use util::GetHeader;
 
+pub use deserializer::Deserializer;
+
 pub mod array;
 pub mod bulk_string;
+mod deserializer;
+mod info;
 pub mod integer;
 pub mod simple_error;
 pub mod simple_string;
 pub mod util;
 
-use super::identifier::{GetIdentifier, Identifier};
+use super::{
+    identifier::{GetIdentifier, Identifier},
+    IntoRespArray,
+};
 
 #[cfg(test)]
 mod tests;
 
 pub fn deserialize_value(bytes: &[u8]) -> anyhow::Result<(Value, usize)> {
-    let ident = bytes.get_identifier()?;
+    let mut deserializer = Deserializer::new(bytes, 0);
+    let ident = deserializer
+        .advance(|bytes| {
+            let ident = bytes.get_identifier()?;
+            let size = ident.get_byte_length();
+            Ok(info::DeserializeInfo::new(ident, size))
+        })?
+        .value;
 
     let value = match ident {
-        Identifier::SimpleString => {
-            let (s, length) = deserialize_simple_string(&bytes[ident.get_byte_length()..]).unwrap();
-            (Value::SimpleString(s), length + ident.get_byte_length())
-        }
+        Identifier::SimpleString => deserializer
+            .deserialize(deserialize_simple_string)?
+            .map_value(Value::SimpleString),
         Identifier::SimpleError => todo!(),
         Identifier::Integer => todo!(),
         Identifier::BulkString => {
-            let (length, header_length) = bytes.get_header()?;
-            let Ok(length) = length.try_into() else {
-                if length != -1 {
-                    bail!("invalid length in header")
-                }
-                return Ok((Value::NullString, header_length));
-            };
-            let (bytes, length) = deserialize_bulk_string(&bytes[header_length..], length).unwrap();
-            let value = match String::from_utf8(bytes) {
-                Ok(s) => Value::BulkString(s),
-                Err(err) => Value::BulkByteString(err.into_bytes()),
-            };
-            (value, length + header_length)
+            deserializer.deserialize_header(Value::NullString, |bytes, length| {
+                deserialize_bulk_string(bytes, length).map_value(|bytes| {
+                    match String::from_utf8(bytes) {
+                        Ok(s) => Value::BulkString(s),
+                        Err(err) => Value::BulkByteString(err.into_bytes()),
+                    }
+                })
+            })?
         }
-        Identifier::Array => {
-            let (array_size, header_length) = bytes.get_header()?;
-            let Ok(array_size) = array_size.try_into() else {
-                if array_size != -1 {
-                    bail!("invalid length in header")
-                }
-                return Ok((Value::NullArray, header_length));
-            };
-            let (arr, array_length) = deserialize_array(&bytes[header_length..], array_size)?;
-            (Value::Array(arr), header_length + array_length)
-        }
+        Identifier::Array => deserializer
+            .deserialize_header(Value::NullArray, |bytes, length| {
+                deserialize_array(bytes, length).map_value(|value| value.into_array())
+            })?,
         Identifier::Null => todo!(),
         Identifier::Boolean => todo!(),
         Identifier::Double => todo!(),
@@ -64,5 +66,5 @@ pub fn deserialize_value(bytes: &[u8]) -> anyhow::Result<(Value, usize)> {
         Identifier::Set => todo!(),
         Identifier::Pushe => todo!(),
     };
-    Ok(value)
+    Ok(value.into())
 }

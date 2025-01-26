@@ -102,3 +102,11 @@ fn get_header_on_slice_follows_deserialize_header() {
         );
     }
 }
+
+#[test]
+fn read_negative_sized_header_without_identifier() {
+    let bytes = b"-1\r\n";
+    let (minus_1, size) = bytes.get_header().unwrap();
+    assert_eq!(minus_1, -1);
+    assert_eq!(size, bytes.len());
+}
