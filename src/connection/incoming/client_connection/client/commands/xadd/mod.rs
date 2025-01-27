@@ -54,7 +54,7 @@ impl TryFrom<super::Request> for Request {
         let stream_key = iter.next().unwrap();
         let entry_id = iter.next().unwrap();
         let timestamp = value.timestamp;
-        // TODO should be field then value
+
         let mut fields = Vec::new();
         while let Some(name) = iter.next() {
             let value = iter.next().unwrap();

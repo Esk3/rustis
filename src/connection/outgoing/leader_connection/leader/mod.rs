@@ -42,7 +42,13 @@ impl Leader {
     }
 
     pub fn handle_request(&mut self, request: Request) -> anyhow::Result<LeaderResponse> {
-        let result = self.service.call(request).unwrap();
+        let result = match self.service.call(request) {
+            Ok(response) => response,
+            Err(err) => {
+                tracing::error!("{err}");
+                return Ok(LeaderResponse::NONE);
+            }
+        };
         Ok(match result {
             Response::NoResponse => LeaderResponse::NONE,
         })
