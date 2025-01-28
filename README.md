@@ -1,5 +1,8 @@
  # Redis server
 
+ ![redis-cli before sending command to send data til other redis-cli waiting for data](./docs/redis_block_before.png)
+ ![redis-cli reciving data imidiately upon it being sent](./docs/redis_block_after.png)
+
 ## Run
 
 - installer redis-cli fra redis sin website
